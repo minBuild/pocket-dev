@@ -1,6 +1,6 @@
 // Pocket-Dev 웹 UI — 구독 CLI 엔진
 const $ = (s, el = document) => el.querySelector(s);
-const LS_KEY = "pocketdev.team.v2";
+const LS_KEY = "pocketdev.team.v3";  // v3: effort 기본값 medium
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
 
 let CFG = null, SESSION = null;
@@ -50,7 +50,7 @@ function modelPicker(target, value, onChange) {
   };
 
   const effort = document.createElement("select");
-  effort.className = "effort"; effort.title = "effort — 생각 깊이 (높을수록 꼼꼼하지만 한도를 더 씀)";
+  effort.className = "effort"; effort.title = "effort — 생각 깊이 (기본=medium, 높을수록 꼼꼼하지만 구독 한도를 훨씬 많이 씀)";
   EFFORTS.forEach(e => effort.add(new Option("⚡" + (e || "기본"), e)));
   effort.value = value.effort || "";
   effort.onchange = () => { value.effort = effort.value; onChange(); };
@@ -106,12 +106,14 @@ function renderTeam() {
   $("#maxRounds").onchange = e => { state.max_rounds = +e.target.value; save(); };
   $("#branch").value = state.branch;
   $("#branch").onchange = e => { state.branch = e.target.value; save(); };
-  $("#planGate").checked = state.plan_gate !== false;
-  $("#planGate").onchange = e => { state.plan_gate = e.target.checked; save(); };
+  document.querySelectorAll("input[name=planGate]").forEach(r => {
+    r.checked = (r.value === "review") === (state.plan_gate !== false);
+    r.onchange = () => { state.plan_gate = $("input[name=planGate]:checked").value === "review"; save(); };
+  });
 }
 
 const persona = id => (CFG.team.participants.find(p => p.id === id) || {}).persona || "";
-const member = (id, name, model) => ({ id, name, engine: "claude", model, effort: "", enabled: true, persona: persona(id) });
+const member = (id, name, model) => ({ id, name, engine: "claude", model, effort: model.includes("haiku") ? "" : "medium", enabled: true, persona: persona(id) });
 const PRESETS = {
   duo: () => [member("architect", "수석 아키텍트", "claude-opus-5-5"), member("engineer", "수석 엔지니어", "claude-sonnet-5-5")],
   trio: () => [...PRESETS.duo(), member("qa", "제품/QA 리뷰어", "claude-haiku-5-5")],
@@ -120,12 +122,12 @@ const PRESETS = {
 
 function renderEngineStatus() {
   const s = CFG.engines.claude?.status || {};
-  let html;
+  let html = "";  // 문제가 있을 때만 표시
   if (!s.installed) html = `❌ <b>Claude Code 미설치</b> — PC에 설치 후 <code>claude auth login</code>`;
   else if (!s.logged_in) html = `❌ <b>Claude 로그인 필요</b> — PC에서 <code>claude auth login</code> (구독 계정)`;
   else if (s.method !== "claude.ai") html = `⚠️ Claude 가 구독이 아닌 <b>${esc(s.method)}</b> 방식으로 로그인됨 — 크레딧 과금될 수 있어요`;
-  else html = `✅ <b>Claude ${esc((s.plan || "").toUpperCase())} 구독</b>으로 동작 (API 키 · 크레딧 결제 없음)`;
   $("#engineStatus").innerHTML = html;
+  $("#engineStatus").hidden = !html;
 }
 
 // ── 실행 화면 ──
@@ -218,38 +220,55 @@ function handle(ev, live = true) {
       if (ev.status === "done") addRollback();
       break;
   }
-  if (live) { renderActionBar(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
+  if (live) { renderComposer(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
 }
 
-function renderActionBar() {
-  const bar = $("#actionBar");
+// ── 작업 화면 채팅창 (상황에 따라 버튼·안내가 바뀜) ──
+function renderComposer() {
+  const box = $("#composer");
+  if (!currentRun || $("#tab-run").hidden) { box.hidden = true; return; }
+  box.hidden = false;
   const [key, ev] = [...pending.entries()].pop() || [];
-  if (!key) { bar.hidden = true; return; }
-  bar.hidden = false;
-  $("#replyText").hidden = ev.kind === "limit";
-  const btns = $("#actionButtons"); btns.innerHTML = "";
-  const btn = (label, action, cls = "") => {
+  const status = currentRun.status, alive = ["running", "awaiting_user"].includes(status);
+  const info = $("#composerInfo"), acts = $("#composerActions"), ta = $("#composerText");
+  info.innerHTML = ""; acts.innerHTML = "";
+  const btn = (label, onClick, cls = "") => {
     const b = document.createElement("button"); b.textContent = label; b.className = cls;
-    b.onclick = async () => {
-      b.disabled = true;
-      try { await post(`/api/runs/${currentRun.id}/reply`, { key, action, text: $("#replyText").value }); $("#replyText").value = ""; }
-      catch (e) { alert(e.message); b.disabled = false; }
-    };
-    btns.append(b);
+    b.onclick = async () => { b.disabled = true; try { await onClick(); } catch (e) { alert(e.message); } b.disabled = false; };
+    acts.append(b);
   };
-  if (ev.kind === "plan") {
-    $("#actionInfo").innerHTML = "📋 <b>기획안이 나왔어요.</b> 승인하면 구현 → 리뷰 → push 까지 자동으로 진행됩니다.";
-    btn("🚀 승인하고 진행", "approve", "primary");
-    btn("💬 의견 보내고 1라운드 더", "feedback");
-    btn("취소", "cancel", "danger");
-  } else if (ev.kind === "limit") {
-    $("#actionInfo").innerHTML = `⏳ <b>구독 사용량 한도에 도달했어요.</b> ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동으로 이어서 진행합니다.<div class="muted">${esc(ev.text)}</div>`;
-    btn("🔁 지금 재시도", "retry", "primary");
+  const reply = async action => { await post(`/api/runs/${currentRun.id}/reply`, { key, action, text: ta.value.trim() }); ta.value = ""; };
+  if (ev?.kind === "plan") {
+    info.innerHTML = "📋 <b>기획안이 나왔어요.</b> 수정할 점을 보내면 반영해서 다시 기획하고, 승인하면 구현 → 리뷰 → push 까지 자동으로 진행해요.";
+    ta.placeholder = "수정 요청 (예: 결제는 빼고, 로그인은 구글로)";
+    btn("🚀 승인하고 진행", () => reply("approve"), "primary");
+    btn("취소", () => reply("cancel"), "danger");
+  } else if (ev?.kind === "limit") {
+    info.innerHTML = `⏳ <b>구독 사용량 한도에 걸렸어요.</b> ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동으로 이어서 진행해요.<div class="muted">${esc(ev.text)}</div>`;
+    ta.placeholder = "메시지를 보내면 바로 다시 시도해요";
+    btn("🔁 지금 재시도", () => reply("retry"), "primary");
+  } else if (ev) {
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input.command || ev.input.file_path || "").slice(0, 120))}</code>`;
+    ta.placeholder = "메모 (다음 단계에 반영돼요)";
+    btn("✅ 허용", () => reply("allow"), "primary");
+    btn("⛔ 거부", () => reply("deny"), "danger");
+  } else if (alive) {
+    ta.placeholder = "진행 중 — 보낸 메시지는 다음 단계에 반영돼요";
+  } else if (status === "done") {
+    ta.placeholder = "추가로 바꾸고 싶은 걸 보내면 한 번 더 작업해요";
   } else {
-    $("#actionInfo").innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input.command || ev.input.file_path || "").slice(0, 120))}</code>`;
-    btn("✅ 허용", "allow", "primary");
-    btn("⛔ 거부", "deny", "danger");
+    info.innerHTML = "⏸ <b>멈춘 작업이에요.</b> 멈춘 단계부터 이어서 진행할 수 있어요.";
+    ta.placeholder = "추가 지시가 있으면 적어서 보내세요 (보내면 이어서 진행)";
+    btn("▶ 이어서 진행", () => sendMessage(""), "primary");
   }
+}
+
+async function sendMessage(text) {
+  const r = await post(`/api/runs/${currentRun.id}/message`, { text });
+  $("#composerText").value = "";
+  if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "running"; $("#rollbackBtn")?.remove(); }
+  renderComposer();
+  return r;
 }
 
 function addRollback() {
@@ -276,7 +295,7 @@ function openRun(run) {
       currentRun = ev.run;
       ev.events.forEach(e => handle(e, false));
       for (const k of [...pending.keys()]) if (!ev.run.pending.includes(k)) pending.delete(k);  // 이미 처리된 요청 제거
-      renderActionBar(); scrollTo(0, document.body.scrollHeight);
+      renderComposer(); scrollTo(0, document.body.scrollHeight);
     } else handle(ev);
   };
 }
@@ -285,7 +304,7 @@ function openRun(run) {
 function show(tab) {
   ["new", "runs", "run"].forEach(t => $("#tab-" + t).hidden = t !== tab);
   document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-  if (tab !== "run") { $("#actionBar").hidden = true; if (es) { es.close(); es = null; } }
+  if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
   if (tab === "runs") loadRuns();
 }
 
@@ -395,9 +414,15 @@ async function startApp() {
   document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
   document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { state.participants = PRESETS[b.dataset.preset](); save(); renderTeam(); });
   $("#addParticipant").onclick = () => { state.participants.push({ ...member("p" + Date.now(), "참가자", "claude-sonnet-5-5"), persona: "" }); save(); renderTeam(); };
-  $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "" }); save(); renderTeam(); };
+  $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
+  const send = () => {
+    const text = $("#composerText").value.trim();
+    if (text) sendMessage(text).catch(e => alert(e.message));
+  };
+  $("#sendBtn").onclick = send;
+  $("#composerText").onkeydown = e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } };
   $("#cancelBtn").onclick = async () => { if (currentRun && confirm("이 작업을 중단할까요?")) await post(`/api/runs/${currentRun.id}/cancel`, {}); };
   $("#startBtn").onclick = async () => {
     const idea = $("#idea").value.trim();

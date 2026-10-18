@@ -9,9 +9,10 @@ import os
 import re
 import shutil
 import time
+from datetime import datetime, timedelta
 from typing import Awaitable, Callable, Optional
 
-from .config import DATA_DIR
+from .config import CONFIG, DATA_DIR
 
 OnText = Optional[Callable[[str], Awaitable[None]]]
 
@@ -20,7 +21,11 @@ SANDBOX.mkdir(parents=True, exist_ok=True)
 
 # 이 변수가 있으면 claude 가 구독 대신 API 과금으로 동작하므로 자식 프로세스에서 지운다
 API_AUTH_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
-LIMIT_RE = re.compile(r"usage limit|limit reached|hit your limit|rate.?limit|resets? (at|in)\b|\b429\b", re.I)
+# 예: "You've hit your session limit · resets 12:40am (Asia/Seoul)", "Claude AI usage limit reached|1760800000"
+LIMIT_RE = re.compile(r"(usage|session|weekly|daily|5-hour|opus|sonnet)[\s-]+limit|limit (reached|exceeded)"
+                      r"|hit your .{0,20}limit|rate.?limit|out of (extra )?usage|\b429\b", re.I)
+RESET_RE = re.compile(r"resets?\s+(?:at\s+)?(?:(?P<mon>[A-Za-z]{3})[a-z]*\.?\s+(?P<day>\d{1,2}),?\s+(?:at\s+)?)?"
+                      r"(?P<h>\d{1,2})(?::(?P<m>\d{2}))?\s*(?P<ap>am|pm)?(?:\s*\((?P<tz>[^)]+)\))?", re.I)
 
 
 class UsageLimitError(RuntimeError):
@@ -31,12 +36,48 @@ class UsageLimitError(RuntimeError):
         self.reset_at = reset_at
 
 
+def parse_reset(message: str) -> Optional[float]:
+    """한도 메시지에서 리셋 시각(epoch 초)을 읽는다. 'resets 12:40am (Asia/Seoul)' · 'resets Oct 20, 3pm' · '|epoch'"""
+    m = re.search(r"\|(\d{10})\b", message)
+    if m:
+        return float(m.group(1))
+    m = RESET_RE.search(message)
+    if not m:
+        return None
+    tz = None
+    if m.group("tz"):
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(m.group("tz").strip())
+        except Exception:
+            tz = None  # 시간대 정보를 못 읽으면 이 PC 의 시간대로
+    now = datetime.now(tz) if tz else datetime.now().astimezone()
+    hour, minute = int(m.group("h")), int(m.group("m") or 0)
+    if m.group("ap"):
+        hour = hour % 12 + (12 if m.group("ap").lower() == "pm" else 0)
+    if hour > 23 or minute > 59:
+        return None
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if m.group("mon"):
+        try:
+            target = target.replace(month=datetime.strptime(m.group("mon")[:3].title(), "%b").month,
+                                    day=int(m.group("day")))
+        except ValueError:
+            pass
+        if target < now - timedelta(days=1):
+            target = target.replace(year=target.year + 1)
+    else:
+        if target <= now:
+            target += timedelta(days=1)
+        if target - now > timedelta(hours=6):  # 날짜 없는 리셋(세션 한도)이 6시간 넘게 남았다면 잘못 읽은 것
+            return None
+    return target.timestamp()
+
+
 def check_limit(message: str) -> None:
     """한도 관련 오류 메시지면 UsageLimitError 로 바꿔 던진다."""
     if message and LIMIT_RE.search(message):
-        m = re.search(r"\|(\d{10})\b", message)
-        raise UsageLimitError(message.split("|")[0].strip() or "구독 사용량 한도 도달",
-                              float(m.group(1)) if m else None)
+        raise UsageLimitError(message.split("|")[0].strip() or "구독 사용량 한도 도달", parse_reset(message))
 
 
 def claude_bin() -> str:
@@ -115,8 +156,10 @@ async def generate(engine: str, model: str, system: str, prompt: str, *,
     if tools:
         args += ["--allowedTools", *tools]
 
+    max_out = CONFIG["debate"].get("max_output_tokens")
+    env = subscription_env(**({"CLAUDE_CODE_MAX_OUTPUT_TOKENS": str(max_out)} if max_out else {}))
     proc = await asyncio.create_subprocess_exec(
-        *args, cwd=cwd or str(SANDBOX), env=subscription_env(),
+        *args, cwd=cwd or str(SANDBOX), env=env,
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE, limit=32 * 1024 * 1024)
     proc.stdin.write(prompt.encode("utf-8"))

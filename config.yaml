@@ -36,6 +36,7 @@ team:
       name: "수석 아키텍트"
       engine: claude
       model: claude-opus-5-5
+      effort: medium       # 생각 깊이 — 기본(미지정)은 Opus 가 생각 토큰을 수만 개씩 써서 Pro 한도가 금방 참
       enabled: true
       persona: >
         당신은 수석 소프트웨어 아키텍트입니다. 프로젝트 구조를 분석해
@@ -44,6 +45,7 @@ team:
       name: "수석 엔지니어"
       engine: claude
       model: claude-sonnet-5-5
+      effort: medium
       enabled: true
       persona: >
         당신은 수석 구현 엔지니어입니다. 다른 참가자의 설계안을 비판적으로 검토해
@@ -59,10 +61,10 @@ team:
         테스트 시나리오, 범위가 과도한 부분(오버엔지니어링)을 지적하세요.
 
   # 토론 결과를 TASK_SPEC.md 로 정리
-  synthesizer: { engine: claude, model: claude-opus-5-5 }
+  synthesizer: { engine: claude, model: claude-opus-5-5, effort: medium }
   # 기획안 검토 + 코드 리뷰 (여러 명 가능)
   reviewers:
-    - { engine: claude, model: claude-sonnet-5-5 }
+    - { engine: claude, model: claude-sonnet-5-5, effort: medium }
   # Claude Code 권한 요청 심사 — 자주 불리니 가벼운 모델 추천
   permission_reviewers:
     - { engine: claude, model: claude-haiku-5-5 }
@@ -72,12 +74,15 @@ debate:
   context_char_budget: 30000 # 프롬프트에 미리 넣는 파일 목록·내용 (나머지는 AI 가 직접 열어봄)
   read_tools: [Read, Grep, Glob]   # 토론·리뷰 참가자가 쓸 수 있는 읽기 전용 도구
   turn_timeout_sec: 1800
+  max_output_tokens: 32000  # 응답 한 번의 출력(생각 포함) 상한 — 생각 폭주로 한도가 바닥나는 것 방지
 
 plan_review:
   enabled: true
   max_revisions: 1
 
 engine:
+  # 역할에 effort 를 안 정했을 때 쓰는 생각 깊이 (Haiku 제외). 비우면 Claude Code 기본값(깊게 생각 → 한도 많이 씀)
+  default_effort: medium
   # 구독 사용량 한도에 걸리면 리셋 시각까지 기다렸다 자동 재시도 (시각을 모르면 이 간격)
   limit_retry_minutes: 30
 

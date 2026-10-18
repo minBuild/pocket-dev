@@ -290,8 +290,61 @@ async def reply(run_id: str, req: ReplyReq):
     value = {"action": req.action, "text": req.text, "allow": req.action in ("allow", "approve")}
     if not run.resolve(req.key, value):
         raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
+    if req.key == "plan" and req.text.strip():
+        await run.emit("user", text=req.text.strip())
     await run.emit("user_reply", key=req.key, action=req.action, text=req.text)
     return {"ok": True}
+
+
+class MessageReq(BaseModel):
+    text: str = ""
+
+
+def _is_resume(text: str) -> bool:
+    """'이어서 진행해줘' 처럼 재개만 요청하는 말인지 (지시 내용이 없는지)."""
+    t = re.sub(r"[\s.!~,]+", "", text)
+    return t == "" or re.fullmatch(r"(이어서|계속|재개|다시)(진행|시작)?(해|해줘|해주세요|하자|가자|ㄱㄱ)?"
+                                   r"|진행(해|해줘|해주세요|하자)?|go|continue|resume", t, re.I) is not None
+
+
+@app.post("/api/runs/{run_id}/message")
+async def run_message(run_id: str, req: MessageReq):
+    """작업 화면 채팅 — 기획안 수정 요청 · 진행 중 메모 · 멈춘 작업 재개 · 완료 후 추가 요청."""
+    run = _run(run_id)
+    text, resume_only = req.text.strip(), _is_resume(req.text)
+    if "plan" in run.waiters:  # 기획안 승인 대기 중 → 수정 요청
+        if resume_only:
+            raise HTTPException(400, "승인은 '승인하고 진행' 버튼으로, 수정할 점은 내용을 적어서 보내 주세요")
+        await run.emit("user", text=text)
+        run.resolve("plan", {"action": "feedback", "text": text})
+        await run.emit("user_reply", key="plan", action="feedback", text=text)
+        return {"mode": "feedback"}
+    if text:
+        await run.emit("user", text=text)
+    limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
+    if limit_keys:  # 한도 대기 중 → 바로 재시도
+        if not resume_only:
+            run.notes.append(text)
+        for key in limit_keys:
+            run.resolve(key, {"action": "retry"})
+            await run.emit("user_reply", key=key, action="retry", text="")
+        return {"mode": "retry"}
+    if run.alive:  # 진행 중 → 다음 단계에 반영
+        if not resume_only:
+            run.notes.append(text)
+            run.save()
+        return {"mode": "queued" if not resume_only else "running"}
+    if run.status == "done":
+        if resume_only:
+            raise HTTPException(400, "이미 끝난 작업이에요. 추가로 바꿀 내용을 적어 주세요")
+        pipeline.start_followup(run, text)
+        mode = "followup"
+    else:  # 멈춘 작업 → 멈춘 단계부터 재개
+        if not resume_only:
+            run.notes.append(text)
+        mode = "resumed"
+    run.task = asyncio.create_task(pipeline.run_pipeline(run, PORT))
+    return {"mode": mode}
 
 
 @app.post("/api/runs/{run_id}/cancel")

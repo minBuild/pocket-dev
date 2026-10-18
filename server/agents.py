@@ -12,6 +12,15 @@ from .runs import Run
 ICON = {"claude": "🟧", "codex": "🟩", "gemini": "🟦"}
 
 
+def effort_of(who: dict) -> str | None:
+    """역할에 effort 를 안 정했으면 기본값(medium) — Opus 가 기본 깊이로 생각 토큰을 수만 개씩 써서 구독 한도를 태우는 것 방지."""
+    if who.get("effort"):
+        return who["effort"]
+    if "haiku" in who.get("model", ""):
+        return None
+    return CONFIG["engine"].get("default_effort") or None
+
+
 def extract_json(text: str) -> dict:
     """모델 응답에서 첫 JSON 객체를 뽑는다 (```json 블록 포함)."""
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.S)
@@ -75,7 +84,7 @@ async def speak(run: Run, who: dict, system: str, prompt: str, *, kind: str = "d
         try:
             res = await generate(who["engine"], who["model"], system, prompt,
                                  cwd=run.project if tools else None, tools=tools,
-                                 effort=who.get("effort") or None, on_text=on_text, on_tool=on_tool,
+                                 effort=effort_of(who), on_text=on_text, on_tool=on_tool,
                                  timeout=timeout or CONFIG["debate"]["turn_timeout_sec"])
         except Exception as e:
             await run.emit("message_end", msg_id=msg_id, text=f"⚠️ {e}", error=True)
@@ -102,33 +111,50 @@ DEBATE_RULES = """
 - 사용자는 아이디어만 줬습니다. 사용자에게 질문하지 말고 합리적인 가정을 명시한 뒤 진행하세요.
 - 작업 폴더는 프로젝트 루트입니다. 아래에 없는 파일 내용이 필요하면 Read/Grep/Glob 도구로 직접 확인하세요.
   (파일 수정은 불가. 사용량을 아끼기 위해 꼭 필요한 파일만 읽으세요.)
+- 답변은 핵심 위주로 간결하게, 3,000자 안팎으로. 이미 합의된 내용은 다시 풀어 쓰지 말고 바뀐 점만 쓰세요.
 - 답변 마지막 줄은 반드시 다음 중 하나:
   VERDICT: AGREE   (현재 논의된 안을 이대로 구현해도 된다)
   VERDICT: REVISE  (아직 고쳐야 할 점이 있다)
 """
 
 
-async def debate(run: Run, participants: list[dict], idea: str, context: str,
-                 history: list[dict], max_rounds: int) -> list[dict]:
-    """참가자들이 라운드를 돌며 토론. 한 라운드에서 전원 AGREE 면 조기 종료."""
+def pid(p: dict) -> str:
+    return p.get("id") or p["name"]
+
+
+async def debate(run: Run, participants: list[dict], idea: str, context: str, take_notes) -> None:
+    """체크포인트의 라운드 범위만큼 토론. 이미 발언한 (라운드, 참가자)는 건너뛰어서 중간부터 재개된다.
+    한 라운드에서 전원 AGREE 면 조기 종료. take_notes() 는 진행 중 받은 사용자 메시지를 꺼낸다."""
     tools = CONFIG["debate"]["read_tools"]
-    for rnd in range(1, max_rounds + 1):
-        await run.emit("stage", stage="debate", label=f"설계 토론 {rnd}/{max_rounds} 라운드")
+    history, cp = run.history, run.checkpoint
+    rnd, until = cp.get("round_from", 1), cp.get("round_until", 1)
+    while rnd <= until:
+        await run.emit("stage", stage="debate", label=f"설계 토론 {rnd}/{until} 라운드")
         verdicts = []
         for p in participants:
-            system = p["persona"].strip() + "\n" + DEBATE_RULES
-            prompt = (f"[프로젝트 컨텍스트]\n{context}\n\n[사용자 아이디어]\n{idea}\n\n"
-                      f"[지금까지의 토론]\n{_transcript(history) or '(아직 없음 — 당신이 첫 발언자입니다. 초안을 제시하세요.)'}\n\n"
-                      f"당신은 '{p['name']}' 입니다. 라운드 {rnd}. 의견을 제시하세요.")
-            text = await speak(run, p, system, prompt, tools=tools)
-            history.append({"name": p["name"], "model": p["model"], "text": text})
-            verdicts.append(verdict(text))
+            said = next((h for h in history if h.get("round") == rnd and h.get("pid") == pid(p)), None)
+            if said is None:
+                for note in take_notes():
+                    history.append({"round": rnd, "pid": "user", "name": "사용자", "model": "human", "text": note})
+                system = p["persona"].strip() + "\n" + DEBATE_RULES
+                prompt = (f"[프로젝트 컨텍스트]\n{context}\n\n[사용자 아이디어]\n{idea}\n\n"
+                          f"[지금까지의 토론]\n{_transcript(history) or '(아직 없음 — 당신이 첫 발언자입니다. 초안을 제시하세요.)'}\n\n"
+                          f"당신은 '{p['name']}' 입니다. 라운드 {rnd}. 의견을 제시하세요.")
+                text = await speak(run, p, system, prompt, tools=tools)
+                said = {"round": rnd, "pid": pid(p), "name": p["name"], "model": p["model"], "text": text}
+                history.append(said)
+                run.save()
+            verdicts.append(verdict(said["text"]))
         await run.emit("log", text=f"라운드 {rnd} 판정: " + ", ".join(
             f"{p['name']}={v}" for p, v in zip(participants, verdicts)))
         if all(v == "AGREE" for v in verdicts):
             await run.emit("log", text="✅ 전원 합의 — 토론 종료")
             break
-    return history
+        rnd += 1
+
+
+def last_round(history: list[dict]) -> int:
+    return max((h.get("round", 0) for h in history), default=0)
 
 
 SPEC_SYSTEM = """당신은 테크 리드입니다. 팀 토론 내용과 사용자 지시를 종합해 Claude Code 가 바로 구현할 수 있는
@@ -197,7 +223,7 @@ async def judge_permission(r: dict, spec: str, project: str, tool_name: str, too
               f"[요청된 도구]\n{tool_name}\n\n[입력]\n{json.dumps(tool_input, ensure_ascii=False, indent=2)[:8000]}")
     try:
         res = await generate(r["engine"], r["model"], PERMISSION_SYSTEM, prompt,
-                             cwd=str(SANDBOX), effort=r.get("effort") or None, timeout=180)
+                             cwd=str(SANDBOX), effort=effort_of(r), timeout=180)
         d = extract_json(res["text"])
         decision = d.get("decision", "deny")
         if decision not in ("allow", "deny", "ask_human"):
