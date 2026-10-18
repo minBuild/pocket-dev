@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Pocket-Dev</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+</head>
+<body>
+<!-- 로그인 -->
+<section id="tab-login" class="gate" hidden>
+  <form id="loginForm" class="card login-card" autocomplete="on">
+    <h1>Pocket-Dev</h1>
+    <p class="muted">아이디 · 비밀번호 · 액세스 토큰이 모두 맞아야 들어갈 수 있어요.<br>3번 틀리면 공개 주소가 잠겨요.</p>
+    <label>아이디<input id="loginId" name="username" autocomplete="username" required></label>
+    <label>비밀번호<input id="loginPw" name="password" type="password" autocomplete="current-password" required></label>
+    <label>액세스 토큰<input id="loginToken" name="token" type="password" autocomplete="off" required></label>
+    <p id="loginError" class="error" hidden></p>
+    <button class="primary" id="loginBtn">로그인</button>
+  </form>
+</section>
+
+<!-- 잠김 -->
+<section id="tab-locked" class="gate" hidden>
+  <div class="card login-card">
+    <h1>🔒 잠겨 있어요</h1>
+    <p>로그인 실패가 3번 쌓여서 공개 주소를 닫았어요.</p>
+    <p class="muted">풀려면 둘 중 하나:<br>
+      ① 폰에서 Tailscale 을 켜고 사설 주소(100.x)로 접속 → 로그인 → 잠금 해제<br>
+      ② 집 PC에서 <code>unlock.bat</code> 실행</p>
+  </div>
+</section>
+
+<div id="app" hidden>
+<header class="top">
+  <strong>Pocket-Dev</strong>
+  <select id="project"></select>
+  <span id="branchBadge" class="badge"></span>
+  <nav>
+    <button data-tab="new" class="active">새 작업</button>
+    <button data-tab="runs">기록</button>
+    <button id="logoutBtn" title="로그아웃">⏻</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 새 작업 -->
+  <section id="tab-new">
+    <div id="lockBanner" class="lock-banner" hidden></div>
+    <p id="engineStatus" class="engine-status"></p>
+
+    <div class="card">
+      <h2>💡 아이디어</h2>
+      <textarea id="idea" rows="4" placeholder="예) 보상형 광고 시청 후 포인트를 지급하는 로직과 UI 추가"></textarea>
+      <label class="row"><input type="checkbox" id="planGate" checked>
+        기획안이 나오면 내가 확인하고 승인 (끄면 끝까지 완전 자동)</label>
+      <button id="startBtn" class="primary">🚀 토론 시작</button>
+    </div>
+
+    <div class="card">
+      <h2>🗣️ 토론 참가자 <small>순서대로 발언 · 각자 별도 세션</small></h2>
+      <div class="presets">
+        <button data-preset="duo">Opus × Sonnet</button>
+        <button data-preset="trio">+ Haiku QA</button>
+        <button data-preset="light">가볍게 (Sonnet × Haiku)</button>
+      </div>
+      <div id="participants"></div>
+      <button id="addParticipant">+ 참가자 추가</button>
+      <label class="row">최대 라운드 <input type="number" id="maxRounds" min="1" max="10" value="2"></label>
+    </div>
+
+    <div class="card">
+      <h2>📝 명세서 작성자</h2>
+      <div id="synthesizer"></div>
+      <h2>🔍 기획안 · 코드 리뷰어</h2>
+      <div id="reviewers"></div>
+      <button id="addReviewer">+ 리뷰어 추가</button>
+      <h2>🔐 권한 심사 <small>Claude Code 가 권한을 물으면 대신 판단</small></h2>
+      <div id="permReviewers"></div>
+      <button id="addPermReviewer">+ 심사자 추가</button>
+    </div>
+
+    <div class="card">
+      <h2>🤖 구현 엔진 (Claude Code)</h2>
+      <select id="executorModel"></select>
+      <label class="row">브랜치 <input id="branch"></label>
+    </div>
+  </section>
+
+  <!-- 실행 기록 -->
+  <section id="tab-runs" hidden>
+    <div id="runList"></div>
+  </section>
+
+  <!-- 실행 화면 -->
+  <section id="tab-run" hidden>
+    <div class="run-head">
+      <button id="backBtn">←</button>
+      <div><div id="runTitle"></div><div id="runStage" class="muted"></div></div>
+      <button id="cancelBtn" class="danger">중단</button>
+    </div>
+    <div id="stream"></div>
+  </section>
+</main>
+
+<div id="actionBar" hidden>
+  <div id="actionInfo"></div>
+  <textarea id="replyText" rows="2" placeholder="코멘트 (선택) — 예: UI는 아키텍트 안, 예외처리는 엔지니어 안으로"></textarea>
+  <div class="actions" id="actionButtons"></div>
+</div>
+</div>
+
+<template id="participantTpl">
+  <div class="member">
+    <div class="member-row">
+      <input type="checkbox" class="enabled" title="참여">
+      <input class="name" placeholder="역할 이름">
+      <button class="up" title="위로">↑</button>
+      <button class="del" title="삭제">✕</button>
+    </div>
+    <div class="member-row model-pick"></div>
+    <details><summary>페르소나 / 역할 지시</summary><textarea class="persona" rows="4"></textarea></details>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

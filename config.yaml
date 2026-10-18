@@ -1,0 +1,110 @@
+# Pocket-Dev 설정 — 구독(로그인) 전용 엔진
+# API 키 / 크레딧 결제를 쓰지 않습니다. 각 AI 공식 CLI 에 구독 계정으로 로그인해 두면 그걸 호출합니다.
+#   Claude : claude auth login  (Pro / Max)
+# .env 에는 ACCESS_TOKEN (웹 접속 비밀번호) 만 넣으면 됩니다.
+
+server:
+  host: 0.0.0.0          # 사설망 주소 (집 와이파이 · Tailscale 100.x)
+  port: 8000
+  public_port: 8001      # 공개 주소(Tailscale Funnel) 전용 — 이 PC 안에서만 열림 (127.0.0.1)
+
+auth:
+  max_failures: 3        # 로그인 실패가 이만큼 쌓이면 공개 주소 잠금
+  session_hours: 12      # 로그인 유지 시간
+
+# 웹 UI 프로젝트 드롭다운에 나올 상위 폴더들 (바로 아래 폴더 중 git 저장소만 표시)
+projects_roots:
+  - "~/IdeaProjects"
+  - "~/Documents/flutter_project"
+
+# ── 엔진 (구독 CLI) ──────────────────────────────────────────────
+# 1차 MVP: Claude Code. 2차: ChatGPT(codex exec), 3차: Gemini(Antigravity CLI 확인 후)
+engines:
+  claude:
+    label: "Claude"
+    models:
+      - { id: claude-opus-5-5,   label: "Opus 5.5" }
+      - { id: claude-sonnet-5-5, label: "Sonnet 5.5" }
+      - { id: claude-haiku-5-5,  label: "Haiku 5.5 (빠름·한도 절약)" }
+      - { id: claude-fable-5-1,  label: "Fable 5.1 (Pro는 추가 크레딧 필요)" }
+
+# ── 기본 팀 구성 (UI 에서 켜고/끄고/모델 바꾸기 가능) ──────────────
+# 같은 Claude 라도 참가자마다 별도 세션으로 돌아가서 서로 독립적으로 검토합니다.
+team:
+  participants:
+    - id: architect
+      name: "수석 아키텍트"
+      engine: claude
+      model: claude-opus-5-5
+      enabled: true
+      persona: >
+        당신은 수석 소프트웨어 아키텍트입니다. 프로젝트 구조를 분석해
+        변경/생성할 파일 경로, 데이터 흐름, 구체적인 설계안을 마크다운으로 제시하세요.
+    - id: engineer
+      name: "수석 엔지니어"
+      engine: claude
+      model: claude-sonnet-5-5
+      enabled: true
+      persona: >
+        당신은 수석 구현 엔지니어입니다. 다른 참가자의 설계안을 비판적으로 검토해
+        의존성 충돌, 비동기 예외 처리, 상태 관리 문제, iOS/Android 네이티브 설정
+        (Info.plist, Podfile 등) 누락을 지적하고 코드 레벨 보완안을 제시하세요.
+    - id: qa
+      name: "제품/QA 리뷰어"
+      engine: claude
+      model: claude-haiku-5-5
+      enabled: false
+      persona: >
+        당신은 제품 매니저 겸 QA 리드입니다. 사용자 관점의 요구사항 누락, UX 흐름,
+        테스트 시나리오, 범위가 과도한 부분(오버엔지니어링)을 지적하세요.
+
+  # 토론 결과를 TASK_SPEC.md 로 정리
+  synthesizer: { engine: claude, model: claude-opus-5-5 }
+  # 기획안 검토 + 코드 리뷰 (여러 명 가능)
+  reviewers:
+    - { engine: claude, model: claude-sonnet-5-5 }
+  # Claude Code 권한 요청 심사 — 자주 불리니 가벼운 모델 추천
+  permission_reviewers:
+    - { engine: claude, model: claude-haiku-5-5 }
+
+debate:
+  max_rounds: 2              # 전원 AGREE 면 조기 종료
+  context_char_budget: 30000 # 프롬프트에 미리 넣는 파일 목록·내용 (나머지는 AI 가 직접 열어봄)
+  read_tools: [Read, Grep, Glob]   # 토론·리뷰 참가자가 쓸 수 있는 읽기 전용 도구
+  turn_timeout_sec: 1800
+
+plan_review:
+  enabled: true
+  max_revisions: 1
+
+engine:
+  # 구독 사용량 한도에 걸리면 리셋 시각까지 기다렸다 자동 재시도 (시각을 모르면 이 간격)
+  limit_retry_minutes: 30
+
+executor:
+  claude_model: claude-sonnet-5-5
+  effort: ""                 # low | medium | high | xhigh | max (비우면 Claude Code 기본값)
+  # acceptEdits: 프로젝트 안 파일 수정은 자동 허용, Bash/웹 등은 리뷰어가 심사
+  # manual    : 파일 수정까지 전부 리뷰어가 심사 (느리고 한도 많이 씀)
+  permission_mode: acceptEdits
+  always_allow_tools: [Read, Grep, Glob, TodoWrite]
+  # 권한 판정 정책: unanimous(전원 허용) | majority(과반) | any(한 명이라도)
+  permission_policy: unanimous
+  # 리뷰어 의견이 갈리거나 ask_human 이 나오면: ask_human(폰으로 물어봄) | deny
+  on_disagreement: ask_human
+  human_timeout_sec: 600     # 사람 응답 대기 시간, 지나면 거부
+  max_fix_loops: 1           # 코드 리뷰에서 반려되면 Claude Code 로 다시 고치는 최대 횟수
+  timeout_sec: 7200
+
+git:
+  branch: feat/ai-remote
+  auto_push: true
+  require_clean_tree: true   # 작업 전 커밋 안 된 변경이 있으면 중단
+  # 커밋 작성자 (깃헙 noreply 주소 → 커밋이 minBuild 프로필로 연결되고 개인 이메일은 노출 안 됨)
+  author_name: minBuild
+  author_email: 52815350+minBuild@users.noreply.github.com
+  # 원격 저장소(origin)가 없는 프로젝트는 push 할 때 이 계정에 비공개 저장소를 자동 생성 (GitHub CLI 필요)
+  github_owner: minBuild
+  new_repo_private: true
+  # '새 프로젝트 만들기' 로 만든 폴더가 생기는 곳
+  new_project_root: "~/IdeaProjects"

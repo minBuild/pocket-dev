@@ -1,0 +1,96 @@
+"""실행(Run) 상태 저장 + 이벤트 스트리밍(SSE) 허브."""
+import asyncio
+import json
+import time
+import uuid
+from typing import Any, Optional
+
+from .config import RUNS_DIR
+
+
+class Run:
+    def __init__(self, project: str, idea: str, settings: dict, run_id: Optional[str] = None):
+        self.id = run_id or time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
+        self.project = project
+        self.idea = idea
+        self.settings = settings
+        self.status = "running"      # running | awaiting_user | done | error | cancelled
+        self.stage = "init"
+        self.created = time.time()
+        self.events: list[dict] = []          # delta 를 제외한 이벤트 기록
+        self.partials: dict[str, dict] = {}   # 스트리밍 중인 메시지
+        self.subscribers: set[asyncio.Queue] = set()
+        self.waiters: dict[str, asyncio.Future] = {}  # 사람 응답 대기
+        self.task: Optional[asyncio.Task] = None
+        self.spec: str = ""
+        self.perm_cache: dict[str, tuple[bool, str]] = {}  # 같은 권한 요청 재심사 방지
+        self.base_branch: str = ""  # 작업 브랜치를 만들기 전 원래 브랜치 (새 저장소에 함께 push)
+
+    # ── 이벤트 ──
+    async def emit(self, type_: str, **data: Any) -> dict:
+        ev = {"type": type_, "ts": time.time(), **data}
+        if type_ == "delta":
+            p = self.partials.get(data["msg_id"])
+            if p is not None:
+                p["text"] += data["text"]
+        else:
+            if type_ == "message_start":
+                self.partials[data["msg_id"]] = {**ev, "text": ""}
+            elif type_ == "tool" and data["msg_id"] in self.partials:
+                self.partials[data["msg_id"]]["text"] = ""  # 도구 사용 전 중간 멘트는 버림
+            elif type_ == "message_end":
+                self.partials.pop(data["msg_id"], None)
+            elif type_ == "stage":
+                self.stage = data["stage"]
+            elif type_ == "status":
+                self.status = data["status"]
+            self.events.append(ev)
+            self.save()
+        for q in list(self.subscribers):
+            q.put_nowait(ev)
+        return ev
+
+    def snapshot_events(self) -> list[dict]:
+        evs = list(self.events)
+        for p in self.partials.values():
+            evs.append({"type": "delta", "msg_id": p["msg_id"], "text": p["text"], "ts": p["ts"]})
+        return evs
+
+    # ── 사람 응답 대기 ──
+    def wait_for(self, key: str) -> asyncio.Future:
+        fut = asyncio.get_running_loop().create_future()
+        self.waiters[key] = fut
+        return fut
+
+    def resolve(self, key: str, value: Any) -> bool:
+        fut = self.waiters.pop(key, None)
+        if fut and not fut.done():
+            fut.set_result(value)
+            return True
+        return False
+
+    # ── 저장 ──
+    def summary(self) -> dict:
+        return {"id": self.id, "project": self.project, "idea": self.idea,
+                "status": self.status, "stage": self.stage, "created": self.created,
+                "pending": list(self.waiters.keys())}
+
+    def save(self) -> None:
+        data = {**self.summary(), "settings": self.settings, "events": self.events, "spec": self.spec}
+        (RUNS_DIR / f"{self.id}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+RUNS: dict[str, Run] = {}
+
+
+def load_saved_runs() -> None:
+    for path in sorted(RUNS_DIR.glob("*.json"))[-50:]:
+        try:
+            d = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        r = Run(d["project"], d["idea"], d.get("settings", {}), run_id=d["id"])
+        r.events, r.stage, r.created, r.spec = d["events"], d["stage"], d["created"], d.get("spec", "")
+        # 서버 재시작으로 끊긴 실행은 중단 처리
+        r.status = d["status"] if d["status"] in ("done", "error", "cancelled") else "error"
+        RUNS[r.id] = r
