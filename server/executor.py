@@ -180,13 +180,21 @@ async def staged_diff(cwd: str, limit: int = 150_000) -> str:
     return f"{stat}\n{diff[:limit]}" + ("\n...(diff 생략)" if len(diff) > limit else "")
 
 
-async def commit_and_push(run: Run, branch: str, message: str) -> str:
+async def default_branch(cwd: str, fallback: str = "main") -> str:
+    """원격의 기본 브랜치 (origin/HEAD). 모르면 fallback."""
+    code, out = await sh(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], cwd)
+    return out.strip().split("/", 1)[-1] if code == 0 and out.strip() else fallback
+
+
+async def commit_and_push(run: Run, branch: str, message: str) -> dict:
+    """{"summary": 커밋 요약, "pushed": push 성공 여부}"""
     cwd = run.project
     await git(cwd, "add", "-A")
     await git(cwd, "reset", "-q", "--", "TASK_SPEC.md", check=False)
     if not (await git(cwd, "diff", "--cached", "--name-only")).strip():
-        return "변경 사항 없음"
+        return {"summary": "변경 사항 없음", "pushed": False}
     await git(cwd, *author_args(), "commit", "-m", message)
+    pushed = False
     if CONFIG["git"].get("auto_push", True):
         fresh = not await has_origin(cwd)
         if not fresh or await create_origin(run, cwd):
@@ -194,5 +202,6 @@ async def commit_and_push(run: Run, branch: str, message: str) -> str:
             if fresh and base and base not in ("HEAD", branch):  # 새 저장소면 원래 브랜치(main 등)도 올림
                 await sh(["git", "push", "-u", "origin", base], cwd)
             code, out = await sh(["git", "push", "-u", "origin", branch], cwd)
-            await run.emit("log", text=("⬆️ push 완료" if code == 0 else f"⚠️ push 실패:\n{out}"))
-    return await git(cwd, "show", "--stat", "--format=%h %s", "HEAD")
+            pushed = code == 0
+            await run.emit("log", text=("⬆️ push 완료" if pushed else f"⚠️ push 실패:\n{out}"))
+    return {"summary": await git(cwd, "show", "--stat", "--format=%h %s", "HEAD"), "pushed": pushed}

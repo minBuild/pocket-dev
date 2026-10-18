@@ -6,7 +6,7 @@
 import asyncio
 from pathlib import Path
 
-from . import agents, executor
+from . import agents, executor, github
 from .config import CONFIG
 from .context import build_context
 from .runs import Run
@@ -203,9 +203,16 @@ async def run_pipeline(run: Run, port: int) -> None:
                 branch = s.get("branch") or CONFIG["git"]["branch"]
                 title = (run.checkpoint.get("title") or run.idea).strip().splitlines()[0][:60]
                 names = ", ".join(sorted({p["model"] for p in participants}))
-                summary = await executor.commit_and_push(
+                committed = await executor.commit_and_push(
                     run, branch, f"feat(ai): {title}\n\n설계 토론: {names}\n구현: Claude Code ({s['executor_model']})")
-                await run.emit("result", text=summary)
+                links = {}
+                web = await github.web_url(run.project) if committed["pushed"] else None
+                if web:  # GitHub 에서 바로 볼 수 있는 링크 (비공개 저장소는 GitHub 로그인 필요)
+                    links["branch"] = f"{web}/tree/{branch}"
+                    base = await executor.default_branch(run.project, run.checkpoint.get("base_branch") or "main")
+                    if base and base != branch:
+                        links["compare"] = f"{web}/compare/{base}...{branch}"
+                await run.emit("result", text=committed["summary"], links=links)
                 _set_phase(run, "done")
 
         await run.emit("stage", stage="done", label="완료")

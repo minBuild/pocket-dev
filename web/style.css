@@ -30,6 +30,9 @@ code { font: 13px ui-monospace, Consolas, monospace; }
 .top nav { display: flex; gap: 4px; }
 .top nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); }
+.gh-link { color: var(--accent); text-decoration: none; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.btn-link { display: inline-block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); text-decoration: none; background: var(--bg); font-size: 14px; }
 
 main { max-width: 820px; margin: 0 auto; padding: 12px 16px 220px; }
 .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }

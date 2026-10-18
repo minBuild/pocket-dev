@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, executor, permissions, pipeline
+from . import auth, executor, github, permissions, pipeline
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
@@ -151,8 +151,44 @@ async def get_projects():
     for p in _projects():
         code, branch = await executor.sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], str(p))
         out.append({"name": f"{p.parent.name}/{p.name}", "path": str(p),
-                    "branch": branch.strip() if code == 0 else "?"})
+                    "branch": branch.strip() if code == 0 else "?", "github": await github.web_url(str(p))})
     return {"roots": [str(r) for r in PROJECTS_ROOTS], "projects": out}
+
+
+@app.get("/api/github/repos")
+async def github_repos(refresh: bool = False):
+    """GitHub 계정의 저장소 (비공개 포함) + PC에 이미 받아 둔 경로."""
+    try:
+        repos = await github.list_repos(force=refresh)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    local: dict[str, str] = {}
+    for p in _projects():
+        url = await github.web_url(str(p))
+        local[(url.rsplit("/", 1)[-1] if url else p.name).lower()] = str(p)
+        local.setdefault(p.name.lower(), str(p))
+    return {"owner": CONFIG["git"].get("github_owner", ""),
+            "repos": [{**r, "local_path": local.get(r["name"].lower())} for r in repos]}
+
+
+class CloneReq(BaseModel):
+    name: str
+
+
+@app.post("/api/github/clone")
+async def github_clone(req: CloneReq):
+    """GitHub 저장소를 PC로 받아와서 프로젝트 목록에 추가."""
+    try:
+        path = await github.clone(req.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileExistsError as e:
+        raise HTTPException(409, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    code, branch = await executor.sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], str(path))
+    return {"name": f"{path.parent.name}/{path.name}", "path": str(path),
+            "branch": branch.strip() if code == 0 else "?", "github": await github.web_url(str(path))}
 
 
 def _resolve_project(key: str) -> str:

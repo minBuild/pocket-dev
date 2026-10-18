@@ -51,7 +51,7 @@ function modelPicker(target, value, onChange) {
 
   const effort = document.createElement("select");
   effort.className = "effort"; effort.title = "effort — 생각 깊이 (기본=medium, 높을수록 꼼꼼하지만 구독 한도를 훨씬 많이 씀)";
-  EFFORTS.forEach(e => effort.add(new Option("⚡" + (e || "기본"), e)));
+  EFFORTS.forEach(e => effort.add(new Option("⚡" + (e === "medium" ? "med" : e || "기본"), e)));
   effort.value = value.effort || "";
   effort.onchange = () => { value.effort = effort.value; onChange(); };
 
@@ -212,7 +212,17 @@ function handle(ev, live = true) {
       if (ev.kind === "limit") line("log", `⏳ 구독 사용량 한도 도달 (${ev.label}) — ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동 재시도`);
       break;
     case "user_reply": pending.delete(ev.key); break;
-    case "result": addMsg("user", "<b>✅ 완료 — 커밋 요약</b>", "```\n" + ev.text + "\n```"); break;
+    case "result": {
+      const el = addMsg("user", "<b>✅ 완료 — 커밋 요약</b>", "```\n" + ev.text + "\n```");
+      const l = ev.links || {};
+      if (l.compare || l.branch) {
+        const box = document.createElement("div"); box.className = "links";
+        if (l.compare) box.insertAdjacentHTML("beforeend", `<a class="btn-link" href="${esc(l.compare)}" target="_blank" rel="noopener">🔍 GitHub에서 변경 보기 ↗</a>`);
+        if (l.branch) box.insertAdjacentHTML("beforeend", `<a class="btn-link" href="${esc(l.branch)}" target="_blank" rel="noopener">🌿 브랜치 ↗</a>`);
+        el.append(box);
+      }
+      break;
+    }
     case "error": line("msg error", "❌ " + ev.text); break;
     case "status":
       if (currentRun) currentRun.status = ev.status;
@@ -385,16 +395,32 @@ async function startApp() {
 
   const { projects } = await api("/api/projects");
   const sel = $("#project");
-  const NEW = "__new";
+  const NEW = "__new", GH = "gh:";
+  let remote = [], privateNames = new Set();   // GitHub 에만 있는 저장소 · 비공개 저장소 이름
+  const isPrivate = p => p.github && privateNames.has(p.github.split("/").pop().toLowerCase());
   const fillProjects = () => {
+    const keep = sel.value;
     sel.innerHTML = "";
-    projects.forEach(p => sel.add(new Option(p.name, p.path)));
+    const mine = document.createElement("optgroup"); mine.label = "내 PC";
+    projects.forEach(p => mine.append(new Option((isPrivate(p) ? "🔒 " : "") + p.name, p.path)));
+    sel.append(mine);
+    if (remote.length) {
+      const gh = document.createElement("optgroup"); gh.label = "GitHub · 아직 PC에 없음 (고르면 받아옴)";
+      remote.forEach(r => gh.append(new Option(`${r.private ? "🔒 " : ""}${r.name}${r.archived ? " (보관됨)" : ""}`, GH + r.name)));
+      sel.append(gh);
+    }
     sel.add(new Option("＋ 새 프로젝트 만들기…", NEW));
+    if (keep) sel.value = keep;
+  };
+  const badge = () => {
+    const p = projects.find(p => p.path === sel.value);
+    $("#branchBadge").textContent = "🌿 " + (p?.branch || "-");
+    $("#ghLink").hidden = !p?.github;
+    if (p?.github) $("#ghLink").href = p.github;
   };
   fillProjects();
-  const badge = () => $("#branchBadge").textContent = "🌿 " + (projects.find(p => p.path === sel.value)?.branch || "-");
   sel.value = localStorage.getItem("pocketdev.project") || "";
-  if (!sel.value || sel.value === NEW) sel.value = projects[0]?.path || NEW;
+  if (!sel.value || sel.value === NEW || sel.value.startsWith(GH)) sel.value = projects[0]?.path || NEW;
   let last = sel.value;
   sel.onchange = async () => {
     if (sel.value === NEW) {
@@ -404,11 +430,26 @@ async function startApp() {
         const p = await post("/api/projects/new", { name: name.trim() });
         projects.push(p); fillProjects(); sel.value = p.path;
       } catch (e) { alert(e.message); sel.value = last; return; }
+    } else if (sel.value.startsWith(GH)) {
+      const name = sel.value.slice(GH.length);
+      if (!confirm(`GitHub의 ${name} 저장소를 집 PC로 받아올까요?`)) { sel.value = last; return; }
+      sel.disabled = true; $("#branchBadge").textContent = "⬇️ 받는 중…";
+      try {
+        const p = await post("/api/github/clone", { name });
+        projects.push(p); remote = remote.filter(r => r.name !== name); fillProjects(); sel.value = p.path;
+      } catch (e) { alert(e.message); sel.value = last; }
+      sel.disabled = false;
     }
     last = sel.value;
     localStorage.setItem("pocketdev.project", sel.value); badge();
   };
   badge();
+  // GitHub 저장소 목록(비공개 포함)은 조금 걸려서 화면이 뜬 뒤에 채움
+  api("/api/github/repos").then(d => {
+    privateNames = new Set(d.repos.filter(r => r.private).map(r => r.name.toLowerCase()));
+    remote = d.repos.filter(r => !r.local_path);
+    fillProjects(); badge();
+  }).catch(() => {});
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
 
   document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));

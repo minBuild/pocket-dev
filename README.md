@@ -74,6 +74,10 @@ gh auth login              # GitHub (저장소 자동 생성용)
 - 작업은 `feat/ai-remote` 브랜치에 커밋 후 push (main 은 건드리지 않음).
 - **원격 저장소가 없는 프로젝트**는 첫 push 때 `minBuild/<폴더명>` 비공개 저장소를 자동으로 만들고 연결합니다.
 - 웹 화면 프로젝트 목록의 **"＋ 새 프로젝트 만들기"** → `git.new_project_root` 에 폴더 + git 저장소 생성.
+- 프로젝트 목록에 **GitHub 계정의 저장소(비공개 포함)** 도 나옵니다 (`gh repo list`). 아직 PC에 없는 저장소를 고르면
+  `git.new_project_root` 로 받아온(clone) 뒤 바로 작업할 수 있습니다.
+- 헤더의 **GitHub ↗** 링크, 작업 완료 후 **GitHub에서 변경 보기**(compare) · **브랜치** 링크 제공
+  (비공개 저장소는 그 기기 브라우저에서 GitHub 로그인이 필요).
 
 ## 구독으로만 돌게 하는 장치
 
@@ -124,6 +128,7 @@ server/pipeline.py        전체 자동 진행 흐름
 server/permissions.py     하드 룰 + 심사 투표 + 사람 에스컬레이션 + 판정 재사용
 server/permission_mcp.py  Claude Code 가 호출하는 권한 심사 MCP 서버
 server/executor.py        Claude Code 구현 실행 · git · GitHub 저장소 자동 생성
+server/github.py          GitHub 저장소 목록(비공개 포함) · 받아오기 · 웹 링크
 web/                      모바일 웹 UI
 data/                     실행 기록 · 잠금 상태 (git 에 안 올라감)
 ```
