@@ -88,7 +88,7 @@ def attempt_login(login_id: str, password: str, token: str, client: str, via: st
 
     exp_id, exp_hash, exp_token = _creds()
     # 어느 항목이 틀렸는지 시간 차로도 드러나지 않게 셋 다 검사
-    id_ok = bool(exp_id) and hmac.compare_digest(login_id.encode(), exp_id.encode())
+    id_ok = bool(exp_id) and hmac.compare_digest(login_id.strip().lower().encode(), exp_id.lower().encode())
     pw_ok = bool(exp_hash) and verify_password(password, exp_hash)
     token_ok = check_token(token)
 
