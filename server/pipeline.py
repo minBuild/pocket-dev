@@ -280,6 +280,10 @@ async def run_pipeline(run: Run, port: int) -> None:
                         links["compare"] = f"{web}/compare/{base}...{branch}"
                 await run.emit("result", text=committed["summary"], links=links)
                 _set_phase(run, "done")
+                if pending := take_notes(run):  # 커밋 중에(또는 커밋 단계에서 멈춘 뒤) 받은 작업 요청 → 한 바퀴 더
+                    await run.emit("log", text="▶ 받아 둔 추가 요청으로 이어서 진행합니다")
+                    start_followup(run, "\n".join(pending))
+                    ctx = build_context(project, CONFIG["debate"]["context_char_budget"])
 
         await run.emit("stage", stage="done", label="완료")
         await run.emit("status", status="done")
