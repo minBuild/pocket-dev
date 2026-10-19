@@ -144,6 +144,9 @@ async def _design(run: Run, s: dict, port: int) -> None:
         run, "Stitch 화면 디자인",
         lambda attempt: executor.run_claude_code(run, prompt + (RESUME_NOTE if attempt else ""), stitch.model(), port,
                                                  extra_mcp=stitch.mcp_servers(), extra_allowed=["mcp__stitch"]))
+    screens = sorted({f.rsplit(".", 1)[0] for f in await stitch.fetch_screens(run.project)})
+    await run.emit("log", text=(f"🎨 Stitch 화면 {len(screens)}개 저장: {', '.join(screens)} (design/stitch/)" if screens
+                                else "⚠️ Stitch 화면 파일을 받지 못했어요 — design/stitch/README.md 기준으로 구현합니다"))
 
 
 async def _execute(run: Run, s: dict, port: int) -> None:

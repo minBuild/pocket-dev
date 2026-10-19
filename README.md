@@ -35,6 +35,7 @@ AI 회사 API를 직접 부르지 않고, 구독 계정으로 로그인해 둔 *
 - **토큰 사용량:** 새 작업 탭의 📊 — 오늘 / 최근 7일, 이 PC 전체 Claude Code 와 Pocket-Dev 따로.
 - **Stitch 화면 디자인 (선택):** `setup_stitch.bat` 으로 Stitch API 키를 넣고 새 작업에서 🎨 를 켜면,
   기획안 승인 뒤 Google Stitch 공식 MCP 로 화면을 만들어 `design/stitch/` 에 HTML·스크린샷을 저장하고 구현이 그걸 따릅니다.
+  파일은 Claude Code 가 받은 다운로드 주소로 Pocket-Dev 가 직접 저장합니다 (Stitch 다운로드 호스트만 허용, 셸 다운로드 권한 심사 없음).
 
 ## 설치 (집 PC, 최초 1회)
 
