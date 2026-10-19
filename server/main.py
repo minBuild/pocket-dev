@@ -357,6 +357,86 @@ async def reply(run_id: str, req: ReplyReq):
     return {"ok": True}
 
 
+# ── 진행 중인 작업의 역할별 모델 변경 ─────────────────────────────
+MODEL_ID = re.compile(r"[A-Za-z0-9._:@/\[\]-]{1,100}")
+EFFORTS = ("", "low", "medium", "high", "xhigh", "max")
+_MEMBER_KEYS = ("id", "name", "engine", "model", "effort", "enabled")
+
+
+def _models_view(run: Run) -> dict:
+    s = run.settings
+    pick = lambda m: {k: m.get(k, "") for k in _MEMBER_KEYS}  # noqa: E731
+    return {"participants": [pick(p) for p in s["participants"]], "synthesizer": pick(s["synthesizer"]),
+            "reviewers": [pick(r) for r in s["reviewers"]],
+            "permission_reviewers": [pick(r) for r in s["permission_reviewers"]],
+            "executor_model": s["executor_model"], "status": run.status}
+
+
+@app.get("/api/runs/{run_id}/models")
+async def get_models(run_id: str):
+    return _models_view(_run(run_id))
+
+
+class ModelsReq(BaseModel):
+    participants: list[dict] | None = None
+    synthesizer: dict | None = None
+    reviewers: list[dict] | None = None
+    permission_reviewers: list[dict] | None = None
+    executor_model: str | None = None
+    apply_now: bool = False       # 지금 진행 중인 단계도 새 모델로 다시 시작
+
+
+@app.post("/api/runs/{run_id}/models")
+async def set_models(run_id: str, req: ModelsReq):
+    """역할별 모델·effort 변경 — 다음 AI 호출부터 적용 (참가자 구성은 그대로). 전부 검사한 뒤에 한꺼번에 바꾼다."""
+    run = _run(run_id)
+    s = run.settings
+    plan: list[tuple[str, dict, dict]] = []
+
+    def check(label: str, cur: dict, new: dict) -> None:
+        engine = new.get("engine") or cur.get("engine") or "claude"
+        model = str(new.get("model") or "").strip()
+        effort = str(new.get("effort") or "")
+        if engine not in CONFIG["engines"]:
+            raise HTTPException(400, f"'{engine}' 엔진은 아직 준비 중입니다 (현재: Claude)")
+        if not MODEL_ID.fullmatch(model):
+            raise HTTPException(400, f"{label}: 모델 이름이 올바르지 않아요 ({model!r})")
+        if effort not in EFFORTS:
+            raise HTTPException(400, f"{label}: effort 값이 올바르지 않아요 ({effort!r})")
+        plan.append((label, cur, {"engine": engine, "model": model, "effort": effort}))
+
+    for key, label in (("participants", ""), ("reviewers", "리뷰어"), ("permission_reviewers", "권한 심사")):
+        new_list = getattr(req, key)
+        if new_list is None:
+            continue
+        if len(new_list) != len(s[key]):
+            raise HTTPException(400, "인원 구성은 바꿀 수 없어요 — 모델만 바꿀 수 있어요")
+        for i, (cur, new) in enumerate(zip(s[key], new_list)):
+            check(cur.get("name") or cur.get("model") if key == "participants" else f"{label} {i + 1}", cur, new)
+    if req.synthesizer is not None:
+        check("명세서 작성자", s["synthesizer"], req.synthesizer)
+    if req.executor_model is not None and not MODEL_ID.fullmatch(req.executor_model.strip()):
+        raise HTTPException(400, f"구현 모델 이름이 올바르지 않아요 ({req.executor_model!r})")
+
+    fmt = lambda m: m["model"] + (f" ⚡{m['effort']}" if m.get("effort") else "")  # noqa: E731
+    changes = []
+    for label, cur, new in plan:  # 같은 dict 를 고쳐서, 이미 돌고 있는 파이프라인도 다음 호출부터 새 모델을 쓴다
+        if (cur.get("engine"), cur.get("model"), cur.get("effort") or "") != (new["engine"], new["model"], new["effort"]):
+            changes.append(f"{label}: {fmt(cur)} → {fmt(new)}")
+            cur.update(new)
+    if req.executor_model is not None and req.executor_model.strip() != s["executor_model"]:
+        changes.append(f"구현(Claude Code): {s['executor_model']} → {req.executor_model.strip()}")
+        s["executor_model"] = req.executor_model.strip()
+    restart = bool(changes) and req.apply_now and run.status == "running"
+    if changes:
+        await run.emit("log", text="⚙️ 모델 변경 — " + " · ".join(changes)
+                       + (" (지금 단계부터 새 모델로 다시 시작)" if restart else " (다음 AI 호출부터 적용)"))
+        run.save()
+    if restart:
+        await pipeline.restart_step(run, PORT)
+    return {**_models_view(run), "changed": changes, "restarted": restart}
+
+
 class MessageReq(BaseModel):
     text: str = ""
     attachments: list[str] = []

@@ -238,7 +238,7 @@ function handle(ev, live = true) {
       break;
     case "user_reply": pending.delete(ev.key); break;
     case "result": {
-      const el = addMsg("user", "<b>✅ 완료 — 커밋 요약</b>", "```\n" + ev.text + "\n```");
+      const el = addMsg("user", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
       const l = ev.links || {};
       if (l.compare || l.branch) {
         const box = document.createElement("div"); box.className = "links";
@@ -348,8 +348,53 @@ function addRollback() {
   $("#stream").append(b);
 }
 
+// ── 진행 중인 작업의 모델 변경 (다음 AI 호출부터 · 원하면 지금 단계부터 다시) ──
+async function openModels() {
+  const box = $("#modelsPanel");
+  if (!box.hidden) { box.hidden = true; return; }
+  const cur = await api(`/api/runs/${currentRun.id}/models`);
+  box.innerHTML = "<h2>⚙️ 이 작업의 모델 <small>저장하면 다음 AI 호출부터 적용돼요</small></h2>";
+  const row = (label, value) => {
+    const r = document.createElement("div"); r.className = "member-row model-pick";
+    const l = document.createElement("span"); l.className = "role"; l.textContent = label;
+    r.append(l); modelPicker(r, value, () => {}); box.append(r);
+  };
+  cur.participants.forEach(p => row("🗣️ " + (p.name || p.model) + (p.enabled === false ? " (빠짐)" : ""), p));
+  row("📝 명세서 작성자", cur.synthesizer);
+  cur.reviewers.forEach((r, i) => row(`🔍 리뷰어 ${i + 1}`, r));
+  cur.permission_reviewers.forEach((r, i) => row(`🔐 권한 심사 ${i + 1}`, r));
+  const er = document.createElement("div"); er.className = "member-row model-pick";
+  er.innerHTML = '<span class="role">🤖 구현 (Claude Code)</span>';
+  const ex = document.createElement("select"); ex.className = "exec-model";
+  models("claude").forEach(m => ex.add(new Option(m.label, m.id)));
+  if (![...ex.options].some(o => o.value === cur.executor_model)) ex.add(new Option(cur.executor_model, cur.executor_model));
+  ex.value = cur.executor_model; er.append(ex); box.append(er);
+  let now = null;
+  if (cur.status === "running") {
+    const lab = document.createElement("label"); lab.className = "row";
+    lab.innerHTML = '<input type="checkbox"> 지금 진행 중인 단계도 새 모델로 다시 시작 <span class="muted">(하던 발언·구현은 처음부터 다시 해요)</span>';
+    box.append(lab); now = $("input", lab);
+  }
+  const acts = document.createElement("div"); acts.className = "actions";
+  const ok = document.createElement("button"); ok.className = "primary"; ok.textContent = "저장";
+  ok.onclick = async () => {
+    ok.disabled = true;
+    try {
+      const r = await post(`/api/runs/${currentRun.id}/models`, {
+        participants: cur.participants, synthesizer: cur.synthesizer, reviewers: cur.reviewers,
+        permission_reviewers: cur.permission_reviewers, executor_model: ex.value, apply_now: !!now?.checked });
+      box.hidden = true;
+      if (!r.changed.length) alert("바뀐 모델이 없어요");
+    } catch (e) { alert(e.message); }
+    ok.disabled = false;
+  };
+  const close = document.createElement("button"); close.textContent = "닫기"; close.onclick = () => box.hidden = true;
+  acts.append(ok, close); box.append(acts);
+  box.hidden = false;
+}
+
 function openRun(run) {
-  currentRun = run; pending.clear(); msgs.clear();
+  currentRun = run; pending.clear(); msgs.clear(); $("#modelsPanel").hidden = true;
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
   show("run");
   if (es) es.close();
@@ -520,6 +565,7 @@ async function startApp() {
   $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
+  $("#modelsBtn").onclick = () => openModels().catch(e => alert(e.message));
   bindFileInput($("#chatFiles"), chatFiles, $("#chatFileList"));
   bindFileInput($("#ideaFiles"), ideaFiles, $("#ideaFileList"));
   const send = async () => {

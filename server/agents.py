@@ -272,9 +272,13 @@ Pocket-Dev 는 AI 팀이 토론 → 명세서 → 구현(Claude Code) → 리뷰
 - 프로젝트 코드·기획을 바꾸거나 추가해 달라는 구체적인 요청이면 → action = "work",
   task 에 개발팀이 바로 이해할 수 있게 작업 지시를 1~3문장으로 정리. reply 에는 무엇을 하겠다고 짧게.
 - 멈춘 작업을 이어서 하라는 뜻이면 → action = "resume"
+- 작업 브랜치를 main(기본 브랜치)에 머지·병합·반영해 달라는 요청이면 → action = "merge" (Pocket-Dev 가 직접 머지:
+  빨리 감기가 되면 그대로, 갈라졌으면 머지 커밋, 충돌이면 아무것도 안 바꾸고 알림. main 이 없으면 만든다).
+  같은 메시지에 다른 작업 요청도 있으면 task 에 그 추가 작업만 적고, 없으면 task 는 빈 문자열.
 - Pocket-Dev 자체(커밋 메시지 방식, 서버, 권한 설정 등)에 대한 요청이면 프로젝트 작업이 아니므로 action = "answer" 로
   어떻게 동작하는지 설명하세요. 판단이 애매하면 "answer" 로 하고 어떻게 할지 되물으세요.
-반드시 JSON 만 출력: {"action": "answer" | "work" | "resume", "reply": "사용자에게 보낼 답", "task": "work 일 때 작업 지시"}"""
+반드시 JSON 만 출력: {"action": "answer" | "work" | "resume" | "merge", "reply": "사용자에게 보낼 답", "task": "work·merge 일 때 작업 지시"}"""
+ASSIST_ACTIONS = ("answer", "work", "resume", "merge")
 
 
 def situation(run: Run) -> str:
@@ -305,8 +309,9 @@ async def assistant_decide(run: Run, text: str) -> dict:
         usage = res["usage"]
         try:
             d = extract_json(res["text"])
-            decision = {"action": d.get("action") if d.get("action") in ("answer", "work", "resume") else "answer",
-                        "reply": str(d.get("reply") or ""), "task": str(d.get("task") or text)}
+            action = d.get("action") if d.get("action") in ASSIST_ACTIONS else "answer"
+            decision = {"action": action, "reply": str(d.get("reply") or ""),
+                        "task": str(d.get("task") or (text if action == "work" else ""))}
         except ValueError:
             decision["reply"] = res["text"]
     except UsageLimitError as e:

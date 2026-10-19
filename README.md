@@ -36,6 +36,11 @@ AI 회사 API를 직접 부르지 않고, 구독 계정으로 로그인해 둔 *
 - **Stitch 화면 디자인 (선택):** `setup_stitch.bat` 으로 Stitch API 키를 넣고 새 작업에서 🎨 를 켜면,
   기획안 승인 뒤 Google Stitch 공식 MCP 로 화면을 만들어 `design/stitch/` 에 HTML·스크린샷을 저장하고 구현이 그걸 따릅니다.
   파일은 Claude Code 가 받은 다운로드 주소로 Pocket-Dev 가 직접 저장합니다 (Stitch 다운로드 호스트만 허용, 셸 다운로드 권한 심사 없음).
+- **진행 중 모델 변경:** 작업 화면의 ⚙️ 모델 — 토론 참가자·명세서 작성자·리뷰어·권한 심사·구현 모델을 바꾸면 다음 AI 호출부터
+  적용됩니다. 진행 중이면 "지금 단계도 새 모델로 다시 시작"을 고를 수 있어요 (체크포인트부터 다시). 인원 구성은 그대로.
+- **main 머지:** 작업 화면 채팅에 "main 에 머지해줘" → AI 를 거치지 않고 Pocket-Dev 가 직접 머지·push.
+  빨리 감기가 되면 그대로(작업 폴더 안 건드림), 갈라졌으면 별도 임시 폴더에서 머지 커밋, 충돌이면 아무것도 바꾸지 않고 알림.
+  main 이 없으면 작업 브랜치로 만듭니다. 진행 중에 요청하면 이번 커밋·push 가 끝난 뒤 머지합니다.
 
 ## 설치 (집 PC, 최초 1회)
 
@@ -71,7 +76,8 @@ gh auth login              # GitHub (저장소 자동 생성용)
 - 세션은 HttpOnly·SameSite=Strict 쿠키 (공개 주소에서는 Secure). 12시간 유지, 서버 재시작 시 다시 로그인.
 - Claude Code 권한 심사용 내부 API는 **이 PC 안에서 사설 포트로만** 호출 가능 (공개 주소에서는 차단).
 - **하드 룰** (심사 결과와 무관하게 즉시 거부, Bash·PowerShell 둘 다): 루트·홈 삭제, `git push --force`, `git reset --hard`,
-  `sudo`·`Set-ExecutionPolicy` 등 시스템 명령, `curl | sh`·`irm | iex`, 프로젝트 밖 파일 수정, macOS 전용 명령
+  `sudo`·`Set-ExecutionPolicy` 등 시스템 명령, `curl | sh`·`irm | iex`, 프로젝트 밖 파일 수정, macOS 전용 명령,
+  구현 AI 의 `git commit`·`push`·`merge`·`rebase`·브랜치 전환 (커밋·push·머지는 Pocket-Dev 가 실행 끝에 직접)
 - `--dangerously-skip-permissions` 는 쓰지 않음. 권한은 전부 `--permission-prompt-tool` 로 심사 세션에 감.
 - 롤백 버튼은 `git reset --hard` 대신 **`git revert` + push**.
 - **본인 혼자 쓰세요.** 구독 로그인은 본인의 일반적인 Claude Code 사용용이고,
@@ -80,7 +86,7 @@ gh auth login              # GitHub (저장소 자동 생성용)
 ## GitHub
 
 - 커밋 작성자는 `config.yaml` 의 `git.author_name/author_email` (minBuild · noreply 주소). 전역 git 설정은 안 건드림.
-- 작업은 `feat/ai-remote` 브랜치에 커밋 후 push (main 은 건드리지 않음).
+- 작업은 `feat/ai-remote` 브랜치에 커밋 후 push (main 은 채팅으로 머지를 요청할 때만).
 - **원격 저장소가 없는 프로젝트**는 첫 push 때 `minBuild/<폴더명>` 비공개 저장소를 자동으로 만들고 연결합니다.
 - 웹 화면 프로젝트 목록의 **"＋ 새 프로젝트 만들기"** → `git.new_project_root` 에 폴더 + git 저장소 생성.
 - 프로젝트 목록에 **GitHub 계정의 저장소(비공개 포함)** 도 나옵니다 (`gh repo list`). 아직 PC에 없는 저장소를 고르면

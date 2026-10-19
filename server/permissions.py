@@ -9,12 +9,17 @@ from .agents import judge_permission
 from .config import CONFIG
 from .runs import Run
 
+_GIT = r"\bgit(?:\s+(?:-[Cc]\s+(?:\"[^\"]*\"|'[^']*'|\S+)|--[\w-]+(?:=\S+)?))*\s+"  # git -C 경로 / -c 키=값 / --옵션 뒤의 하위 명령
 HARD_DENY_SHELL = [
     (r"\brm\s+-[a-z]*r[a-z]*f?\s+(/|~|\$HOME|\*|\.\.|[A-Za-z]:\\)(\s|$)", "루트/홈/상위 폴더 삭제"),
     (r"\b(Remove-Item|rm|del|rd|rmdir)\b[^|;\n]*\s['\"]?([A-Za-z]:\\?|~|\$HOME|\$env:USERPROFILE|\.\.)['\"]?(\s|$)",
      "루트/홈/상위 폴더 삭제"),
-    (r"\bgit\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b)", "강제 push"),
-    (r"\bgit\s+(reset\s+--hard|clean\s+-[a-z]*f|filter-branch|reflog\s+expire)", "히스토리/작업 삭제"),
+    (_GIT + r"push\b.*(--force\b|--force-with-lease\b|\s-f\b)", "강제 push"),
+    (_GIT + r"push\b", "push 는 Pocket-Dev 가 실행 끝에 함"),
+    (_GIT + r"(commit|merge|rebase|switch|cherry-pick|am)\b",
+     "커밋·머지·브랜치는 Pocket-Dev 가 실행 끝에 변경 내용 기준으로 함 — 커밋하지 말고 작업만 끝내"),
+    (_GIT + r"checkout\s+(-[bB]\b|-(\s|$)|(main|master)\b|origin/)", "브랜치 전환은 Pocket-Dev 가 함 — 지금 브랜치에서 작업해"),
+    (_GIT + r"(reset\s+--hard|clean\s+-[a-z]*f|filter-branch|reflog\s+expire)", "히스토리/작업 삭제"),
     (r"\bsudo\b|\bmkfs\b|\bshutdown\b|\breboot\b|\bformat\s+[A-Za-z]:", "시스템 명령"),
     (r"\b(Format-Volume|Clear-Disk|Stop-Computer|Restart-Computer|Set-ExecutionPolicy)\b", "시스템 명령"),
     (r"(curl|wget|iwr|irm|Invoke-WebRequest|Invoke-RestMethod)[^|]*\|\s*(sh|bash|zsh|iex|Invoke-Expression|powershell)",

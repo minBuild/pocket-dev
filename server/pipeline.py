@@ -17,6 +17,7 @@ PHASE_LABEL = {"debate": "설계 토론", "spec": "명세서 작성", "plan_revi
                "execute": "구현", "code_review": "코드 리뷰", "git": "커밋 & push", "done": "완료"}
 BASE_PROMPT = ("루트의 TASK_SPEC.md 를 읽고 지시된 모든 코드 작성과 수정을 완수해. "
                "끝나면 정적 분석/테스트로 오류가 없는지 확인해. git commit/push 는 하지 마 (오케스트레이터가 함). "
+               "브랜치 전환(checkout/switch)·머지·리베이스도 하지 마 — 브랜치와 main 머지는 Pocket-Dev 가 맡는다. "
                "권한이 거부되면 다른 안전한 방법을 찾아.")
 RESUME_NOTE = ("\n\n(이전 실행이 중간에 끊겼다. git status/diff 로 지금까지의 변경을 확인하고 "
                "남은 작업을 이어서 완료해.)")
@@ -75,6 +76,20 @@ async def handle_chat(run: Run, text: str, port: int) -> None:
             await run.emit("user_reply", key=key, action="retry", text="")
         if not run.alive and run.status not in ("done",):
             start(run, port)
+    elif action == "merge":
+        if run.alive:  # 진행 중 → 이번 커밋·push 가 끝나면 머지
+            run.checkpoint["merge_requested"] = True
+            if task:
+                run.notes.append(task)
+            run.save()
+        else:
+            await merge(run)
+            if task:  # 같은 메시지의 추가 작업 요청 (예: "머지하고 더 할 거 검토해줘")
+                if run.status == "done":
+                    start_followup(run, task)
+                else:
+                    run.notes.append(task)
+                start(run, port)
 
 
 def start_followup(run: Run, text: str) -> None:
@@ -83,6 +98,30 @@ def start_followup(run: Run, text: str) -> None:
     last = agents.last_round(run.history)
     run.checkpoint = {"phase": "debate", "round_from": last + 1, "round_until": last + 1, "followup": True}
     run.save()
+
+
+async def merge(run: Run) -> None:
+    """작업 브랜치 → main 머지 (채팅 요청). AI 를 거치지 않고 Pocket-Dev 가 직접 한다."""
+    await run.emit("log", text="🔀 main 에 머지하는 중…")
+    try:
+        res = await executor.merge_into_default(run, run.settings.get("branch") or CONFIG["git"]["branch"])
+    except Exception as e:
+        await run.emit("error", text=f"머지하지 못했어요: {e}")
+        return
+    web = await github.web_url(run.project) if res["pushed"] else None
+    await run.emit("result", title="🔀 main 머지", text=res["text"],
+                   links={"branch": f"{web}/tree/{res['base']}"} if web else {})
+
+
+async def restart_step(run: Run, port: int) -> None:
+    """지금 진행 중인 단계를 멈추고 체크포인트부터 다시 시작 (모델을 바꾼 뒤 바로 적용할 때)."""
+    if run.task and not run.task.done():
+        run.task.cancel()
+        try:
+            await run.task
+        except (asyncio.CancelledError, Exception):
+            pass
+    start(run, port)
 
 
 async def _review_and_revise_spec(run: Run, s: dict, ctx: str) -> str:
@@ -109,12 +148,13 @@ async def _review_and_revise_spec(run: Run, s: dict, ctx: str) -> str:
     return spec
 
 
-async def _implement(run: Run, prompt: str, model: str, port: int) -> None:
-    """Claude Code 실행. 구독 한도에 걸리면 기다렸다가 이어서 진행."""
+async def _implement(run: Run, prompt: str, port: int) -> None:
+    """Claude Code 실행. 구독 한도에 걸리면 기다렸다가 이어서 진행. 모델은 시도마다 설정에서 읽는다 (진행 중 변경 반영)."""
     (Path(run.project) / "TASK_SPEC.md").write_text(run.spec, encoding="utf-8")
     await agents.with_limit_retry(
         run, "Claude Code 구현",
-        lambda attempt: executor.run_claude_code(run, prompt + (RESUME_NOTE if attempt else ""), model, port))
+        lambda attempt: executor.run_claude_code(run, prompt + (RESUME_NOTE if attempt else ""),
+                                                 run.settings["executor_model"], port))
 
 
 async def _ensure_branch(run: Run, s: dict) -> None:
@@ -161,7 +201,7 @@ async def _execute(run: Run, s: dict, port: int) -> None:
         prompt += ("\n\ndesign/stitch/ 에 Stitch 로 만든 화면 디자인(HTML·스크린샷·README)이 있다. "
                    "UI 는 이 디자인을 최대한 따라 구현해 (Flutter 등 다른 프레임워크면 위젯으로 옮겨서).")
     _set_phase(run, "execute", impl_started=True)
-    await _implement(run, prompt, s["executor_model"], port)
+    await _implement(run, prompt, port)
 
 
 async def _code_review_step(run: Run, s: dict, port: int) -> bool:
@@ -169,8 +209,7 @@ async def _code_review_step(run: Run, s: dict, port: int) -> bool:
     notes = take_notes(run)
     if notes:  # 구현 중에 받은 사용자 지시 먼저 반영
         await run.emit("stage", stage="execute", label="사용자 추가 지시 반영")
-        await _implement(run, BASE_PROMPT + "\n\n이미 구현이 되어 있다." + _note_block(notes),
-                         s["executor_model"], port)
+        await _implement(run, BASE_PROMPT + "\n\n이미 구현이 되어 있다." + _note_block(notes), port)
     if not s["reviewers"]:
         return True
     loop = run.checkpoint.get("fix_loop", 0)
@@ -186,7 +225,7 @@ async def _code_review_step(run: Run, s: dict, port: int) -> bool:
         return True
     await run.emit("stage", stage="execute", label=f"리뷰 반영 수정 ({loop + 1}차)")
     await _implement(run, BASE_PROMPT + "\n\n이미 1차 구현이 되어 있다. 코드 리뷰어 지적사항을 모두 고쳐:\n"
-                     + _fmt_reviews(reviews), s["executor_model"], port)
+                     + _fmt_reviews(reviews), port)
     _set_phase(run, "code_review", fix_loop=loop + 1)
     return False
 
@@ -268,6 +307,8 @@ async def run_pipeline(run: Run, port: int) -> None:
                 (project / "TASK_SPEC.md").unlink(missing_ok=True)
                 run.base_branch = run.checkpoint.get("base_branch", run.base_branch)
                 branch = s.get("branch") or CONFIG["git"]["branch"]
+                if (await executor.git(run.project, "rev-parse", "--abbrev-ref", "HEAD")).strip() != branch:
+                    await executor.git(run.project, "checkout", branch)  # 구현 중 다른 브랜치로 옮겨졌으면 되돌림 (변경은 따라옴)
                 diff = await executor.staged_diff(run.project)
                 message = ""
                 if diff.strip():  # 바뀐 게 없으면 메시지도 만들지 않는다 (commit_and_push → "변경 사항 없음")
@@ -282,6 +323,8 @@ async def run_pipeline(run: Run, port: int) -> None:
                     if base and base != branch:
                         links["compare"] = f"{web}/compare/{base}...{branch}"
                 await run.emit("result", text=committed["summary"], links=links)
+                if run.checkpoint.pop("merge_requested", False):  # 진행 중에 받은 main 머지 요청
+                    await merge(run)
                 _set_phase(run, "done")
                 if pending := take_notes(run):  # 커밋 중에(또는 커밋 단계에서 멈춘 뒤) 받은 작업 요청 → 한 바퀴 더
                     await run.emit("log", text="▶ 받아 둔 추가 요청으로 이어서 진행합니다")

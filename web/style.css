@@ -134,3 +134,12 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .radio-group legend { font-size: 13px; color: var(--muted); padding: 0 4px; }
 .radio-group label { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
 .radio-group input { width: auto; }
+
+/* 작업 화면 · 모델 변경 패널 */
+.models-panel .member-row { flex-wrap: wrap; }
+.models-panel .role { flex: 0 0 9.5em; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.models-panel .model-pick select:nth-child(2) { flex: none; width: 82px; min-width: 0; }   /* 엔진 (앞에 역할 이름이 있어 한 칸씩 밀림) */
+.models-panel .model-pick select:nth-child(3) { flex: 1; width: auto; min-width: 0; }      /* 모델 */
+.models-panel .model-pick select.exec-model { flex: 1; width: auto; }
+.models-panel .actions { margin-top: 10px; }
+@media (max-width: 480px) { .models-panel .role { flex-basis: 100%; } }

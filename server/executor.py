@@ -199,15 +199,18 @@ async def commit_and_push(run: Run, branch: str, message: str) -> dict:
     cwd = run.project
     await git(cwd, "add", "-A")
     await git(cwd, "reset", "-q", "--", "TASK_SPEC.md", check=False)
-    if not (await git(cwd, "diff", "--cached", "--name-only")).strip():
+    staged = bool((await git(cwd, "diff", "--cached", "--name-only")).strip())
+    unpushed = "" if staged else await _unpushed(cwd, branch, getattr(run, "base_branch", ""))
+    if not staged and not unpushed:
         return {"summary": "변경 사항 없음", "pushed": False}
-    code, out = await sh(["git", *author_args(), "commit", "-m", message], cwd)
-    if code and re.search(r"hook|commit-msg|pre-commit|husky", out, re.I):
-        # 프로젝트의 git hook 이 실행 환경 문제(예: node 없음)로 실패 → 이유를 남기고 hook 없이 커밋
-        await run.emit("log", text=f"⚠️ 프로젝트 git hook 이 실패해서 hook 없이 커밋했어요:\n{out.strip()[-400:]}")
-        code, out = await sh(["git", *author_args(), "commit", "--no-verify", "-m", message], cwd)
-    if code:
-        raise RuntimeError(f"git commit 실패:\n{out.strip()[-1500:]}")
+    if staged:
+        code, out = await sh(["git", *author_args(), "commit", "-m", message], cwd)
+        if code and re.search(r"hook|commit-msg|pre-commit|husky", out, re.I):
+            # 프로젝트의 git hook 이 실행 환경 문제(예: node 없음)로 실패 → 이유를 남기고 hook 없이 커밋
+            await run.emit("log", text=f"⚠️ 프로젝트 git hook 이 실패해서 hook 없이 커밋했어요:\n{out.strip()[-400:]}")
+            code, out = await sh(["git", *author_args(), "commit", "--no-verify", "-m", message], cwd)
+        if code:
+            raise RuntimeError(f"git commit 실패:\n{out.strip()[-1500:]}")
     pushed = False
     if CONFIG["git"].get("auto_push", True):
         fresh = not await has_origin(cwd)
@@ -218,4 +221,105 @@ async def commit_and_push(run: Run, branch: str, message: str) -> dict:
             code, out = await sh(["git", "push", "-u", "origin", branch], cwd)
             pushed = code == 0
             await run.emit("log", text=("⬆️ push 완료" if pushed else f"⚠️ push 실패:\n{out}"))
+    if not staged:  # 새로 커밋할 건 없지만 아직 GitHub 에 안 올라간 커밋이 있었음 (push 만 함)
+        return {"summary": f"새 변경은 없고, 아직 안 올라간 커밋을 push 했어요:\n{unpushed}", "pushed": pushed}
     return {"summary": await git(cwd, "show", "--stat", "--format=%h %s", "HEAD"), "pushed": pushed}
+
+
+async def _unpushed(cwd: str, branch: str, base: str = "") -> str:
+    """branch 에서 아직 GitHub 에 안 올라간 커밋 목록 (원격이 없으면 빈 문자열)."""
+    if not await has_origin(cwd):
+        return ""
+    if (await sh(["git", "rev-parse", "--verify", "-q", f"refs/remotes/origin/{branch}"], cwd))[0] == 0:
+        since = f"origin/{branch}"
+    elif base and base not in ("HEAD", branch):
+        since = base  # 원격에 아직 없는 브랜치 → 시작 브랜치 이후 커밋
+    else:
+        return ""
+    return (await git(cwd, "log", "--format=%h %s", f"{since}..{branch}", check=False)).strip()
+
+
+async def _ok(cwd: str, *args: str) -> bool:
+    return (await sh(["git", *args], cwd))[0] == 0
+
+
+async def _base_branch(cwd: str) -> str:
+    """머지 대상 기본 브랜치: origin/HEAD → main/master 중 있는 것 → main."""
+    base = await default_branch(cwd, "")
+    if base:
+        return base
+    for name in ("main", "master"):
+        if await _ok(cwd, "rev-parse", "--verify", "-q", f"refs/remotes/origin/{name}") \
+                or await _ok(cwd, "rev-parse", "--verify", "-q", f"refs/heads/{name}"):
+            return name
+    return "main"
+
+
+async def _merge_commit(run: Run, cwd: str, base: str, branch: str, target: str, head: str) -> str:
+    """갈라진 경우: 작업 폴더와 별개인 임시 worktree 에서 머지 커밋. 충돌이면 취소하고 RuntimeError."""
+    tmp = DATA_DIR / "merge" / run.id
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    await git(cwd, "worktree", "add", "--detach", str(tmp), target)
+    try:
+        merge = ["git", *author_args(), "merge", "--no-ff", "--no-edit", "-m", f"chore(merge): {branch} 브랜치를 {base} 에 병합"]
+        code, out = await sh([*merge, head], str(tmp))
+        conflicts = (await git(str(tmp), "diff", "--name-only", "--diff-filter=U", check=False)).split() if code else []
+        if code and not conflicts and re.search(r"hook|commit-msg|pre-merge|husky", out, re.I):
+            await sh(["git", "merge", "--abort"], str(tmp))  # 프로젝트 hook 이 환경 문제로 실패 → hook 없이 (커밋과 같은 규칙)
+            await run.emit("log", text=f"⚠️ 프로젝트 git hook 이 실패해서 hook 없이 머지했어요:\n{out.strip()[-400:]}")
+            code, out = await sh([*merge, "--no-verify", head], str(tmp))
+        if code:
+            await sh(["git", "merge", "--abort"], str(tmp))
+            raise RuntimeError(f"{base} 와 {branch} 가 충돌해서 머지하지 않았어요 (아무것도 안 바뀜). 충돌 파일: "
+                               + (", ".join(conflicts[:10]) or out.strip()[-300:]))
+        return (await git(str(tmp), "rev-parse", "HEAD")).strip()
+    finally:
+        await sh(["git", "worktree", "remove", "--force", str(tmp)], cwd)
+        await sh(["git", "worktree", "prune"], cwd)
+
+
+async def merge_into_default(run: Run, branch: str) -> dict:
+    """작업 브랜치를 기본 브랜치(main)에 머지하고 push → {"text", "base", "pushed"}.
+    빨리 감기면 작업 폴더·현재 브랜치를 건드리지 않고 ref 만 옮긴다. 강제 push 는 하지 않는다."""
+    cwd = run.project
+    if not await has_origin(cwd):
+        raise RuntimeError("GitHub 원격(origin)이 없어요 — 커밋·push 가 한 번 끝난 뒤에 머지할 수 있어요")
+    code, out = await sh(["git", "fetch", "origin"], cwd)
+    if code:
+        raise RuntimeError(f"git fetch 실패:\n{out.strip()[-500:]}")
+    base = await _base_branch(cwd)
+    if base == branch:
+        raise RuntimeError(f"작업 브랜치가 기본 브랜치({base})와 같아서 머지할 게 없어요")
+    head = (await git(cwd, "rev-parse", f"refs/heads/{branch}")).strip()
+    code, out = await sh(["git", "push", "origin", f"refs/heads/{branch}"], cwd)  # 작업 브랜치부터 GitHub 에
+    if code:
+        raise RuntimeError(f"{branch} push 실패:\n{out.strip()[-500:]}")
+    local = (await sh(["git", "rev-parse", "--verify", "-q", f"refs/heads/{base}"], cwd))[1].strip()
+    remote = (await sh(["git", "rev-parse", "--verify", "-q", f"refs/remotes/origin/{base}"], cwd))[1].strip()
+    target = remote or local
+    if not target:  # 기본 브랜치가 아예 없음 → 작업 브랜치로 만든다
+        new, how = head, f"{base} 브랜치가 없어서 {branch} 로 새로 만들었어요"
+    elif await _ok(cwd, "merge-base", "--is-ancestor", head, target):
+        return {"text": f"✅ {base} 에 {branch} 의 커밋이 이미 다 들어가 있어요 (머지할 것 없음)", "base": base, "pushed": False}
+    elif await _ok(cwd, "merge-base", "--is-ancestor", target, head):
+        count = (await git(cwd, "rev-list", "--count", f"{target}..{head}")).strip()
+        new, how = head, f"{base} ← {branch} 빨리 감기 (커밋 {count}개)"
+    else:
+        new = await _merge_commit(run, cwd, base, branch, target, head)
+        how = f"{base} ← {branch} 머지 커밋 {new[:7]}"
+    code, out = await sh(["git", "push", "origin", f"{new}:refs/heads/{base}"], cwd)
+    if code:
+        raise RuntimeError(f"{base} push 실패 (GitHub 의 {base} 가 그사이 바뀌었을 수 있어요):\n{out.strip()[-500:]}")
+    note = ""
+    current = (await git(cwd, "rev-parse", "--abbrev-ref", "HEAD")).strip()
+    if not local:
+        await git(cwd, "branch", base, new)
+    elif not await _ok(cwd, "merge-base", "--is-ancestor", local, new):
+        note = f" (PC 의 {base} 에는 따로 커밋이 있어서 그대로 뒀어요)"
+    elif current == base:  # main 이 체크아웃돼 있으면 ref 만 옮기면 작업 폴더가 어긋남 → 작업 폴더째 빨리 감기
+        if not await _ok(cwd, "merge", "--ff-only", "-q", new):
+            note = f" (PC 의 {base} 작업 폴더는 커밋 안 된 변경 때문에 그대로 뒀어요)"
+    else:
+        await git(cwd, "update-ref", f"refs/heads/{base}", new, local)  # PC 의 main 도 같이 (작업 폴더는 그대로)
+    return {"text": f"🔀 {how} · push 완료{note}", "base": base, "pushed": True}
