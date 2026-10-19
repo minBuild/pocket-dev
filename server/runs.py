@@ -31,6 +31,11 @@ class Run:
         self.checkpoint: dict = {"phase": "debate", "round_from": 1,
                                  "round_until": settings.get("max_rounds", 2)}
         self.notes: list[str] = []      # 진행 중에 받은 사용자 메시지 (다음 단계에 반영)
+        self.attachments: list[dict] = []  # 사용자가 올린 파일 {name, path, text_path?}
+
+    @property
+    def attach_dir(self) -> str:
+        return str(RUNS_DIR / self.id / "attachments")
 
     @property
     def alive(self) -> bool:
@@ -88,7 +93,8 @@ class Run:
 
     def save(self) -> None:
         data = {**self.summary(), "settings": self.settings, "events": self.events, "spec": self.spec,
-                "history": self.history, "checkpoint": self.checkpoint, "notes": self.notes}
+                "history": self.history, "checkpoint": self.checkpoint, "notes": self.notes,
+                "attachments": self.attachments}
         (RUNS_DIR / f"{self.id}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
@@ -135,7 +141,7 @@ def load_saved_runs() -> None:
             continue
         r = Run(d["project"], d["idea"], d.get("settings", {}), run_id=d["id"])
         r.events, r.stage, r.created, r.spec = d["events"], d["stage"], d["created"], d.get("spec", "")
-        r.history, r.notes = d.get("history", []), d.get("notes", [])
+        r.history, r.notes, r.attachments = d.get("history", []), d.get("notes", []), d.get("attachments", [])
         if d.get("checkpoint"):
             r.checkpoint = d["checkpoint"]
         else:

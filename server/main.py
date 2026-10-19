@@ -12,12 +12,12 @@ import socket
 import subprocess
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import auth, executor, github, permissions, pipeline
+from . import attachments, auth, executor, github, permissions, pipeline, stitch, usage
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
@@ -134,7 +134,14 @@ async def get_config():
         "debate": {"max_rounds": CONFIG["debate"]["max_rounds"]},
         "executor_model": CONFIG["executor"]["claude_model"],
         "branch": CONFIG["git"]["branch"],
+        "stitch": stitch.configured(),
     }
+
+
+@app.get("/api/usage")
+async def get_usage():
+    """토큰 사용량 (오늘 / 최근 7일) — Pocket-Dev 와 이 PC 전체 Claude Code."""
+    return await asyncio.to_thread(usage.summary)
 
 
 def _projects() -> list[Path]:
@@ -233,9 +240,24 @@ async def rollback(req: RollbackReq):
 
 
 # ── 실행(Run) ─────────────────────────────────────────────────
+@app.post("/api/uploads")
+async def upload(files: list[UploadFile] = File(...)):
+    """첨부 파일 올리기 (작업 시작·채팅 때 id 로 붙임)."""
+    if len(files) > 10:
+        raise HTTPException(400, "한 번에 10개까지 올릴 수 있어요")
+    out = []
+    for f in files:
+        try:
+            out.append(await attachments.save_upload(f))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    return {"files": out}
+
+
 class StartReq(BaseModel):
     project: str
     idea: str
+    attachments: list[str] = []
     participants: list[dict] | None = None
     synthesizer: dict | None = None
     reviewers: list[dict] | None = None
@@ -244,6 +266,7 @@ class StartReq(BaseModel):
     max_rounds: int | None = None
     plan_gate: bool = True
     branch: str | None = None
+    stitch: bool = False
 
 
 def _check_engines(members: list[dict]) -> None:
@@ -266,6 +289,7 @@ async def start_run(req: StartReq):
         "max_rounds": max(1, min(req.max_rounds or CONFIG["debate"]["max_rounds"], 10)),
         "plan_gate": req.plan_gate,
         "branch": req.branch or CONFIG["git"]["branch"],
+        "stitch": req.stitch and stitch.configured(),
     }
     active = [p for p in settings["participants"] if p.get("enabled", True)]
     _check_engines(active + [settings["synthesizer"]] + settings["reviewers"] + settings["permission_reviewers"])
@@ -274,7 +298,8 @@ async def start_run(req: StartReq):
         p.setdefault("persona", "당신은 소프트웨어 설계 토론 참가자입니다.")
     run = Run(_resolve_project(req.project), req.idea, settings)
     RUNS[run.id] = run
-    await run.emit("user", text=req.idea)
+    run.attachments = attachments.attach(Path(run.attach_dir).parent, req.attachments)
+    await run.emit("user", text=req.idea, files=[a["name"] for a in run.attachments])
     run.task = asyncio.create_task(pipeline.run_pipeline(run, PORT))
     return run.summary()
 
@@ -334,6 +359,7 @@ async def reply(run_id: str, req: ReplyReq):
 
 class MessageReq(BaseModel):
     text: str = ""
+    attachments: list[str] = []
 
 
 def _is_resume(text: str) -> bool:
@@ -345,42 +371,33 @@ def _is_resume(text: str) -> bool:
 
 @app.post("/api/runs/{run_id}/message")
 async def run_message(run_id: str, req: MessageReq):
-    """작업 화면 채팅 — 기획안 수정 요청 · 진행 중 메모 · 멈춘 작업 재개 · 완료 후 추가 요청."""
+    """작업 화면 채팅. 빈 메시지·'이어서 진행해줘' 는 바로 재개하고,
+    나머지는 진행 비서가 읽고 판단한다 (질문 → 답만 / 작업 요청 → 수정·반영·추가 작업)."""
     run = _run(run_id)
-    text, resume_only = req.text.strip(), _is_resume(req.text)
-    if "plan" in run.waiters:  # 기획안 승인 대기 중 → 수정 요청
-        if resume_only:
-            raise HTTPException(400, "승인은 '승인하고 진행' 버튼으로, 수정할 점은 내용을 적어서 보내 주세요")
-        await run.emit("user", text=text)
-        run.resolve("plan", {"action": "feedback", "text": text})
-        await run.emit("user_reply", key="plan", action="feedback", text=text)
-        return {"mode": "feedback"}
-    if text:
-        await run.emit("user", text=text)
-    limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
-    if limit_keys:  # 한도 대기 중 → 바로 재시도
-        if not resume_only:
-            run.notes.append(text)
+    text = req.text.strip()
+    files = attachments.attach(Path(run.attach_dir).parent, req.attachments) if req.attachments else []
+    if files:
+        run.attachments += files
+        run.save()
+        names = ", ".join(f["name"] for f in files)
+        text = f"{text}\n\n[첨부 파일 추가: {names}]" if text else f"첨부 파일을 올렸어요: {names}"
+    if req.text.strip() or files:
+        await run.emit("user", text=req.text.strip(), files=[f["name"] for f in files])
+    if _is_resume(text):
+        limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
         for key in limit_keys:
             run.resolve(key, {"action": "retry"})
             await run.emit("user_reply", key=key, action="retry", text="")
-        return {"mode": "retry"}
-    if run.alive:  # 진행 중 → 다음 단계에 반영
-        if not resume_only:
-            run.notes.append(text)
-            run.save()
-        return {"mode": "queued" if not resume_only else "running"}
-    if run.status == "done":
-        if resume_only:
+        if limit_keys:
+            return {"mode": "retry"}
+        if run.alive:
+            return {"mode": "running"}
+        if run.status == "done":
             raise HTTPException(400, "이미 끝난 작업이에요. 추가로 바꿀 내용을 적어 주세요")
-        pipeline.start_followup(run, text)
-        mode = "followup"
-    else:  # 멈춘 작업 → 멈춘 단계부터 재개
-        if not resume_only:
-            run.notes.append(text)
-        mode = "resumed"
-    run.task = asyncio.create_task(pipeline.run_pipeline(run, PORT))
-    return {"mode": mode}
+        pipeline.start(run, PORT)
+        return {"mode": "resumed"}
+    asyncio.create_task(pipeline.handle_chat(run, text, PORT))
+    return {"mode": "assistant"}
 
 
 @app.post("/api/runs/{run_id}/cancel")

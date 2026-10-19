@@ -68,13 +68,15 @@ team:
   # Claude Code 권한 요청 심사 — 자주 불리니 가벼운 모델 추천
   permission_reviewers:
     - { engine: claude, model: claude-haiku-5-5 }
+  # 작업 화면 채팅을 먼저 읽는 진행 비서 (질문엔 답하고, 작업 요청일 때만 작업 시작) + 커밋 메시지 작성
+  assistant: { engine: claude, model: claude-sonnet-5-5, effort: low }
 
 debate:
   max_rounds: 2              # 전원 AGREE 면 조기 종료
   context_char_budget: 30000 # 프롬프트에 미리 넣는 파일 목록·내용 (나머지는 AI 가 직접 열어봄)
   read_tools: [Read, Grep, Glob]   # 토론·리뷰 참가자가 쓸 수 있는 읽기 전용 도구
   turn_timeout_sec: 1800
-  max_output_tokens: 32000  # 응답 한 번의 출력(생각 포함) 상한 — 생각 폭주로 한도가 바닥나는 것 방지
+  max_output_tokens: 64000  # 응답 한 번의 출력(생각 포함) 상한. 32000 은 긴 명세서에서 'exceeded output token maximum' 오류가 남
 
 plan_review:
   enabled: true
@@ -113,3 +115,11 @@ git:
   new_repo_private: true
   # '새 프로젝트 만들기' 로 만든 폴더가 생기는 곳
   new_project_root: "~/IdeaProjects"
+
+# ── Google Stitch (화면 디자인, 선택) ─────────────────────────────
+# Stitch(https://stitch.withgoogle.com) → 프로필 → Stitch settings → API key 에서 키를 만들어
+# setup_stitch.bat 으로 저장하면 새 작업에 '🎨 Stitch로 화면 디자인 먼저 만들기' 가 나타남
+stitch:
+  mcp_url: https://stitch.googleapis.com/mcp
+  model: claude-sonnet-5-5   # Stitch 를 조작할 Claude 모델
+  max_screens: 6

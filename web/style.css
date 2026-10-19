@@ -44,6 +44,12 @@ main { max-width: 820px; margin: 0 auto; padding: 12px 16px 220px; }
 .lock-banner { margin: 0 0 12px; padding: 12px; border-radius: 10px; border: 1px solid var(--danger); background: var(--card); font-size: 14px; }
 .lock-banner .primary { margin-top: 10px; }
 .engine-status { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); font-size: 14px; }
+.usage summary { cursor: pointer; font-size: 15px; }
+.usage summary .muted { margin-left: 6px; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+.usage-table { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+.usage-table th, .usage-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+.usage-table th:first-child, .usage-table td:first-child { text-align: left; color: var(--muted); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
 h2 { font-size: 16px; margin: 4px 0 10px; }
 .card h2 + div + h2, .card button + h2 { margin-top: 18px; }
@@ -112,6 +118,15 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .actions:not(:empty) { margin-bottom: 8px; }
 .actions button { flex: 1; min-width: 120px; padding: 10px; }
+.attach-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.attach-btn { display: inline-flex; align-items: center; gap: 4px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); cursor: pointer; font-size: 14px; flex: none; }
+.attach-btn.icon { padding: 10px 12px; }
+.file-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-chips:not(:empty) { margin: 8px 0; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 10px; border-radius: 99px; background: var(--bg);
+  border: 1px solid var(--line); font-size: 12px; max-width: 100%; overflow-wrap: anywhere; }
+.chip button { border: 0; background: transparent; padding: 0 4px; color: var(--muted); }
 .composer-row { display: flex; gap: 6px; align-items: flex-end; }
 .composer-row textarea { flex: 1; min-width: 0; resize: none; }
 .composer-row button { width: auto; flex: none; padding: 10px 14px; }

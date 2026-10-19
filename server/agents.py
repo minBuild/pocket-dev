@@ -6,6 +6,7 @@ import time
 import uuid
 
 from .config import CONFIG
+from .attachments import prompt_block
 from .engines import SANDBOX, UsageLimitError, generate
 from .runs import Run
 
@@ -84,6 +85,7 @@ async def speak(run: Run, who: dict, system: str, prompt: str, *, kind: str = "d
         try:
             res = await generate(who["engine"], who["model"], system, prompt,
                                  cwd=run.project if tools else None, tools=tools,
+                                 add_dirs=[run.attach_dir] if tools and run.attachments else (),
                                  effort=effort_of(who), on_text=on_text, on_tool=on_tool,
                                  timeout=timeout or CONFIG["debate"]["turn_timeout_sec"])
         except Exception as e:
@@ -138,6 +140,7 @@ async def debate(run: Run, participants: list[dict], idea: str, context: str, ta
                     history.append({"round": rnd, "pid": "user", "name": "사용자", "model": "human", "text": note})
                 system = p["persona"].strip() + "\n" + DEBATE_RULES
                 prompt = (f"[프로젝트 컨텍스트]\n{context}\n\n[사용자 아이디어]\n{idea}\n\n"
+                          f"{prompt_block(run.attachments)}\n\n"
                           f"[지금까지의 토론]\n{_transcript(history) or '(아직 없음 — 당신이 첫 발언자입니다. 초안을 제시하세요.)'}\n\n"
                           f"당신은 '{p['name']}' 입니다. 라운드 {rnd}. 의견을 제시하세요.")
                 text = await speak(run, p, system, prompt, tools=tools)
@@ -168,6 +171,7 @@ async def write_spec(run: Run, synth: dict, idea: str, context: str, history: li
                      extra: str = "") -> str:
     await run.emit("stage", stage="spec", label="작업 명세서 작성")
     prompt = (f"[프로젝트 컨텍스트]\n{context}\n\n[사용자 아이디어]\n{idea}\n\n"
+              f"{prompt_block(run.attachments)}\n\n"
               f"[팀 토론]\n{_transcript(history)}\n\n{extra}")
     return await speak(run, {**synth, "name": "명세서 작성"}, SPEC_SYSTEM, prompt, kind="spec",
                        tools=CONFIG["debate"]["read_tools"])
@@ -233,3 +237,81 @@ async def judge_permission(r: dict, spec: str, project: str, tool_name: str, too
     except Exception as e:
         return {"reviewer": r["model"], "engine": r["engine"], "decision": "ask_human",
                 "reason": f"심사 실패: {e}"}
+
+
+COMMIT_SYSTEM = """당신은 커밋 메시지 작성자입니다. 주어진 git diff 를 보고 실제 변경 내용을 설명하는 커밋 메시지를 씁니다.
+형식 (Conventional Commits, 한국어):
+  첫 줄: <타입>(<범위>): <무엇을 바꿨는지 요약>   — 타입은 feat/fix/refactor/docs/test/chore/style/build 중 하나, 범위는 생략 가능, 60자 이내
+  빈 줄
+  - 주요 변경 3~6줄 (파일·기능 단위로 구체적으로)
+규칙: 사용자 질문이나 요청 문장을 그대로 옮기지 말 것. 'ai', 'AI 작업', 'Claude' 같은 말 넣지 말 것.
+커밋 메시지 본문만 출력 (따옴표·코드블록 없이)."""
+
+
+async def commit_message(diff: str, context: str = "") -> str:
+    """실제 변경(diff) 기준 커밋 메시지. 실패하면 변경 파일 목록으로 대신 만든다."""
+    who = CONFIG["team"].get("assistant") or {"engine": "claude", "model": "claude-sonnet-5-5"}
+    prompt = (f"[참고: 이번 작업 명세 요약]\n{context[:4000]}\n\n" if context else "") + f"[git diff]\n{diff[:60000]}"
+    try:
+        res = await generate(who["engine"], who["model"], COMMIT_SYSTEM, prompt,
+                             cwd=str(SANDBOX), effort=effort_of(who), timeout=300)
+        text = res["text"].strip().strip("`").strip()
+        lines = [l for l in text.splitlines() if l.strip()]
+        if lines and re.match(r"^(feat|fix|refactor|docs|test|chore|style|build|perf|ci)(\(.+?\))?!?: .+", lines[0]):
+            return text
+    except Exception:
+        pass
+    files = re.findall(r"^ (\S+)\s+\|", diff, re.M)
+    return f"chore: {len(files)}개 파일 수정\n\n" + "\n".join(f"- {f}" for f in files[:10])
+
+
+ASSIST_SYSTEM = """당신은 Pocket-Dev 의 '진행 비서'입니다. 사용자가 작업 화면 채팅에 보낸 메시지를 읽고 무엇을 할지 정합니다.
+Pocket-Dev 는 AI 팀이 토론 → 명세서 → 구현(Claude Code) → 리뷰 → 커밋/push 를 하는 개발 서버입니다.
+- 질문·상태 확인·불만·확인 요청이면 → [작업 상황] 을 근거로 한국어로 짧고 정확하게 답하세요. action = "answer"
+  (멈춘 이유를 물으면 마지막 오류를 쉬운 말로 설명하고, 어떻게 하면 되는지도 알려주세요)
+- 프로젝트 코드·기획을 바꾸거나 추가해 달라는 구체적인 요청이면 → action = "work",
+  task 에 개발팀이 바로 이해할 수 있게 작업 지시를 1~3문장으로 정리. reply 에는 무엇을 하겠다고 짧게.
+- 멈춘 작업을 이어서 하라는 뜻이면 → action = "resume"
+- Pocket-Dev 자체(커밋 메시지 방식, 서버, 권한 설정 등)에 대한 요청이면 프로젝트 작업이 아니므로 action = "answer" 로
+  어떻게 동작하는지 설명하세요. 판단이 애매하면 "answer" 로 하고 어떻게 할지 되물으세요.
+반드시 JSON 만 출력: {"action": "answer" | "work" | "resume", "reply": "사용자에게 보낼 답", "task": "work 일 때 작업 지시"}"""
+
+
+def situation(run: Run) -> str:
+    """진행 비서에게 줄 작업 상황 요약."""
+    recent = [e for e in run.events if e["type"] in ("stage", "log", "error", "user", "result", "spec")][-25:]
+    lines = []
+    for e in recent:
+        text = (e.get("label") or e.get("text") or "").replace("\n", " ")
+        lines.append(f"- [{e['type']}] {text[:300]}")
+    files = ", ".join(a["name"] for a in run.attachments) or "없음"
+    return (f"프로젝트 폴더: {run.project}\n처음 아이디어: {run.idea[:1500]}\n첨부 파일: {files}\n"
+            f"상태: {run.status} / 진행 단계: {run.checkpoint.get('phase')}\n"
+            f"작업 명세서 앞부분:\n{run.spec[:3000] or '(아직 없음)'}\n\n최근 진행 기록:\n" + "\n".join(lines))
+
+
+async def assistant_decide(run: Run, text: str) -> dict:
+    """채팅 메시지 → {"action", "reply", "task"}. 화면에는 비서의 답(reply)만 보여준다."""
+    who = CONFIG["team"].get("assistant") or {"engine": "claude", "model": "claude-sonnet-5-5"}
+    msg_id = uuid.uuid4().hex[:10]
+    await run.emit("message_start", msg_id=msg_id, kind="assistant", name="진행 비서", engine=who["engine"],
+                   model=who["model"], icon="🤖")
+    await run.emit("delta", msg_id=msg_id, text="읽는 중…")
+    decision, usage = {"action": "answer", "reply": "", "task": ""}, {}
+    try:
+        res = await generate(who["engine"], who["model"], ASSIST_SYSTEM,
+                             f"[작업 상황]\n{situation(run)}\n\n[사용자 메시지]\n{text}",
+                             cwd=str(SANDBOX), effort=effort_of(who), timeout=300)
+        usage = res["usage"]
+        try:
+            d = extract_json(res["text"])
+            decision = {"action": d.get("action") if d.get("action") in ("answer", "work", "resume") else "answer",
+                        "reply": str(d.get("reply") or ""), "task": str(d.get("task") or text)}
+        except ValueError:
+            decision["reply"] = res["text"]
+    except UsageLimitError as e:
+        decision["reply"] = f"지금 구독 사용량 한도에 걸려 답하지 못했어요 ({e}). 한도가 풀리면 다시 보내 주세요."
+    except Exception as e:
+        decision["reply"] = f"답변하다 오류가 났어요: {e}"
+    await run.emit("message_end", msg_id=msg_id, text=decision["reply"] or "(답 없음)", usage=usage)
+    return decision

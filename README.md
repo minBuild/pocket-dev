@@ -27,6 +27,14 @@ AI 회사 API를 직접 부르지 않고, 구독 계정으로 로그인해 둔 *
 - **작업 화면 채팅:** 기획안 단계에선 수정 요청 → 한 라운드 더 토론 · 진행 중엔 다음 단계에 반영할 지시 ·
   한도 대기 중엔 바로 재시도 · 완료 후엔 추가 요청 → 한 바퀴 더 (토론 → 명세서 → 구현 → 리뷰 → 커밋)
 - 같은 권한 요청은 한 번만 심사합니다.
+- **진행 비서:** 작업 화면 채팅은 비서(Sonnet)가 먼저 읽습니다. 질문·상태 확인("왜 멈췄어?")엔 답만 하고,
+  코드를 바꿔 달라는 요청일 때만 작업 지시로 정리해서 진행합니다 (질문이 작업·커밋으로 바뀌지 않음).
+- **커밋 메시지:** 실제 변경(git diff)을 보고 Conventional Commits 형식 한국어로 작성 (요청 문장·'ai' 표기 없음).
+  프로젝트의 git hook 이 실행 환경 문제로 실패하면 이유를 기록하고 hook 없이 커밋합니다.
+- **파일 첨부:** 새 작업·채팅에서 📎 — md·txt·docx 는 내용을 토론에 넣고, PDF·이미지는 AI 가 직접 열어봅니다.
+- **토큰 사용량:** 새 작업 탭의 📊 — 오늘 / 최근 7일, 이 PC 전체 Claude Code 와 Pocket-Dev 따로.
+- **Stitch 화면 디자인 (선택):** `setup_stitch.bat` 으로 Stitch API 키를 넣고 새 작업에서 🎨 를 켜면,
+  기획안 승인 뒤 Google Stitch 공식 MCP 로 화면을 만들어 `design/stitch/` 에 HTML·스크린샷을 저장하고 구현이 그걸 따릅니다.
 
 ## 설치 (집 PC, 최초 1회)
 
@@ -119,6 +127,7 @@ UI에서 참가자 추가/삭제/순서, 모델, effort(생각 깊이)를 바꿀
 config.yaml               엔진·모델·팀·보안·git 설정
 start.bat                 서버 실행
 setup_login.bat           아이디·비밀번호 설정 + 새 액세스 토큰 발급
+setup_stitch.bat          Google Stitch API 키 저장 (화면 디자인 단계용)
 unlock.bat                공개 주소 잠금 해제
 server/main.py            FastAPI 라우트 · 출입구(사설/공개) 구분 · 로그인 API
 server/auth.py            로그인 검증 · 세션 · 실패 잠금
@@ -129,6 +138,9 @@ server/permissions.py     하드 룰 + 심사 투표 + 사람 에스컬레이션
 server/permission_mcp.py  Claude Code 가 호출하는 권한 심사 MCP 서버
 server/executor.py        Claude Code 구현 실행 · git · GitHub 저장소 자동 생성
 server/github.py          GitHub 저장소 목록(비공개 포함) · 받아오기 · 웹 링크
+server/attachments.py     파일 첨부 (업로드 · docx 글자 추출 · 프롬프트 반영)
+server/usage.py           토큰 사용량 기록·집계 (오늘 / 7일)
+server/stitch.py          Google Stitch 공식 MCP 연동 (디자인 단계)
 web/                      모바일 웹 UI
 data/                     실행 기록 · 잠금 상태 (git 에 안 올라감)
 ```

@@ -61,5 +61,19 @@ def do_unlock() -> None:
     print("\n잠금을 해제했어요. 공개 주소로 다시 로그인할 수 있습니다.")
 
 
+def setup_stitch() -> None:
+    print("=== Google Stitch 연결 ===\n")
+    print("1. https://stitch.withgoogle.com 에 로그인")
+    print("2. 오른쪽 위 프로필 사진 → Stitch settings → API key → Create key")
+    print("3. 만든 키를 아래에 붙여넣기 (화면에 안 보여요, 오른쪽 클릭이나 Ctrl+V)\n")
+    key = getpass.getpass("Stitch API 키: ").strip()
+    if not key:
+        print("입력이 없어서 취소했어요.")
+        return
+    write_env({"STITCH_API_KEY": key})
+    print("\n저장했어요. 서버를 다시 켜면 새 작업에 '🎨 Stitch로 화면 디자인 먼저 만들기' 가 나타나요.")
+
+
 if __name__ == "__main__":
-    {"setup": setup, "unlock": do_unlock}.get(sys.argv[1] if len(sys.argv) > 1 else "setup", setup)()
+    {"setup": setup, "unlock": do_unlock, "stitch": setup_stitch}.get(
+        sys.argv[1] if len(sys.argv) > 1 else "setup", setup)()

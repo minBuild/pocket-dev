@@ -2,12 +2,14 @@
 import asyncio
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Optional
 
 from .config import ACCESS_TOKEN, CONFIG, DATA_DIR
+from . import usage as usage_log
 from .engines import check_limit, claude_bin, subscription_env, tool_summary
 from .runs import Run
 
@@ -98,8 +100,10 @@ async def prepare_branch(run: Run, branch: str) -> None:
     await run.emit("log", text=f"🌿 브랜치: {branch}")
 
 
-async def run_claude_code(run: Run, prompt: str, model: str, port: int) -> dict:
-    """Claude Code 를 구독 로그인으로 headless 실행. 권한 요청은 permission_mcp → 리뷰어 AI 가 심사."""
+async def run_claude_code(run: Run, prompt: str, model: str, port: int,
+                          extra_mcp: Optional[dict] = None, extra_allowed: list | tuple = ()) -> dict:
+    """Claude Code 를 구독 로그인으로 headless 실행. 권한 요청은 permission_mcp → 리뷰어 AI 가 심사.
+    extra_mcp: 추가 MCP 서버 (예: Stitch), extra_allowed: 묻지 않고 허용할 도구 (예: mcp__stitch)"""
     ex = CONFIG["executor"]
     run_dir = DATA_DIR / "runs" / run.id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -108,7 +112,7 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int) -> dict:
         "command": sys.executable, "args": [str(MCP_SCRIPT)],
         "env": {"POCKETDEV_URL": f"http://127.0.0.1:{port}", "POCKETDEV_RUN_ID": run.id,
                 "POCKETDEV_TOKEN": ACCESS_TOKEN},
-    }}}), encoding="utf-8")
+    }, **(extra_mcp or {})}}), encoding="utf-8")
 
     args = [claude_bin(), "-p", "--model", model, "--output-format", "stream-json", "--verbose",
             "--mcp-config", str(mcp_config), "--strict-mcp-config",
@@ -116,8 +120,11 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int) -> dict:
             "--permission-mode", ex.get("permission_mode", "acceptEdits")]
     if ex.get("effort"):
         args += ["--effort", ex["effort"]]
-    if ex.get("always_allow_tools"):
-        args += ["--allowedTools", *ex["always_allow_tools"]]
+    if run.attachments:  # 사용자 첨부 자료도 읽을 수 있게
+        args += ["--add-dir", run.attach_dir]
+    allowed = [*ex.get("always_allow_tools", []), *extra_allowed]
+    if allowed:
+        args += ["--allowedTools", *allowed]
 
     env = subscription_env(MCP_TOOL_TIMEOUT=str((ex.get("human_timeout_sec", 600) + 300) * 1000))
     await run.emit("log", text=f"🤖 Claude Code 시작 ({model}, 구독 로그인, 권한 모드 {ex.get('permission_mode')})")
@@ -162,6 +169,7 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int) -> dict:
     if not result:
         check_limit(stderr)
         raise RuntimeError(f"Claude Code 비정상 종료 ({proc.returncode}):\n{stderr[-3000:]}")
+    usage_log.record("executor", model, result.get("usage") or {})
     if result.get("is_error"):
         check_limit(str(result.get("result", "")))
         await run.emit("log", text=f"⚠️ Claude Code 오류 종료: {str(result.get('result') or result.get('subtype'))[:500]}")
@@ -193,7 +201,13 @@ async def commit_and_push(run: Run, branch: str, message: str) -> dict:
     await git(cwd, "reset", "-q", "--", "TASK_SPEC.md", check=False)
     if not (await git(cwd, "diff", "--cached", "--name-only")).strip():
         return {"summary": "변경 사항 없음", "pushed": False}
-    await git(cwd, *author_args(), "commit", "-m", message)
+    code, out = await sh(["git", *author_args(), "commit", "-m", message], cwd)
+    if code and re.search(r"hook|commit-msg|pre-commit|husky", out, re.I):
+        # 프로젝트의 git hook 이 실행 환경 문제(예: node 없음)로 실패 → 이유를 남기고 hook 없이 커밋
+        await run.emit("log", text=f"⚠️ 프로젝트 git hook 이 실패해서 hook 없이 커밋했어요:\n{out.strip()[-400:]}")
+        code, out = await sh(["git", *author_args(), "commit", "--no-verify", "-m", message], cwd)
+    if code:
+        raise RuntimeError(f"git commit 실패:\n{out.strip()[-1500:]}")
     pushed = False
     if CONFIG["git"].get("auto_push", True):
         fresh = not await has_origin(cwd)

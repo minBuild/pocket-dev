@@ -12,6 +12,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Awaitable, Callable, Optional
 
+from . import usage as usage_log
 from .config import CONFIG, DATA_DIR
 
 OnText = Optional[Callable[[str], Awaitable[None]]]
@@ -135,6 +136,7 @@ async def engine_status() -> dict:
 
 async def generate(engine: str, model: str, system: str, prompt: str, *,
                    cwd: Optional[str] = None, tools: list | tuple = (), effort: Optional[str] = None,
+                   add_dirs: list | tuple = (),
                    on_text: OnText = None, on_tool: OnText = None, timeout: float = 1800) -> dict:
     """한 번 답하기. 반환 {"text": 최종 답변, "usage": 토큰 사용량}.
 
@@ -153,6 +155,8 @@ async def generate(engine: str, model: str, system: str, prompt: str, *,
             "--setting-sources", "project,local"]
     if effort:
         args += ["--effort", effort]
+    if add_dirs:
+        args += ["--add-dir", *add_dirs]
     if tools:
         args += ["--allowedTools", *tools]
 
@@ -208,6 +212,7 @@ async def generate(engine: str, model: str, system: str, prompt: str, *,
     if not result:
         check_limit(stderr)
         raise RuntimeError(f"claude 실행 실패 (exit {proc.returncode}): {stderr.strip()[-1500:]}")
+    usage_log.record("generate", model, result.get("usage") or {})
     if result.get("is_error"):
         message = str(result.get("result") or result.get("subtype") or "알 수 없는 오류")
         check_limit(message)

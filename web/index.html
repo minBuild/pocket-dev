@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=6">
+<link rel="stylesheet" href="/static/style.css?v=9">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -52,15 +52,28 @@
   <section id="tab-new">
     <div id="lockBanner" class="lock-banner" hidden></div>
     <p id="engineStatus" class="engine-status"></p>
+    <details id="usageBox" class="card usage">
+      <summary><b>📊 토큰 사용량</b> <span id="usageLine" class="muted">불러오는 중…</span></summary>
+      <div id="usageDetail"></div>
+    </details>
 
     <div class="card">
       <h2>💡 아이디어</h2>
       <textarea id="idea" rows="4" placeholder="예) 보상형 광고 시청 후 포인트를 지급하는 로직과 UI 추가"></textarea>
+      <div class="attach-row">
+        <label class="attach-btn">📎 파일 첨부<input type="file" id="ideaFiles" multiple hidden
+          accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.csv,.json,.html,.yaml,.yml,.xml"></label>
+        <span class="muted">기획 문서·시안 이미지 (md·txt·pdf·docx·이미지, 20MB까지)</span>
+      </div>
+      <div id="ideaFileList" class="file-chips"></div>
       <fieldset class="radio-group">
         <legend>기획안 검토</legend>
         <label><input type="radio" name="planGate" value="review" checked> 내가 검토하고 승인하면 진행</label>
         <label><input type="radio" name="planGate" value="auto"> 검토 없이 끝까지 자동 진행</label>
       </fieldset>
+      <label class="row" id="stitchRow" hidden><input type="checkbox" id="stitchOn">
+        🎨 Stitch로 화면 디자인 먼저 만들기 <span class="muted">(구현 전에 design/stitch/ 에 화면 시안 저장)</span></label>
+      <p id="stitchHint" class="muted" hidden>🎨 Stitch 화면 디자인은 집 PC에서 <code>setup_stitch.bat</code> 으로 API 키를 넣으면 쓸 수 있어요.</p>
       <button id="startBtn" class="primary">🚀 토론 시작</button>
     </div>
 
@@ -113,7 +126,10 @@
 <div id="composer" hidden>
   <div id="composerInfo"></div>
   <div class="actions" id="composerActions"></div>
+  <div id="chatFileList" class="file-chips"></div>
   <div class="composer-row">
+    <label class="attach-btn icon" title="파일 첨부">📎<input type="file" id="chatFiles" multiple hidden
+      accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.csv,.json,.html,.yaml,.yml,.xml"></label>
     <textarea id="composerText" rows="2"></textarea>
     <button id="sendBtn" class="primary">보내기</button>
   </div>
@@ -133,6 +149,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>

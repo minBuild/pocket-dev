@@ -130,6 +130,27 @@ function renderEngineStatus() {
   $("#engineStatus").hidden = !html;
 }
 
+// ── 토큰 사용량 ──
+const fmtN = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "K" : String(n);
+const totalOf = b => b.input + b.output + b.cache_read + b.cache_write;
+
+async function loadUsage() {
+  try {
+    const d = await api("/api/usage");
+    $("#usageLine").textContent = `오늘 ${fmtN(totalOf(d.pc.today))} · 7일 ${fmtN(totalOf(d.pc.week))}`;
+    const row = (label, b) => `<tr><td>${label}</td><td>${fmtN(b.output)}</td><td>${fmtN(b.input + b.cache_write)}</td>` +
+      `<td>${fmtN(b.cache_read)}</td><td><b>${fmtN(totalOf(b))}</b></td></tr>`;
+    const models = b => Object.entries(b.by_model).filter(([, v]) => v.total).map(([k, v]) => `${k} ${fmtN(v.total)}`).join(" · ") || "-";
+    $("#usageDetail").innerHTML = `<div class="table-wrap"><table class="usage-table">
+      <tr><th></th><th>출력</th><th>입력</th><th>캐시 읽기</th><th>합계</th></tr>
+      ${row("PC 전체 · 오늘", d.pc.today)}${row("PC 전체 · 7일", d.pc.week)}
+      ${row("Pocket-Dev · 오늘", d.pocketdev.today)}${row("Pocket-Dev · 7일", d.pocketdev.week)}</table></div>
+      <p class="muted">모델별 (PC 전체 · 7일): ${models(d.pc.week)}</p>
+      <p class="muted">PC 전체 = 이 PC에서 쓴 Claude Code 전부 (직접 대화 포함). 7일 = 지금부터 거꾸로 7일.
+      구독 한도(%)는 Claude 앱의 사용량 화면에서 확인할 수 있어요.</p>`;
+  } catch (e) { $("#usageLine").textContent = "불러오지 못함"; }
+}
+
 // ── 실행 화면 ──
 function md(text) {
   if (window.marked && window.DOMPurify) return DOMPurify.sanitize(marked.parse(text || ""));
@@ -163,7 +184,11 @@ let renderTimer = null;
 function handle(ev, live = true) {
   const nearBottom = innerHeight + scrollY > document.body.scrollHeight - 200;
   switch (ev.type) {
-    case "user": addMsg("user", "<b>⬜ 나</b>", ev.text); break;
+    case "user": {
+      const el = addMsg("user", "<b>⬜ 나</b>", ev.text);
+      if (ev.files?.length) el.insertAdjacentHTML("beforeend", `<div class="file-chips">${ev.files.map(n => `<span class="chip">📎 ${esc(n)}</span>`).join("")}</div>`);
+      break;
+    }
     case "stage": line("stage", ev.label); $("#runStage").textContent = ev.label; break;
     case "message_start":
       addMsg(ev.engine + (ev.kind === "spec" ? " spec" : ""), `<b>${ev.icon} ${esc(ev.name)}</b> · ${esc(ev.model)}`, "", ev.msg_id); break;
@@ -249,32 +274,63 @@ function renderComposer() {
   };
   const reply = async action => { await post(`/api/runs/${currentRun.id}/reply`, { key, action, text: ta.value.trim() }); ta.value = ""; };
   if (ev?.kind === "plan") {
-    info.innerHTML = "📋 <b>기획안이 나왔어요.</b> 수정할 점을 보내면 반영해서 다시 기획하고, 승인하면 구현 → 리뷰 → push 까지 자동으로 진행해요.";
-    ta.placeholder = "수정 요청 (예: 결제는 빼고, 로그인은 구글로)";
+    info.innerHTML = "📋 <b>기획안이 나왔어요.</b> 승인하면 구현 → 리뷰 → push 까지 자동으로 진행해요. 궁금한 건 물어보고, 고칠 점은 적어 보내세요.";
+    ta.placeholder = "질문하거나 수정 요청 (예: 결제는 빼고, 로그인은 구글로)";
     btn("🚀 승인하고 진행", () => reply("approve"), "primary");
     btn("취소", () => reply("cancel"), "danger");
   } else if (ev?.kind === "limit") {
     info.innerHTML = `⏳ <b>구독 사용량 한도에 걸렸어요.</b> ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동으로 이어서 진행해요.<div class="muted">${esc(ev.text)}</div>`;
-    ta.placeholder = "메시지를 보내면 바로 다시 시도해요";
+    ta.placeholder = "질문하거나 지시를 남길 수 있어요 (재시도는 버튼)";
     btn("🔁 지금 재시도", () => reply("retry"), "primary");
   } else if (ev) {
     info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input.command || ev.input.file_path || "").slice(0, 120))}</code>`;
-    ta.placeholder = "메모 (다음 단계에 반영돼요)";
+    ta.placeholder = "질문하거나 지시를 남길 수 있어요";
     btn("✅ 허용", () => reply("allow"), "primary");
     btn("⛔ 거부", () => reply("deny"), "danger");
   } else if (alive) {
-    ta.placeholder = "진행 중 — 보낸 메시지는 다음 단계에 반영돼요";
+    ta.placeholder = "진행 중 — 질문엔 바로 답하고, 지시는 다음 단계에 반영해요";
   } else if (status === "done") {
-    ta.placeholder = "추가로 바꾸고 싶은 걸 보내면 한 번 더 작업해요";
+    ta.placeholder = "질문엔 답하고, 추가 작업 요청이면 한 바퀴 더 진행해요";
   } else {
-    info.innerHTML = "⏸ <b>멈춘 작업이에요.</b> 멈춘 단계부터 이어서 진행할 수 있어요.";
-    ta.placeholder = "추가 지시가 있으면 적어서 보내세요 (보내면 이어서 진행)";
+    info.innerHTML = "⏸ <b>멈춘 작업이에요.</b> 멈춘 단계부터 이어서 진행할 수 있어요. 왜 멈췄는지 물어봐도 돼요.";
+    ta.placeholder = "왜 멈췄는지 묻거나, 지시를 적어 보내세요";
     btn("▶ 이어서 진행", () => sendMessage(""), "primary");
   }
 }
 
+// ── 파일 첨부 ──
+const chatFiles = [], ideaFiles = [];
+
+async function uploadFiles(files) {
+  if (!files.length) return [];
+  const fd = new FormData();
+  files.forEach(f => fd.append("files", f));
+  const res = await fetch("/api/uploads", { method: "POST", body: fd, credentials: "same-origin" });
+  if (res.status === 401) { showGate("login"); throw new Error("로그인이 필요해요"); }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || res.statusText);
+  return body.files.map(f => f.id);
+}
+
+function renderChips(box, files) {
+  box.innerHTML = "";
+  files.forEach((f, i) => {
+    const chip = document.createElement("span"); chip.className = "chip";
+    chip.textContent = `📎 ${f.name} (${f.size >= 1e6 ? (f.size / 1e6).toFixed(1) + "MB" : Math.ceil(f.size / 1e3) + "KB"})`;
+    const x = document.createElement("button"); x.textContent = "✕"; x.title = "빼기";
+    x.onclick = () => { files.splice(i, 1); renderChips(box, files); };
+    chip.append(x); box.append(chip);
+  });
+}
+
+function bindFileInput(input, files, box) {
+  input.onchange = () => { files.push(...input.files); input.value = ""; renderChips(box, files); };
+}
+
 async function sendMessage(text) {
-  const r = await post(`/api/runs/${currentRun.id}/message`, { text });
+  const attachments = await uploadFiles(chatFiles);
+  const r = await post(`/api/runs/${currentRun.id}/message`, { text, attachments });
+  chatFiles.length = 0; renderChips($("#chatFileList"), chatFiles);
   $("#composerText").value = "";
   if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "running"; $("#rollbackBtn")?.remove(); }
   renderComposer();
@@ -392,6 +448,12 @@ async function startApp() {
   try { state = { ...defaults, ...JSON.parse(localStorage.getItem(LS_KEY) || "{}") }; } catch { state = defaults; }
   renderTeam();
   renderEngineStatus();
+  $("#stitchRow").hidden = !CFG.stitch;
+  $("#stitchHint").hidden = !!CFG.stitch;
+  $("#stitchOn").checked = !!state.stitch;
+  $("#stitchOn").onchange = e => { state.stitch = e.target.checked; save(); };
+  loadUsage();
+  setInterval(() => { if (!$("#tab-new").hidden && !document.hidden) loadUsage(); }, 60000);
 
   const { projects } = await api("/api/projects");
   const sel = $("#project");
@@ -458,21 +520,28 @@ async function startApp() {
   $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
-  const send = () => {
+  bindFileInput($("#chatFiles"), chatFiles, $("#chatFileList"));
+  bindFileInput($("#ideaFiles"), ideaFiles, $("#ideaFileList"));
+  const send = async () => {
     const text = $("#composerText").value.trim();
-    if (text) sendMessage(text).catch(e => alert(e.message));
+    if (!text && !chatFiles.length) return;
+    $("#sendBtn").disabled = true;
+    try { await sendMessage(text); } catch (e) { alert(e.message); }
+    $("#sendBtn").disabled = false;
   };
   $("#sendBtn").onclick = send;
   $("#composerText").onkeydown = e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } };
   $("#cancelBtn").onclick = async () => { if (currentRun && confirm("이 작업을 중단할까요?")) await post(`/api/runs/${currentRun.id}/cancel`, {}); };
   $("#startBtn").onclick = async () => {
-    const idea = $("#idea").value.trim();
-    if (!idea) return alert("아이디어를 입력하세요");
+    let idea = $("#idea").value.trim();
+    if (!idea && ideaFiles.length) idea = "첨부한 문서를 검토해서 기획하고 개발해줘";
+    if (!idea) return alert("아이디어를 입력하거나 문서를 첨부하세요");
     if (!sel.value || sel.value === NEW) return alert("프로젝트를 선택하세요");
     $("#startBtn").disabled = true;
     try {
-      const run = await post("/api/runs", { project: sel.value, idea, ...state });
-      $("#idea").value = "";
+      const attachments = await uploadFiles(ideaFiles);
+      const run = await post("/api/runs", { project: sel.value, idea, attachments, ...state });
+      $("#idea").value = ""; ideaFiles.length = 0; renderChips($("#ideaFileList"), ideaFiles);
       openRun(run);
     } catch (e) { alert(e.message); }
     $("#startBtn").disabled = false;
