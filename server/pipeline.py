@@ -266,8 +266,10 @@ async def run_pipeline(run: Run, port: int) -> None:
                 run.base_branch = run.checkpoint.get("base_branch", run.base_branch)
                 branch = s.get("branch") or CONFIG["git"]["branch"]
                 diff = await executor.staged_diff(run.project)
-                message = await agents.commit_message(diff, run.spec)  # 요청 문장이 아니라 실제 변경 내용으로
-                await run.emit("log", text=f"📝 커밋 메시지: {message.splitlines()[0]}")
+                message = ""
+                if diff.strip():  # 바뀐 게 없으면 메시지도 만들지 않는다 (commit_and_push → "변경 사항 없음")
+                    message = await agents.commit_message(diff, run.spec)  # 요청 문장이 아니라 실제 변경 내용으로
+                    await run.emit("log", text=f"📝 커밋 메시지: {message.splitlines()[0]}")
                 committed = await executor.commit_and_push(run, branch, message)
                 links = {}
                 web = await github.web_url(run.project) if committed["pushed"] else None
