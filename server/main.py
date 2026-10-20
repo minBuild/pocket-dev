@@ -673,22 +673,47 @@ def _print_urls() -> None:
 
 
 def _listen(host: str, port: int) -> socket.socket:
-    """재시작 직후엔 이전 서버가 포트를 놓을 때까지 잠깐 기다린다."""
-    for attempt in range(30):
+    """재시작 직후엔 이전 서버가 포트를 놓을 때까지 잠깐 기다린다.
+    listen 까지 여기서 해 둔다 (uvicorn 이 다시 listen 해도 괜찮음) — 첫 listen 이 실패하면 새 소켓으로 다시."""
+    for attempt in range(100):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.bind((host, port))
+            sock.listen(2048)
             sock.set_inheritable(True)
             return sock
-        except OSError:
+        except OSError as e:
             sock.close()
-            if attempt == 29:
+            if attempt == 99:
                 raise
-            time.sleep(1)
+            time.sleep(0.02 if _flaky_listen(e) else 1)
+
+
+# 이 PC 에선 새 소켓의 첫 listen() 이 4번에 1번꼴로 WinError 10014 로 실패한다 (같은 소켓 재시도도 자주 실패,
+# 이미 listen 중인 소켓에 다시 listen 하는 건 괜찮음). asyncio 이벤트 루프(socketpair)와 서버 소켓이 모두 listen 을 써서
+# 실패하면 서버가 켜지자마자 죽었다 — 화면의 재시작이 안 되던 원인. 새 소켓으로 다시 시도한다.
+def _flaky_listen(e: OSError) -> bool:
+    return getattr(e, "winerror", None) == 10014
+
+
+def _retry_socketpair() -> None:
+    original = socket.socketpair
+
+    def socketpair(*args, **kwargs):
+        for attempt in range(50):
+            try:
+                return original(*args, **kwargs)
+            except OSError as e:
+                if not _flaky_listen(e) or attempt == 49:
+                    raise
+                time.sleep(0.02)
+
+    socket.socketpair = socketpair
 
 
 if __name__ == "__main__":
     import uvicorn
+    _retry_socketpair()
     auth.load_handoff()
     _print_urls()
     sockets = [_listen(CONFIG["server"]["host"], PORT), _listen("127.0.0.1", PUBLIC_PORT)]
