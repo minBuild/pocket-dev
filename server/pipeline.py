@@ -57,6 +57,11 @@ async def handle_chat(run: Run, text: str, port: int) -> None:
     """작업 화면 채팅 — 진행 비서가 먼저 읽고, 질문이면 답만 하고 작업 요청일 때만 작업을 진행시킨다."""
     decision = await agents.assistant_decide(run, text)
     action, task = decision["action"], decision["task"]
+    if decision.get("browser") and not browser.enabled(run.settings):  # "Chrome 켜서 AdMob …" 같은 요청
+        run.settings["browser"] = True
+        run.save()
+        await run.emit("log", text="🌐 이 작업의 Chrome 사용을 켰어요 (채팅 요청) — 구현 단계에서 웹 콘솔 작업을 하고, "
+                                   "클릭·입력은 하나하나 권한 심사를 거쳐요. ⚙️ 에서 끌 수 있어요")
     if action == "work":
         if "plan" in run.waiters:  # 기획안 승인 대기 → 수정 요청으로 한 라운드 더
             run.resolve("plan", {"action": "feedback", "text": task})
