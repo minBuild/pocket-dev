@@ -128,6 +128,83 @@ function renderEngineStatus() {
   else if (s.method !== "claude.ai") html = `⚠️ Claude 가 구독이 아닌 <b>${esc(s.method)}</b> 방식으로 로그인됨 — 크레딧 과금될 수 있어요`;
   $("#engineStatus").innerHTML = html;
   $("#engineStatus").hidden = !html;
+  if (html) $("#engineStatus").append(fixButton());
+}
+
+// ── Claude Code 문제 해결 (다시 확인 · 설치 · 로그인) — 상단 안내와 작업 화면 오류 줄에서 ──
+const ENGINE_ERROR = /claude CLI 를 찾을 수 없|claude auth login|Please run \/login|Not logged in|Invalid API key|OAuth token/i;
+
+function fixButton() {
+  const box = document.createElement("div"); box.className = "engine-fix";
+  const b = document.createElement("button"); b.textContent = "🛠 해결하기";
+  b.onclick = () => openEngineFix(box);
+  box.append(b);
+  return box;
+}
+
+async function openEngineFix(box) {
+  box.innerHTML = '<span class="muted">Claude Code 상태 확인 중…</span>';
+  let s;
+  try { s = await post("/api/engines/claude/recheck", {}); } catch (e) { box.textContent = "❌ " + e.message; return; }
+  CFG.engines.claude.status = s;
+  const ok = s.installed && s.logged_in && s.method === "claude.ai";
+  box.innerHTML = "";
+  const btn = (label, onClick, cls = "") => {
+    const b = document.createElement("button"); b.textContent = label; b.className = cls;
+    b.onclick = async () => { b.disabled = true; try { await onClick(); } catch (e) { alert(e.message); } b.disabled = false; };
+    box.append(b); return b;
+  };
+  const say = html => box.insertAdjacentHTML("beforeend", `<div class="fix-msg">${html}</div>`);
+  if (ok) {
+    say(`✅ Claude Code 정상 (${esc(s.plan || "구독")} · claude.ai 로그인). 멈춘 작업은 <b>▶ 이어서 진행</b>으로 재개하세요.`);
+    renderEngineStatus(); return;
+  }
+  if (!s.installed) {
+    say("❌ 집 PC에서 Claude Code 를 찾지 못했어요." + (s.detail ? ` <span class="muted">${esc(s.detail)}</span>` : ""));
+    btn("⬇️ Claude Code 설치", async () => {
+      if (!confirm("집 PC에 Claude Code 를 설치할까요?\n(Anthropic 공식 설치 스크립트 · 1~2분)")) return;
+      say("설치 중… 끝날 때까지 기다려 주세요.");
+      const r = await post("/api/engines/claude/install", {});
+      say(`<pre>${esc(r.output || "(출력 없음)")}</pre>`);
+      if (r.status.installed) openEngineFix(box); else say("❌ 설치 뒤에도 찾지 못했어요. 위 출력을 확인해 주세요.");
+    }, "primary");
+  } else {
+    say(s.logged_in ? `⚠️ 구독이 아닌 <b>${esc(s.method)}</b> 방식으로 로그인돼 있어요. 구독 계정으로 다시 로그인하세요.`
+                    : "❌ Claude Code 로그인이 필요해요.");
+    btn("🔑 구독 계정으로 로그인", () => loginFlow(box), "primary");
+  }
+  btn("🔍 다시 확인", () => openEngineFix(box));
+}
+
+function againButton(box) {
+  const b = document.createElement("button"); b.textContent = "🛠 다시 시도";
+  b.onclick = () => openEngineFix(box);
+  return b;
+}
+
+async function loginFlow(box) {
+  box.innerHTML = '<span class="muted">로그인 주소 받는 중…</span>';
+  let url;
+  try { ({ url } = await post("/api/engines/claude/login/start", {})); }
+  catch (e) { box.innerHTML = `<div class="fix-msg">❌ ${esc(e.message)}</div>`; box.append(againButton(box)); return; }
+  box.innerHTML = `<div class="fix-msg">① 아래 링크를 열어 Claude 구독 계정으로 로그인하세요.<br>
+      <a class="btn-link" href="${esc(url)}" target="_blank" rel="noopener">🔑 로그인 페이지 열기 ↗</a></div>
+    <div class="fix-msg">② 로그인 후 나오는 코드를 복사해서 붙여 넣으세요.</div>
+    <div class="composer-row"><input class="login-code" placeholder="코드 붙여 넣기" autocomplete="off" autocapitalize="none" spellcheck="false">
+      <button class="primary">확인</button><button>취소</button></div>`;
+  const [okBtn, cancelBtn] = box.querySelectorAll(".composer-row button");
+  const input = $(".login-code", box);
+  okBtn.onclick = async () => {
+    okBtn.disabled = true;
+    try {
+      const r = await post("/api/engines/claude/login/code", { code: input.value });
+      if (r.ok && r.status.logged_in) { openEngineFix(box); return; }
+      box.insertAdjacentHTML("beforeend", `<div class="fix-msg">❌ 로그인하지 못했어요.<pre>${esc(r.output || "")}</pre></div>`);
+      box.append(againButton(box));
+    } catch (e) { alert(e.message); }
+    okBtn.disabled = false;
+  };
+  cancelBtn.onclick = async () => { await post("/api/engines/claude/login/cancel", {}).catch(() => {}); openEngineFix(box); };
 }
 
 // ── 토큰 사용량 ──
@@ -259,7 +336,10 @@ function handle(ev, mode = "live") {
       }
       break;
     }
-    case "error": line("msg error", "❌ " + ev.text); break;
+    case "error":
+      line("msg error", "❌ " + ev.text);
+      if (ENGINE_ERROR.test(ev.text || "")) out(fixButton());   // 화면에서 바로 설치·로그인
+      break;
     case "status":
       if (older) break;
       if (currentRun) currentRun.status = ev.status;

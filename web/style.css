@@ -110,6 +110,11 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .run-del:not(:disabled):hover { color: var(--danger); border-color: var(--danger); }
 .older-bar { display: block; width: 100%; margin-bottom: 10px; font-size: 13px; color: var(--muted); background: transparent; border-style: dashed; }
 
+.engine-fix { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.engine-fix .fix-msg { flex-basis: 100%; font-size: 14px; }
+.engine-fix .fix-msg .btn-link { margin-top: 6px; }
+.engine-fix pre { max-height: 240px; overflow: auto; background: var(--bg); padding: 8px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; }
+.engine-fix .composer-row { flex-basis: 100%; }
 .restarting { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
   text-align: center; background: color-mix(in srgb, var(--bg) 88%, transparent); font-weight: 600; }
 

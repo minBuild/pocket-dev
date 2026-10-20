@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, executor, github, permissions, pipeline, runs, stitch, usage
+from . import attachments, auth, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
@@ -193,6 +193,48 @@ async def get_config():
         "branch": CONFIG["git"]["branch"],
         "stitch": stitch.configured(),
     }
+
+
+# ── Claude Code 문제 해결 (화면에서: 다시 확인 · 설치 · 로그인) ─────────
+@app.post("/api/engines/claude/recheck")
+async def engine_recheck():
+    engine_setup.recheck()
+    return (await engine_status())["claude"]
+
+
+@app.post("/api/engines/claude/install")
+async def engine_install():
+    code, output = await engine_setup.install()
+    return {"code": code, "output": output, "status": (await engine_status())["claude"]}
+
+
+@app.post("/api/engines/claude/login/start")
+async def engine_login_start():
+    try:
+        return {"url": await engine_setup.LOGIN.start()}
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+
+
+class LoginCodeReq(BaseModel):
+    code: str
+
+
+@app.post("/api/engines/claude/login/code")
+async def engine_login_code(req: LoginCodeReq):
+    if not req.code.strip():
+        raise HTTPException(400, "코드를 붙여 넣으세요")
+    try:
+        result = await engine_setup.LOGIN.submit(req.code)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return {**result, "status": (await engine_status())["claude"]}
+
+
+@app.post("/api/engines/claude/login/cancel")
+async def engine_login_cancel():
+    engine_setup.LOGIN.cancel()
+    return {"ok": True}
 
 
 @app.get("/api/usage")

@@ -10,6 +10,7 @@ import re
 import shutil
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from . import usage as usage_log
@@ -82,10 +83,17 @@ def check_limit(message: str) -> None:
 
 
 def claude_bin() -> str:
+    """PATH 에 없어도 기본 설치 위치를 확인한다 (네이티브 설치기는 사용자 PATH 에 안 넣을 수 있고,
+    탐색기로 켠 start.bat 은 탐색기가 켜질 때의 PATH 를 물려받음)."""
     path = shutil.which("claude")
-    if not path:
-        raise RuntimeError("claude CLI 를 찾을 수 없습니다 — Claude Code 설치 후 `claude auth login`")
-    return path
+    if path:
+        return path
+    home = Path.home()
+    for candidate in (home / ".local" / "bin" / "claude.exe", home / ".local" / "bin" / "claude",
+                      Path(os.environ.get("APPDATA", home)) / "npm" / "claude.cmd"):
+        if candidate.is_file():
+            return str(candidate)
+    raise RuntimeError("claude CLI 를 찾을 수 없습니다 — Claude Code 설치 후 `claude auth login`")
 
 
 def subscription_env(**extra: str) -> dict:
