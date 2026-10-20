@@ -615,10 +615,11 @@ async function restartServer() {
     }
     if (es) { es.close(); es = null; }
     document.body.insertAdjacentHTML("beforeend", '<div class="restarting">🔄 서버를 다시 시작하는 중…</div>');
+    const oldBoot = r.boot || SESSION.boot;   // 재시작을 받은 서버 (화면을 연 뒤 서버가 바뀌었을 수도 있어서 응답 기준)
     for (let i = 0; i < 60; i++) {   // 새 서버가 뜰 때까지 (최대 약 90초)
       await new Promise(ok => setTimeout(ok, 1500));
       const s = await fetch("/api/session", { credentials: "same-origin" }).then(x => x.json()).catch(() => null);
-      if (s && s.boot !== SESSION.boot) return location.reload();
+      if (s && s.boot !== oldBoot) return location.reload();
     }
     $(".restarting").textContent = "⚠️ 서버가 다시 뜨지 않았어요. 집 PC의 Pocket-Dev 창을 확인해 주세요.";
   } catch (e) { alert(e.message); }

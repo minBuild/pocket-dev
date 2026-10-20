@@ -153,14 +153,19 @@ async def restart_server(req: RestartReq):
     """새 코드를 검사하고, 진행 중인 작업을 확인한 뒤 서버를 다시 켠다.
     start.bat 으로 켠 서버는 종료 코드 3 으로 끝나면 start.bat 이 다시 켜고, 아니면 새 창으로 직접 띄운다."""
     global restart_requested
-    if restart_requested:
-        return {"ok": True}
+    print(f"[restart] 요청 (force={req.force}, 이미 요청됨={restart_requested}, supervised={os.environ.get('POCKETDEV_SUPERVISED')})",
+          flush=True)
+    if restart_requested:  # 이전 요청이 아직 안 끝났으면 종료 신호만 다시
+        if SERVER:
+            SERVER.should_exit = True
+        return {"ok": True, "boot": BOOT_ID}
     alive = [r for r in RUNS.values() if r.alive]
     if alive and not req.force:
         return JSONResponse({"detail": f"진행 중인 작업이 {len(alive)}개 있어요",
                              "alive": [r.idea[:60] for r in alive]}, status_code=409)
     error = await _check_new_code()
     if error:
+        print(f"[restart] 새 코드 오류로 취소:\n{error}", flush=True)
         raise HTTPException(400, "새 코드에 오류가 있어서 재시작하지 않았어요 (지금 서버는 그대로):\n" + error)
     for r in alive:  # 중단 → 나중에 '이어서 진행' 으로 재개
         await r.emit("log", text="🔄 서버 재시작으로 중단 — 다시 켜진 뒤 '이어서 진행'으로 재개할 수 있어요")
@@ -169,6 +174,7 @@ async def restart_server(req: RestartReq):
         await asyncio.wait([r.task for r in alive], timeout=15)
     auth.save_handoff()
     restart_requested = True
+    print(f"[restart] 종료 예약 (boot {BOOT_ID})", flush=True)
     asyncio.get_running_loop().call_later(0.5, lambda: setattr(SERVER, "should_exit", True))
     return {"ok": True, "boot": BOOT_ID}
 
