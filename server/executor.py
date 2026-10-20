@@ -35,6 +35,40 @@ async def sh(args: list[str], cwd: str, check: bool = False, timeout: float = 60
     return proc.returncode, text
 
 
+TERMINAL_MAX_OUTPUT = 20000
+
+
+def _decode_line(raw: bytes) -> str:
+    """git·gh 는 UTF-8 로, cmd 내장 명령(echo 등)은 Windows 코드 페이지(한글이면 cp949)로 내보낸다."""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("mbcs" if sys.platform == "win32" else "latin-1", "replace")
+
+
+async def terminal(command: str, cwd: str, timeout: float = 180) -> tuple[int, str]:
+    """작업 화면 터미널 칸: 사용자가 적은 명령을 cmd 로 실행 (입력 프롬프트 없이, 출력은 UTF-8).
+    PowerShell 은 stderr 를 파이프로 받으면 진행 표시를 CLIXML 로 섞어 내보내서 cmd 를 쓴다.
+    여러 줄이면 한 줄씩 차례로 (& 로 이어서) 실행한다."""
+    lines = [ln.strip() for ln in command.splitlines() if ln.strip()]
+    env = {**os.environ, **GIT_ENV, "GH_PROMPT_DISABLED": "1", "NO_COLOR": "1"}
+    gh = gh_bin()
+    if gh:  # 서버가 켜진 뒤 gh 를 설치했어도 쓸 수 있게
+        env["PATH"] = str(Path(gh).parent) + os.pathsep + env.get("PATH", "")
+    proc = await asyncio.create_subprocess_shell(
+        "chcp 65001 >nul & " + " & ".join(lines), cwd=cwd, env=env,
+        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+    except asyncio.TimeoutError:
+        await sh(["taskkill", "/T", "/F", "/PID", str(proc.pid)], cwd)  # git 같은 자식 프로세스까지
+        return -1, f"{timeout:.0f}초 안에 끝나지 않아 중단했어요"
+    text = "".join(_decode_line(b) for b in out.splitlines(keepends=True))
+    if len(text) > TERMINAL_MAX_OUTPUT:
+        text = "…(앞부분 생략)\n" + text[-TERMINAL_MAX_OUTPUT:]
+    return proc.returncode, text
+
+
 async def git(cwd: str, *args: str, check: bool = True) -> str:
     return (await sh(["git", *args], cwd, check))[1]
 

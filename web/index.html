@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=10">
+<link rel="stylesheet" href="/static/style.css?v=11">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -129,7 +129,9 @@
   <div id="composerInfo"></div>
   <div class="actions" id="composerActions"></div>
   <div id="chatFileList" class="file-chips"></div>
+  <div id="termChips" class="term-chips" hidden></div>
   <div class="composer-row">
+    <button id="termToggle" class="term-toggle" title="터미널 — 프로젝트 폴더에서 명령 직접 실행 (git·gh 등)">⌨️</button>
     <label class="attach-btn icon" title="파일 첨부">📎<input type="file" id="chatFiles" multiple hidden
       accept=".md,.txt,.pdf,.docx,.png,.jpg,.jpeg,.webp,.gif,.csv,.json,.html,.yaml,.yml,.xml"></label>
     <textarea id="composerText" rows="2"></textarea>
@@ -151,6 +153,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=10"></script>
+<script src="/static/app.js?v=11"></script>
 </body>
 </html>

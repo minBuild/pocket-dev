@@ -2,6 +2,7 @@
 import asyncio
 import json
 import re
+import shutil
 import time
 import uuid
 from typing import Any, Optional
@@ -65,11 +66,39 @@ class Run:
             q.put_nowait(ev)
         return ev
 
-    def snapshot_events(self) -> list[dict]:
-        evs = list(self.events)
+    def window(self, before: Optional[int], limit: int) -> tuple[int, list[dict]]:
+        """events[start:before] — 메시지·권한 요청의 시작 이벤트가 잘리지 않게 시작점을 앞으로 당긴다."""
+        evs = self.events
+        end = len(evs) if before is None else max(0, min(before, len(evs)))
+        start = max(0, end - limit)
+        while start:
+            msg_ids = {e["msg_id"] for e in evs[start:end] if e["type"] in ("tool", "message_end")}
+            if before is None:
+                msg_ids |= set(self.partials)
+            req_ids = {e["req_id"] for e in evs[start:end] if e["type"] in ("permission_votes", "permission_decision")}
+            first = next((i for i, e in enumerate(evs[:start])
+                          if (e["type"] == "message_start" and e.get("msg_id") in msg_ids)
+                          or (e["type"] == "permission_request" and e.get("req_id") in req_ids)), start)
+            if first == start:
+                break
+            start = first
+        return start, evs[start:end]
+
+    def snapshot_events(self, limit: int) -> tuple[int, list[dict]]:
+        """최근 이벤트만 (+ 스트리밍 중인 메시지). 앞부분은 window() 로 나눠 받는다."""
+        start, evs = self.window(None, limit)
+        evs = list(evs)
         for p in self.partials.values():
             evs.append({"type": "delta", "msg_id": p["msg_id"], "text": p["text"], "ts": p["ts"]})
-        return evs
+        return start, evs
+
+    def pending_events(self) -> list[dict]:
+        """지금 대기 중인 사람 응답 요청 — 앞부분이 안 불러와져도 채팅창 버튼을 그릴 수 있게."""
+        last = {e["key"]: e for e in self.events if e["type"] == "awaiting_user"}
+        return [last[k] for k in self.waiters if k in last]
+
+    def stage_label(self) -> str:
+        return next((e.get("label", "") for e in reversed(self.events) if e["type"] == "stage"), "")
 
     # ── 사람 응답 대기 ──
     def wait_for(self, key: str) -> asyncio.Future:
@@ -131,6 +160,13 @@ def reconstruct(run: Run) -> None:
 
 
 RUNS: dict[str, Run] = {}
+
+
+def delete_run(run_id: str) -> None:
+    """기록 파일과 첨부 폴더를 지우고 목록에서 뺀다."""
+    RUNS.pop(run_id, None)
+    (RUNS_DIR / f"{run_id}.json").unlink(missing_ok=True)
+    shutil.rmtree(RUNS_DIR / run_id, ignore_errors=True)
 
 
 def load_saved_runs() -> None:

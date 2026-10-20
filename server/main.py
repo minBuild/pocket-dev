@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, executor, github, permissions, pipeline, stitch, usage
+from . import attachments, auth, executor, github, permissions, pipeline, runs, stitch, usage
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
@@ -315,17 +315,38 @@ def _run(run_id: str) -> Run:
     return RUNS[run_id]
 
 
+PAGE_EVENTS = 200  # 대화창에 한 번에 보내는 이벤트 수 (나머지는 위로 스크롤할 때)
+
+
+@app.delete("/api/runs/{run_id}")
+async def delete_run(run_id: str):
+    """기록 삭제 (첨부 파일 포함). 진행 중이거나 응답을 기다리는 작업은 먼저 중단해야 한다."""
+    if _run(run_id).alive:
+        raise HTTPException(409, "진행 중인 작업이에요. 먼저 중단한 뒤 삭제하세요")
+    runs.delete_run(run_id)
+    return {"ok": True}
+
+
+@app.get("/api/runs/{run_id}/older")
+async def older_events(run_id: str, before: int, limit: int = PAGE_EVENTS):
+    """대화창을 위로 올렸을 때 그 앞의 이벤트."""
+    first, events = _run(run_id).window(before, max(1, min(limit, 1000)))
+    return {"first": first, "events": events}
+
+
 @app.get("/api/runs/{run_id}/events")
 async def run_events(run_id: str):
-    """SSE: 지금까지의 이벤트를 먼저 보내고 이후 실시간 이벤트를 이어서 보낸다."""
+    """SSE: 최근 이벤트를 먼저 보내고 이후 실시간 이벤트를 이어서 보낸다 (앞부분은 /older)."""
     run = _run(run_id)
     queue: asyncio.Queue = asyncio.Queue()
-    snapshot = run.snapshot_events()
+    first, events = run.snapshot_events(PAGE_EVENTS)
+    snapshot = {"type": "snapshot", "run": run.summary(), "events": events, "first": first,
+                "pending": run.pending_events(), "stage_label": run.stage_label()}
     run.subscribers.add(queue)
 
     async def gen():
         try:
-            yield f"data: {json.dumps({'type': 'snapshot', 'run': run.summary(), 'events': snapshot}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps(snapshot, ensure_ascii=False)}\n\n"
             while True:
                 try:
                     ev = await asyncio.wait_for(queue.get(), 20)
@@ -478,6 +499,24 @@ async def run_message(run_id: str, req: MessageReq):
         return {"mode": "resumed"}
     asyncio.create_task(pipeline.handle_chat(run, text, PORT))
     return {"mode": "assistant"}
+
+
+class TerminalReq(BaseModel):
+    command: str
+
+
+@app.post("/api/runs/{run_id}/terminal")
+async def run_terminal(run_id: str, req: TerminalReq):
+    """작업 화면 터미널 칸 — 이 작업의 프로젝트 폴더에서 명령 실행 (git·gh 등). 결과는 대화 기록에도 남긴다."""
+    run = _run(run_id)
+    command = req.command.strip()
+    if not command:
+        raise HTTPException(400, "명령을 입력하세요")
+    if len(command) > 4000:
+        raise HTTPException(400, "명령이 너무 길어요")
+    code, output = await executor.terminal(command, _resolve_project(run.project))
+    await run.emit("terminal", command=command, code=code, output=output)
+    return {"code": code, "output": output}
 
 
 @app.post("/api/runs/{run_id}/cancel")

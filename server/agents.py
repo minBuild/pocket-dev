@@ -283,9 +283,13 @@ ASSIST_ACTIONS = ("answer", "work", "resume", "merge")
 
 def situation(run: Run) -> str:
     """진행 비서에게 줄 작업 상황 요약."""
-    recent = [e for e in run.events if e["type"] in ("stage", "log", "error", "user", "result", "spec")][-25:]
+    recent = [e for e in run.events if e["type"] in ("stage", "log", "error", "user", "result", "spec", "terminal")][-25:]
     lines = []
     for e in recent:
+        if e["type"] == "terminal":  # 사용자가 터미널 칸에서 직접 실행한 명령
+            text = f"$ {e['command']} (종료 코드 {e['code']}) {e['output'][-300:]}".replace("\n", " ")
+            lines.append(f"- [terminal] {text}")
+            continue
         text = (e.get("label") or e.get("text") or "").replace("\n", " ")
         lines.append(f"- [{e['type']}] {text[:300]}")
     files = ", ".join(a["name"] for a in run.attachments) or "없음"

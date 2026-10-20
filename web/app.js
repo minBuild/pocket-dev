@@ -157,6 +157,8 @@ function md(text) {
   return `<pre>${esc(text)}</pre>`;
 }
 const msgs = new Map();
+let sink = null;   // 이전 대화를 그릴 때만 임시 상자 (평소엔 #stream)
+const out = el => (sink || $("#stream")).append(el);
 
 function addMsg(cls, whoHtml, text, id) {
   const el = document.createElement("div");
@@ -164,7 +166,7 @@ function addMsg(cls, whoHtml, text, id) {
   el.innerHTML = `<div class="who">${whoHtml}</div><div class="tools"></div><div class="body"></div>`;
   el._raw = text || "";
   $(".body", el).innerHTML = md(el._raw);
-  $("#stream").append(el);
+  out(el);
   if (id) msgs.set(id, el);
   return el;
 }
@@ -177,19 +179,21 @@ function collapsible(el) {
   el.append(b);
 }
 
-const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; $("#stream").append(d); };
+const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; out(d); };
 const fmtTokens = u => u && (u.output_tokens != null) ? ` · 출력 ${u.output_tokens.toLocaleString()} 토큰` : "";
 
 let renderTimer = null;
-function handle(ev, live = true) {
+// mode: live(실시간) · snapshot(처음 받은 최근 기록) · older(위로 스크롤해서 받은 이전 기록 — 화면 상태는 안 바꿈)
+function handle(ev, mode = "live") {
   const nearBottom = innerHeight + scrollY > document.body.scrollHeight - 200;
+  const older = mode === "older";
   switch (ev.type) {
     case "user": {
       const el = addMsg("user", "<b>⬜ 나</b>", ev.text);
       if (ev.files?.length) el.insertAdjacentHTML("beforeend", `<div class="file-chips">${ev.files.map(n => `<span class="chip">📎 ${esc(n)}</span>`).join("")}</div>`);
       break;
     }
-    case "stage": line("stage", ev.label); $("#runStage").textContent = ev.label; break;
+    case "stage": line("stage", ev.label); if (!older) $("#runStage").textContent = ev.label; break;
     case "message_start":
       addMsg(ev.engine + (ev.kind === "spec" ? " spec" : ""), `<b>${ev.icon} ${esc(ev.name)}</b> · ${esc(ev.model)}`, "", ev.msg_id); break;
     case "tool": {
@@ -219,24 +223,31 @@ function handle(ev, live = true) {
     case "permission_request": {
       const d = document.createElement("div"); d.className = "perm"; d.id = "perm-" + ev.req_id;
       d.innerHTML = `🔐 <b>권한 요청: ${esc(ev.tool)}</b><pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre><div class="votes"></div><div class="final muted">심사 중…</div>`;
-      $("#stream").append(d); break;
+      out(d); break;
     }
     case "permission_votes": {
-      const d = $("#perm-" + ev.req_id); if (!d) break;
+      const d = permBox(ev.req_id); if (!d) break;
       $(".votes", d).innerHTML = ev.votes.map(v =>
         `<div>${v.decision === "allow" ? "✅" : v.decision === "deny" ? "⛔" : "🤔"} ${esc(v.reviewer)}: ${esc(v.reason)}</div>`).join("");
       break;
     }
     case "permission_decision": {
-      const d = $("#perm-" + ev.req_id);
+      const d = permBox(ev.req_id);
       if (d) $(".final", d).innerHTML = `<span class="${ev.allow ? "ok" : "no"}">${ev.allow ? "허용" : "거부"}</span> — ${esc(ev.by)}`;
-      pending.delete("perm:" + ev.req_id); break;
+      if (!older) pending.delete("perm:" + ev.req_id);
+      break;
     }
     case "awaiting_user":
-      pending.set(ev.key, ev);
+      if (!older) pending.set(ev.key, ev);
       if (ev.kind === "limit") line("log", `⏳ 구독 사용량 한도 도달 (${ev.label}) — ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동 재시도`);
       break;
-    case "user_reply": pending.delete(ev.key); break;
+    case "user_reply": if (!older) pending.delete(ev.key); break;
+    case "terminal": {
+      const d = document.createElement("div"); d.className = "term";
+      d.innerHTML = `<div class="term-cmd"><code>$ ${esc(ev.command)}</code> <span class="${ev.code ? "no" : "ok"}">${ev.code ? "종료 코드 " + ev.code : "완료"}</span></div>
+        <pre>${esc(ev.output || "(출력 없음)")}</pre>`;
+      out(d); break;
+    }
     case "result": {
       const el = addMsg("user", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
       const l = ev.links || {};
@@ -250,13 +261,17 @@ function handle(ev, live = true) {
     }
     case "error": line("msg error", "❌ " + ev.text); break;
     case "status":
+      if (older) break;
       if (currentRun) currentRun.status = ev.status;
       if (["done", "error", "cancelled"].includes(ev.status)) pending.clear();
       if (ev.status === "done") addRollback();
       break;
   }
-  if (live) { renderComposer(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
+  if (mode === "live") { renderComposer(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
 }
+
+// 이전 대화를 그리는 중이면 임시 상자에서 먼저 찾는다 (아직 화면에 안 붙어 있음)
+const permBox = id => (sink && $("#perm-" + id, sink)) || $("#perm-" + id);
 
 // ── 작업 화면 채팅창 (상황에 따라 버튼·안내가 바뀜) ──
 function renderComposer() {
@@ -296,6 +311,27 @@ function renderComposer() {
     ta.placeholder = "왜 멈췄는지 묻거나, 지시를 적어 보내세요";
     btn("▶ 이어서 진행", () => sendMessage(""), "primary");
   }
+  // 터미널 모드: 같은 입력칸을 프로젝트 폴더의 PowerShell 명령 입력으로 쓴다
+  $("#termToggle").classList.toggle("active", termMode);
+  $("#termChips").hidden = !termMode;
+  $(".composer-row .attach-btn").hidden = termMode;
+  ta.classList.toggle("mono", termMode);
+  $("#sendBtn").textContent = termMode ? "실행" : "보내기";
+  if (termMode) ta.placeholder = `$ 명령 (${currentRun.project.split(/[\\/]/).pop()} 폴더에서 실행 · 예: git status)`;
+}
+
+// ── 터미널 칸 (git·gh 처럼 직접 날려야 하는 명령) ──
+let termMode = false;
+const TERM_PRESETS = ["git status", "git log --oneline -10", "git pull", "git push", "gh pr list"];
+
+async function runTerminal(command) {
+  const ta = $("#composerText");
+  ta.value = ""; $("#sendBtn").textContent = "실행 중…";
+  try {
+    await post(`/api/runs/${currentRun.id}/terminal`, { command });
+    scrollTo(0, document.body.scrollHeight);   // 결과는 대화 기록(실시간 이벤트)으로 붙음
+  } catch (e) { ta.value = command; throw e; }
+  finally { renderComposer(); }
 }
 
 // ── 파일 첨부 ──
@@ -393,20 +429,59 @@ async function openModels() {
   box.hidden = false;
 }
 
+// ── 이전 대화: 처음엔 최근 기록만 받고, 위로 스크롤하면 그 앞을 이어 붙인다 ──
+let firstIndex = 0, loadingOlder = false, streamGen = 0;
+
+function renderOlderBar() {
+  const bar = $("#olderBar"); if (!bar) return;
+  bar.hidden = !firstIndex;
+  bar.textContent = loadingOlder ? "이전 대화 불러오는 중…" : "▲ 이전 대화 더 보기";
+}
+
+async function loadOlder() {
+  if (loadingOlder || !firstIndex || !currentRun || $("#tab-run").hidden) return;
+  const gen = streamGen;
+  loadingOlder = true; renderOlderBar();
+  try {
+    const d = await api(`/api/runs/${currentRun.id}/older?before=${firstIndex}`);
+    if (gen !== streamGen) return;   // 그 사이 다른 작업을 열었거나 다시 연결됨
+    const box = document.createElement("div");
+    sink = box;
+    try { d.events.forEach(e => handle(e, "older")); } finally { sink = null; }
+    const bar = $("#olderBar"), anchor = bar.nextElementSibling, top = anchor?.getBoundingClientRect().top;
+    bar.after(...box.childNodes);
+    if (anchor) scrollBy(0, anchor.getBoundingClientRect().top - top);   // 보던 위치 그대로
+    firstIndex = d.first;
+  } catch (e) { console.warn("이전 대화를 불러오지 못했어요", e); }
+  finally { loadingOlder = false; renderOlderBar(); }
+  if (gen === streamGen) fillScreen();
+}
+
+// 화면이 아직 안 차서 스크롤할 수 없으면 더 불러온다
+const fillScreen = () => { if (firstIndex && (scrollY < 400 || document.body.scrollHeight <= innerHeight + 400)) loadOlder(); };
+addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive: true });
+
 function openRun(run) {
   currentRun = run; pending.clear(); msgs.clear(); $("#modelsPanel").hidden = true;
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
+  firstIndex = 0; streamGen++;
   show("run");
   if (es) es.close();
   es = new EventSource(`/api/runs/${run.id}/events`);
   es.onmessage = m => {
     const ev = JSON.parse(m.data);
     if (ev.type === "snapshot") {
-      $("#stream").innerHTML = ""; msgs.clear(); pending.clear();
+      streamGen++; firstIndex = ev.first || 0;
+      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear();
+      $("#olderBar").onclick = loadOlder;
       currentRun = ev.run;
-      ev.events.forEach(e => handle(e, false));
-      for (const k of [...pending.keys()]) if (!ev.run.pending.includes(k)) pending.delete(k);  // 이미 처리된 요청 제거
-      renderComposer(); scrollTo(0, document.body.scrollHeight);
+      ev.events.forEach(e => handle(e, "snapshot"));
+      pending.clear();
+      (ev.pending || []).forEach(p => pending.set(p.key, p));   // 앞부분이 안 불러와져도 대기 중인 요청은 서버 기준으로
+      if (ev.stage_label) $("#runStage").textContent = ev.stage_label;
+      if (ev.run.status === "done") addRollback();
+      renderOlderBar(); renderComposer(); scrollTo(0, document.body.scrollHeight);
+      fillScreen();
     } else handle(ev);
   };
 }
@@ -423,11 +498,21 @@ async function loadRuns() {
   const runs = await api("/api/runs");
   const box = $("#runList"); box.innerHTML = runs.length ? "" : '<p class="muted">아직 실행 기록이 없어요.</p>';
   runs.forEach(r => {
+    const row = document.createElement("div"); row.className = "run-row";
     const b = document.createElement("button"); b.className = "run-item";
     b.innerHTML = `<span class="status ${r.status}">${r.status}</span><b>${esc(r.idea.slice(0, 80))}</b>
       <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.stage)}</div>`;
     b.onclick = () => openRun(r);
-    box.append(b);
+    const del = document.createElement("button"); del.className = "run-del"; del.textContent = "🗑";
+    del.title = r.alive ? "진행 중인 작업은 먼저 중단해야 삭제할 수 있어요" : "기록 삭제";
+    del.disabled = r.alive;
+    del.onclick = async () => {
+      if (!confirm(`이 기록을 삭제할까요?\n\n${r.idea.slice(0, 80)}\n\n대화 기록과 첨부 파일이 지워지고 되돌릴 수 없어요. (프로젝트 코드·커밋은 그대로)`)) return;
+      del.disabled = true;
+      try { await api(`/api/runs/${r.id}`, { method: "DELETE" }); row.remove(); if (!box.children.length) loadRuns(); }
+      catch (e) { alert(e.message); del.disabled = false; }
+    };
+    row.append(b, del); box.append(row);
   });
 }
 
@@ -570,13 +655,22 @@ async function startApp() {
   bindFileInput($("#ideaFiles"), ideaFiles, $("#ideaFileList"));
   const send = async () => {
     const text = $("#composerText").value.trim();
-    if (!text && !chatFiles.length) return;
+    if (termMode ? !text : !text && !chatFiles.length) return;
     $("#sendBtn").disabled = true;
-    try { await sendMessage(text); } catch (e) { alert(e.message); }
+    try { await (termMode ? runTerminal(text) : sendMessage(text)); } catch (e) { alert(e.message); }
     $("#sendBtn").disabled = false;
   };
   $("#sendBtn").onclick = send;
-  $("#composerText").onkeydown = e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); } };
+  // 채팅은 Ctrl+Enter, 터미널은 Enter 로 실행 (Shift+Enter 는 줄바꿈)
+  $("#composerText").onkeydown = e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey || (termMode && !e.shiftKey && !e.isComposing))) { e.preventDefault(); send(); }
+  };
+  $("#termToggle").onclick = () => { termMode = !termMode; renderComposer(); $("#composerText").focus(); };
+  TERM_PRESETS.forEach(cmd => {
+    const c = document.createElement("button"); c.textContent = cmd;
+    c.onclick = () => { $("#composerText").value = cmd; $("#composerText").focus(); };   // 바로 실행하지 않고 채워만 줌
+    $("#termChips").append(c);
+  });
   $("#cancelBtn").onclick = async () => { if (currentRun && confirm("이 작업을 중단할까요?")) await post(`/api/runs/${currentRun.id}/cancel`, {}); };
   $("#startBtn").onclick = async () => {
     let idea = $("#idea").value.trim();
