@@ -7,9 +7,13 @@
 import asyncio
 import copy
 import json
+import os
 import re
 import socket
 import subprocess
+import sys
+import time
+import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -29,6 +33,10 @@ PUBLIC_PORT = CONFIG["server"].get("public_port", 8001)
 # 아직 연결 안 된 엔진 (UI 에 '준비 중' 으로 표시)
 UPCOMING_ENGINES = {"codex": "ChatGPT (2차 예정)", "gemini": "Gemini (3차 예정)"}
 OPEN_API = {"/api/login", "/api/session"}  # 로그인 없이 부를 수 있는 API
+BOOT_ID = uuid.uuid4().hex[:8]  # 재시작 뒤 화면이 새 서버로 바뀌었는지 알아보는 용도
+RESTART_EXIT = 3                # start.bat 은 이 종료 코드면 서버를 다시 켠다
+SERVER: "uvicorn.Server | None" = None
+restart_requested = False
 load_saved_runs()
 
 
@@ -80,7 +88,7 @@ class LoginReq(BaseModel):
 async def session(request: Request):
     logged_in = auth.valid_session(request.cookies.get(auth.SESSION_COOKIE))
     info = {"logged_in": logged_in, "via": _via(request), "locked": auth.is_locked(),
-            "configured": auth.configured()}
+            "configured": auth.configured(), "boot": BOOT_ID}
     if logged_in:  # 실패 기록은 로그인한 사람에게만
         state = auth.load_state()
         info.update(failures=state.get("failures", 0), log=state.get("log", [])[-5:])
@@ -120,6 +128,55 @@ async def unlock(request: Request):
         raise HTTPException(403, "잠금 해제는 Tailscale 이나 집 와이파이로 접속했을 때만 가능해요")
     auth.unlock()
     return {"ok": True}
+
+
+# ── 서버 재시작 (Pocket-Dev 가 자기 코드를 고친 뒤 반영) ─────────────
+class RestartReq(BaseModel):
+    force: bool = False   # 진행 중인 작업을 중단하고라도 재시작
+
+
+async def _check_new_code() -> str:
+    """지금 디스크의 코드로 서버가 뜰 수 있는지 별도 프로세스에서 import 해 본다. 문제가 없으면 빈 문자열."""
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable, "-c", "import server.main", cwd=str(ROOT),
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), 60)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return "새 코드를 불러오는 데 60초가 넘게 걸렸어요"
+    return "" if proc.returncode == 0 else out.decode("utf-8", "replace")[-3000:]
+
+
+@app.post("/api/server/restart")
+async def restart_server(req: RestartReq):
+    """새 코드를 검사하고, 진행 중인 작업을 확인한 뒤 서버를 다시 켠다.
+    start.bat 으로 켠 서버는 종료 코드 3 으로 끝나면 start.bat 이 다시 켜고, 아니면 새 창으로 직접 띄운다."""
+    global restart_requested
+    if restart_requested:
+        return {"ok": True}
+    alive = [r for r in RUNS.values() if r.alive]
+    if alive and not req.force:
+        return JSONResponse({"detail": f"진행 중인 작업이 {len(alive)}개 있어요",
+                             "alive": [r.idea[:60] for r in alive]}, status_code=409)
+    error = await _check_new_code()
+    if error:
+        raise HTTPException(400, "새 코드에 오류가 있어서 재시작하지 않았어요 (지금 서버는 그대로):\n" + error)
+    for r in alive:  # 중단 → 나중에 '이어서 진행' 으로 재개
+        await r.emit("log", text="🔄 서버 재시작으로 중단 — 다시 켜진 뒤 '이어서 진행'으로 재개할 수 있어요")
+        r.task.cancel()
+    if alive:
+        await asyncio.wait([r.task for r in alive], timeout=15)
+    auth.save_handoff()
+    restart_requested = True
+    asyncio.get_running_loop().call_later(0.5, lambda: setattr(SERVER, "should_exit", True))
+    return {"ok": True, "boot": BOOT_ID}
+
+
+def _relaunch() -> None:
+    """start.bat 밖에서 켜진 서버 → 새 콘솔 창으로 다음 서버를 띄운다 (포트가 비면 바로 받음)."""
+    flags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+    subprocess.Popen([sys.executable, "-m", "server.main"], cwd=str(ROOT), creationflags=flags)
 
 
 # ── 설정 / 엔진 / 프로젝트 ─────────────────────────────────────
@@ -574,14 +631,29 @@ def _print_urls() -> None:
 
 
 def _listen(host: str, port: int) -> socket.socket:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind((host, port))
-    sock.set_inheritable(True)
-    return sock
+    """재시작 직후엔 이전 서버가 포트를 놓을 때까지 잠깐 기다린다."""
+    for attempt in range(30):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.bind((host, port))
+            sock.set_inheritable(True)
+            return sock
+        except OSError:
+            sock.close()
+            if attempt == 29:
+                raise
+            time.sleep(1)
 
 
 if __name__ == "__main__":
     import uvicorn
+    auth.load_handoff()
     _print_urls()
     sockets = [_listen(CONFIG["server"]["host"], PORT), _listen("127.0.0.1", PUBLIC_PORT)]
-    uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=sockets)
+    # SSE 연결이 남아 있어도 재시작이 늦어지지 않게 3초만 기다리고 끊는다
+    SERVER = uvicorn.Server(uvicorn.Config(app, log_level="warning", timeout_graceful_shutdown=3))
+    SERVER.run(sockets=sockets)
+    if restart_requested:
+        if os.environ.get("POCKETDEV_SUPERVISED") == "1":
+            sys.exit(RESTART_EXIT)
+        _relaunch()

@@ -15,8 +15,15 @@ from typing import Optional
 from .config import CONFIG, DATA_DIR
 
 STATE_FILE = DATA_DIR / "auth_state.json"
+HANDOFF_FILE = DATA_DIR / "session_handoff.json"
 SESSION_COOKIE = "pd_session"
-_sessions: dict[str, float] = {}  # 세션 → 만료 시각 (메모리에만 보관, 서버 재시작 시 다시 로그인)
+# 세션 해시 → 만료 시각. 메모리에만 보관해서 서버를 새로 켜면 다시 로그인하고,
+# 화면의 '서버 재시작' 때만 handoff 파일로 다음 프로세스에 넘긴다 (파일에는 해시만 — 쿠키 값은 남지 않음).
+_sessions: dict[str, float] = {}
+
+
+def _key(sid: str) -> str:
+    return hashlib.sha256(sid.encode()).hexdigest()
 
 
 def _cfg(key: str, default):
@@ -115,19 +122,41 @@ def session_max_age() -> int:
 
 def new_session() -> str:
     sid = secrets.token_urlsafe(32)
-    _sessions[sid] = time.time() + session_max_age()
+    _sessions[_key(sid)] = time.time() + session_max_age()
     return sid
 
 
 def valid_session(sid: Optional[str]) -> bool:
-    expires = _sessions.get(sid or "")
+    if not sid:
+        return False
+    expires = _sessions.get(_key(sid))
     if not expires:
         return False
     if expires < time.time():
-        _sessions.pop(sid, None)
+        _sessions.pop(_key(sid), None)
         return False
     return True
 
 
 def end_session(sid: Optional[str]) -> None:
-    _sessions.pop(sid or "", None)
+    if sid:
+        _sessions.pop(_key(sid), None)
+
+
+def save_handoff() -> None:
+    """서버 재시작 직전: 살아 있는 세션(해시·만료 시각)을 다음 프로세스에 넘긴다."""
+    now = time.time()
+    HANDOFF_FILE.write_text(json.dumps({"written": now, "sessions": {k: v for k, v in _sessions.items() if v > now}}),
+                            encoding="utf-8")
+
+
+def load_handoff() -> None:
+    """시작할 때: 2분 안에 쓰인 handoff 만 받아들이고 바로 지운다 (오래된 파일로 로그인이 살아나지 않게)."""
+    try:
+        data = json.loads(HANDOFF_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    finally:
+        HANDOFF_FILE.unlink(missing_ok=True)
+    if time.time() - data.get("written", 0) < 120:
+        _sessions.update({k: float(v) for k, v in data.get("sessions", {}).items()})

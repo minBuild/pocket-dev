@@ -110,6 +110,9 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .run-del:not(:disabled):hover { color: var(--danger); border-color: var(--danger); }
 .older-bar { display: block; width: 100%; margin-bottom: 10px; font-size: 13px; color: var(--muted); background: transparent; border-style: dashed; }
 
+.restarting { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;
+  text-align: center; background: color-mix(in srgb, var(--bg) 88%, transparent); font-weight: 600; }
+
 /* 터미널 칸 */
 .term { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: 13px; }
 .term-cmd { display: flex; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }

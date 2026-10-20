@@ -520,6 +520,31 @@ async function loadRuns() {
   });
 }
 
+// ── 서버 재시작 (Pocket-Dev 자기 코드 수정 반영) ──
+async function restartServer() {
+  if (!confirm("서버를 다시 시작할까요?\n새 코드를 먼저 검사하고, 오류가 있으면 재시작하지 않아요.")) return;
+  const btn = $("#restartBtn"); btn.disabled = true;
+  try {
+    let r;
+    try { r = await post("/api/server/restart", {}); }
+    catch (e) {
+      if (e.status !== 409) throw e;
+      const list = (e.body.alive || []).map(t => "· " + t).join("\n");
+      if (!confirm(`${e.message}\n${list}\n\n중단하고 재시작할까요? (다시 켜진 뒤 '이어서 진행'으로 재개할 수 있어요)`)) return;
+      r = await post("/api/server/restart", { force: true });
+    }
+    if (es) { es.close(); es = null; }
+    document.body.insertAdjacentHTML("beforeend", '<div class="restarting">🔄 서버를 다시 시작하는 중…</div>');
+    for (let i = 0; i < 60; i++) {   // 새 서버가 뜰 때까지 (최대 약 90초)
+      await new Promise(ok => setTimeout(ok, 1500));
+      const s = await fetch("/api/session", { credentials: "same-origin" }).then(x => x.json()).catch(() => null);
+      if (s && s.boot !== SESSION.boot) return location.reload();
+    }
+    $(".restarting").textContent = "⚠️ 서버가 다시 뜨지 않았어요. 집 PC의 Pocket-Dev 창을 확인해 주세요.";
+  } catch (e) { alert(e.message); }
+  finally { btn.disabled = false; }
+}
+
 // ── 로그인 / 잠김 화면 ──
 function showGate(kind) {
   if (es) { es.close(); es = null; }
@@ -648,6 +673,7 @@ async function startApp() {
     remote = d.repos.filter(r => !r.local_path);
     fillProjects(); badge();
   }).catch(() => {});
+  $("#restartBtn").onclick = restartServer;
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
 
   document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
