@@ -405,6 +405,9 @@ async function openModels() {
   models("claude").forEach(m => ex.add(new Option(m.label, m.id)));
   if (![...ex.options].some(o => o.value === cur.executor_model)) ex.add(new Option(cur.executor_model, cur.executor_model));
   ex.value = cur.executor_model; er.append(ex); box.append(er);
+  const bl = document.createElement("label"); bl.className = "row";
+  bl.innerHTML = '<input type="checkbox"> 🌐 Chrome 사용 <span class="muted">(웹 콘솔 작업 · 다음 구현 실행부터 · 클릭마다 권한 심사)</span>';
+  const browserOn = $("input", bl); browserOn.checked = !!cur.browser; box.append(bl);
   let now = null;
   if (cur.status === "running") {
     const lab = document.createElement("label"); lab.className = "row";
@@ -418,7 +421,8 @@ async function openModels() {
     try {
       const r = await post(`/api/runs/${currentRun.id}/models`, {
         participants: cur.participants, synthesizer: cur.synthesizer, reviewers: cur.reviewers,
-        permission_reviewers: cur.permission_reviewers, executor_model: ex.value, apply_now: !!now?.checked });
+        permission_reviewers: cur.permission_reviewers, executor_model: ex.value, browser: browserOn.checked,
+        apply_now: !!now?.checked });
       box.hidden = true;
       if (!r.changed.length) alert("바뀐 모델이 없어요");
     } catch (e) { alert(e.message); }
@@ -582,6 +586,8 @@ async function startApp() {
   $("#stitchHint").hidden = !!CFG.stitch;
   $("#stitchOn").checked = !!state.stitch;
   $("#stitchOn").onchange = e => { state.stitch = e.target.checked; save(); };
+  $("#browserOn").checked = !!state.browser;
+  $("#browserOn").onchange = e => { state.browser = e.target.checked; save(); };
   loadUsage();
   setInterval(() => { if (!$("#tab-new").hidden && !document.hidden) loadUsage(); }, 60000);
 

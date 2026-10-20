@@ -6,7 +6,7 @@
 import asyncio
 from pathlib import Path
 
-from . import agents, executor, github, stitch
+from . import agents, browser, executor, github, stitch
 from .config import CONFIG
 from .attachments import prompt_block
 from .context import build_context
@@ -200,6 +200,8 @@ async def _execute(run: Run, s: dict, port: int) -> None:
     if cp.get("design_done"):
         prompt += ("\n\ndesign/stitch/ 에 Stitch 로 만든 화면 디자인(HTML·스크린샷·README)이 있다. "
                    "UI 는 이 디자인을 최대한 따라 구현해 (Flutter 등 다른 프레임워크면 위젯으로 옮겨서).")
+    if browser.enabled(s):
+        prompt += browser.EXEC_NOTE
     _set_phase(run, "execute", impl_started=True)
     await _implement(run, prompt, port)
 
@@ -240,7 +242,7 @@ async def run_pipeline(run: Run, port: int) -> None:
             await run.emit("log", text=f"▶ 이어서 진행합니다 — {PHASE_LABEL.get(run.checkpoint['phase'], '')} 단계부터")
         else:
             await run.emit("stage", stage="context", label="코드베이스 분석")
-        ctx = build_context(project, CONFIG["debate"]["context_char_budget"])
+        ctx = build_context(project, CONFIG["debate"]["context_char_budget"]) + browser.plan_note(s)
         if not resumed:
             await run.emit("log", text=f"📂 컨텍스트 {len(ctx):,}자 (나머지 파일은 AI 가 직접 열어봄)")
 
@@ -329,7 +331,7 @@ async def run_pipeline(run: Run, port: int) -> None:
                 if pending := take_notes(run):  # 커밋 중에(또는 커밋 단계에서 멈춘 뒤) 받은 작업 요청 → 한 바퀴 더
                     await run.emit("log", text="▶ 받아 둔 추가 요청으로 이어서 진행합니다")
                     start_followup(run, "\n".join(pending))
-                    ctx = build_context(project, CONFIG["debate"]["context_char_budget"])
+                    ctx = build_context(project, CONFIG["debate"]["context_char_budget"]) + browser.plan_note(s)
 
         await run.emit("stage", stage="done", label="완료")
         await run.emit("status", status="done")

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=11">
+<link rel="stylesheet" href="/static/style.css?v=12">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -74,6 +74,8 @@
       <label class="row" id="stitchRow" hidden><input type="checkbox" id="stitchOn">
         🎨 Stitch로 화면 디자인 먼저 만들기 <span class="muted">(구현 전에 design/stitch/ 에 화면 시안 저장)</span></label>
       <p id="stitchHint" class="muted" hidden>🎨 Stitch 화면 디자인은 집 PC에서 <code>setup_stitch.bat</code> 으로 API 키를 넣으면 쓸 수 있어요.</p>
+      <label class="row"><input type="checkbox" id="browserOn">
+        🌐 Chrome 사용 <span class="muted">(AdMob 앱 추가·광고 단위 ID 발급 같은 웹 콘솔 작업도 맡기기 · 집 PC Chrome에 Claude 확장 로그인 필요 · 클릭마다 권한 심사)</span></label>
       <button id="startBtn" class="primary">🚀 토론 시작</button>
     </div>
 
@@ -153,6 +155,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=11"></script>
+<script src="/static/app.js?v=12"></script>
 </body>
 </html>

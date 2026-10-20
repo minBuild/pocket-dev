@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from .config import ACCESS_TOKEN, CONFIG, DATA_DIR
+from . import browser
 from . import usage as usage_log
 from .engines import check_limit, claude_bin, subscription_env, tool_summary
 from .runs import Run
@@ -157,6 +158,9 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     if run.attachments:  # 사용자 첨부 자료도 읽을 수 있게
         args += ["--add-dir", run.attach_dir]
     allowed = [*ex.get("always_allow_tools", []), *extra_allowed]
+    if browser.enabled(run.settings):  # Claude in Chrome — 읽기 도구만 바로 허용, 나머지는 권한 심사
+        args.append("--chrome")
+        allowed += browser.READ_ONLY
     if allowed:
         args += ["--allowedTools", *allowed]
 

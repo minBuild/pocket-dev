@@ -267,6 +267,7 @@ class StartReq(BaseModel):
     plan_gate: bool = True
     branch: str | None = None
     stitch: bool = False
+    browser: bool = False
 
 
 def _check_engines(members: list[dict]) -> None:
@@ -290,6 +291,7 @@ async def start_run(req: StartReq):
         "plan_gate": req.plan_gate,
         "branch": req.branch or CONFIG["git"]["branch"],
         "stitch": req.stitch and stitch.configured(),
+        "browser": req.browser,
     }
     active = [p for p in settings["participants"] if p.get("enabled", True)]
     _check_engines(active + [settings["synthesizer"]] + settings["reviewers"] + settings["permission_reviewers"])
@@ -390,7 +392,7 @@ def _models_view(run: Run) -> dict:
     return {"participants": [pick(p) for p in s["participants"]], "synthesizer": pick(s["synthesizer"]),
             "reviewers": [pick(r) for r in s["reviewers"]],
             "permission_reviewers": [pick(r) for r in s["permission_reviewers"]],
-            "executor_model": s["executor_model"], "status": run.status}
+            "executor_model": s["executor_model"], "browser": bool(s.get("browser")), "status": run.status}
 
 
 @app.get("/api/runs/{run_id}/models")
@@ -404,6 +406,7 @@ class ModelsReq(BaseModel):
     reviewers: list[dict] | None = None
     permission_reviewers: list[dict] | None = None
     executor_model: str | None = None
+    browser: bool | None = None   # 구현 AI 가 Chrome 을 쓸 수 있는지 (다음 구현 실행부터)
     apply_now: bool = False       # 지금 진행 중인 단계도 새 모델로 다시 시작
 
 
@@ -448,6 +451,9 @@ async def set_models(run_id: str, req: ModelsReq):
     if req.executor_model is not None and req.executor_model.strip() != s["executor_model"]:
         changes.append(f"구현(Claude Code): {s['executor_model']} → {req.executor_model.strip()}")
         s["executor_model"] = req.executor_model.strip()
+    if req.browser is not None and req.browser != bool(s.get("browser")):
+        changes.append("🌐 Chrome 사용 " + ("켬" if req.browser else "끔"))
+        s["browser"] = req.browser
     restart = bool(changes) and req.apply_now and run.status == "running"
     if changes:
         await run.emit("log", text="⚙️ 모델 변경 — " + " · ".join(changes)
