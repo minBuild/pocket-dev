@@ -52,18 +52,40 @@ def _decode_line(raw: bytes) -> str:
         return raw.decode("mbcs" if sys.platform == "win32" else "latin-1", "replace")
 
 
+def git_bash() -> Optional[str]:
+    """Git for Windows 의 bash.exe (Git\\bin\\bash.exe — /usr/bin 을 PATH 에 넣어 주는 래퍼).
+    System32\\bash.exe 는 WSL 이라 쓰지 않는다."""
+    if sys.platform != "win32":
+        return shutil.which("bash")
+    roots = [Path(p).parent for p in [shutil.which("git")] if p]
+    roots.append(Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git" / "cmd")
+    for start in roots:
+        for p in [start, *start.parents]:
+            bash = p / "bin" / "bash.exe"
+            if bash.exists() and (p / "usr" / "bin").is_dir():
+                return str(bash)
+    return None
+
+
 async def terminal(command: str, cwd: str, timeout: float = 180) -> tuple[int, str]:
-    """작업 화면 터미널 칸: 사용자가 적은 명령을 cmd 로 실행 (입력 프롬프트 없이, 출력은 UTF-8).
-    PowerShell 은 stderr 를 파이프로 받으면 진행 표시를 CLIXML 로 섞어 내보내서 cmd 를 쓴다.
-    여러 줄이면 한 줄씩 차례로 (& 로 이어서) 실행한다."""
+    """작업 화면 터미널 칸: 사용자가 적은 명령을 Git Bash 로 실행 (pwd·ls 같은 명령이 되게, 입력 프롬프트 없이).
+    Git Bash 가 없으면 cmd 로 — PowerShell 은 stderr 를 파이프로 받으면 진행 표시를 CLIXML 로 섞어 내보내서 쓰지 않는다.
+    여러 줄이면 한 줄씩 차례로 실행한다."""
     lines = [ln.strip() for ln in command.splitlines() if ln.strip()]
     env = {**os.environ, **GIT_ENV, "GH_PROMPT_DISABLED": "1", "NO_COLOR": "1"}
     gh = gh_bin()
     if gh:  # 서버가 켜진 뒤 gh 를 설치했어도 쓸 수 있게
         env["PATH"] = str(Path(gh).parent) + os.pathsep + env.get("PATH", "")
-    proc = await asyncio.create_subprocess_shell(
-        "chcp 65001 >nul & " + " & ".join(lines), cwd=cwd, env=env,
-        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    bash = git_bash()
+    if bash:
+        env.setdefault("LANG", "C.UTF-8")
+        proc = await asyncio.create_subprocess_exec(
+            bash, "-c", "\n".join(lines), cwd=cwd, env=env,
+            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+    else:
+        proc = await asyncio.create_subprocess_shell(
+            "chcp 65001 >nul & " + " & ".join(lines), cwd=cwd, env=env,
+            stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
     try:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout)
     except asyncio.TimeoutError:
@@ -376,8 +398,24 @@ async def default_branch(cwd: str, fallback: str = "main") -> str:
     return out.strip().split("/", 1)[-1] if code == 0 and out.strip() else fallback
 
 
-async def commit_and_push(run: Run, branch: str, message: str) -> dict:
-    """{"summary": 커밋 요약, "pushed": push 성공 여부}"""
+# hook 이 '규칙 위반'이 아니라 실행 환경 문제(node 없음 등)로 실패했다는 신호
+HOOK_ENV_FAIL = re.compile(r"command not found|not recognized as an internal|No such file or directory|"
+                           r"cannot (?:run|spawn|exec)|ENOENT|is not installed", re.I)
+
+
+async def _commit(cwd: str, message: str, *extra: str) -> tuple[int, str]:
+    """메시지를 UTF-8(BOM 없음) 파일로 넘긴다 (-m 에 한글을 넣으면 Windows 에서 깨지거나 hook 이 거부하는 프로젝트가 있음)."""
+    path = DATA_DIR / f"commit_msg_{os.getpid()}_{time.time_ns()}.txt"
+    path.write_text(message.strip() + "\n", encoding="utf-8")
+    try:
+        return await sh(["git", *author_args(), "commit", *extra, "-F", str(path)], cwd)
+    finally:
+        path.unlink(missing_ok=True)
+
+
+async def commit_and_push(run: Run, branch: str, message: str, rewrite=None, max_rewrites: int = 2) -> dict:
+    """{"summary": 커밋 요약, "pushed": push 성공 여부, "message": 실제로 커밋한 메시지}
+    rewrite: 프로젝트 hook 이 메시지를 거부하면 async rewrite(이전 메시지, hook 출력) -> 새 메시지 로 고쳐 다시 커밋."""
     cwd = run.project
     await git(cwd, "add", "-A")
     await git(cwd, "reset", "-q", "--", "TASK_SPEC.md", check=False)
@@ -386,11 +424,20 @@ async def commit_and_push(run: Run, branch: str, message: str) -> dict:
     if not staged and not unpushed:
         return {"summary": "변경 사항 없음", "pushed": False}
     if staged:
-        code, out = await sh(["git", *author_args(), "commit", "-m", message], cwd)
-        if code and re.search(r"hook|commit-msg|pre-commit|husky", out, re.I):
+        code, out = await _commit(cwd, message)
+        tries = 0
+        while code and rewrite and tries < max_rewrites and not HOOK_ENV_FAIL.search(out):
+            # 프로젝트 규칙(커밋 메시지 형식 등)에 걸림 → hook 출력을 보고 메시지를 고쳐 다시 커밋 (작업 트리는 그대로)
+            tries += 1
+            await run.emit("log", text=f"✏️ 프로젝트 hook 이 커밋을 거부해서 메시지를 고쳐 다시 커밋해요 ({tries}/{max_rewrites}):\n"
+                                       f"{out.strip()[-400:]}")
+            message = await rewrite(message, out)
+            await run.emit("log", text=f"📝 커밋 메시지: {message.splitlines()[0]}")
+            code, out = await _commit(cwd, message)
+        if code and HOOK_ENV_FAIL.search(out) and re.search(r"hook|commit-msg|pre-commit|husky", out, re.I):
             # 프로젝트의 git hook 이 실행 환경 문제(예: node 없음)로 실패 → 이유를 남기고 hook 없이 커밋
             await run.emit("log", text=f"⚠️ 프로젝트 git hook 이 실패해서 hook 없이 커밋했어요:\n{out.strip()[-400:]}")
-            code, out = await sh(["git", *author_args(), "commit", "--no-verify", "-m", message], cwd)
+            code, out = await _commit(cwd, message, "--no-verify")
         if code:
             raise RuntimeError(f"git commit 실패:\n{out.strip()[-1500:]}")
     pushed = False
@@ -405,7 +452,7 @@ async def commit_and_push(run: Run, branch: str, message: str) -> dict:
             await run.emit("log", text=("⬆️ push 완료" if pushed else f"⚠️ push 실패:\n{out}"))
     if not staged:  # 새로 커밋할 건 없지만 아직 GitHub 에 안 올라간 커밋이 있었음 (push 만 함)
         return {"summary": f"새 변경은 없고, 아직 안 올라간 커밋을 push 했어요:\n{unpushed}", "pushed": pushed}
-    return {"summary": await git(cwd, "show", "--stat", "--format=%h %s", "HEAD"), "pushed": pushed}
+    return {"summary": await git(cwd, "show", "--stat", "--format=%h %s", "HEAD"), "pushed": pushed, "message": message}
 
 
 async def _unpushed(cwd: str, branch: str, base: str = "") -> str:

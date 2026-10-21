@@ -4,6 +4,7 @@ import json
 import re
 import time
 import uuid
+from pathlib import Path
 
 from . import browser
 from .config import CONFIG
@@ -250,14 +251,45 @@ COMMIT_SYSTEM = """당신은 커밋 메시지 작성자입니다. 주어진 git 
   첫 줄: <타입>(<범위>): <무엇을 바꿨는지 요약>   — 타입은 feat/fix/refactor/docs/test/chore/style/build 중 하나, 범위는 생략 가능, 60자 이내
   빈 줄
   - 주요 변경 3~6줄 (파일·기능 단위로 구체적으로)
+[이 프로젝트의 커밋 규칙] 이 주어지면 위 형식보다 그 규칙(허용 type·scope, 길이, 금지 표현)을 따를 것.
 규칙: 사용자 질문이나 요청 문장을 그대로 옮기지 말 것. 'ai', 'AI 작업', 'Claude' 같은 말 넣지 말 것.
 커밋 메시지 본문만 출력 (따옴표·코드블록 없이)."""
 
 
-async def commit_message(diff: str, context: str = "") -> str:
-    """실제 변경(diff) 기준 커밋 메시지. 실패하면 변경 파일 목록으로 대신 만든다."""
+RULE_DOCS = ("CLAUDE.md", "AGENTS.md", "CONTRIBUTING.md", ".github/CONTRIBUTING.md")
+COMMITLINT_FILES = ("commitlint.config.js", "commitlint.config.cjs", "commitlint.config.mjs", "commitlint.config.ts",
+                    ".commitlintrc", ".commitlintrc.json", ".commitlintrc.yml", ".commitlintrc.yaml", ".commitlintrc.js")
+
+
+def project_commit_rules(project: str, limit: int = 4000) -> str:
+    """프로젝트가 정한 커밋 메시지 규칙 — 문서의 '커밋/commit' 절과 commitlint 설정. 없으면 빈 문자열."""
+    root = Path(project)
+    parts = []
+    for name in RULE_DOCS:
+        p = root / name
+        if not p.is_file():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        # 제목에 커밋/commit 이 들어간 절만 (다음 같은 수준 이상의 제목까지)
+        for m in re.finditer(r"^(#{1,6})\s*[^\n]*(?:커밋|commit)[^\n]*$", text, re.M | re.I):
+            level = len(m.group(1))
+            end = re.compile(rf"^#{{1,{level}}}\s", re.M).search(text, m.end())
+            parts.append(f"[{name}]\n{text[m.start():end.start() if end else len(text)].strip()}")
+    for name in COMMITLINT_FILES:
+        p = root / name
+        if p.is_file():
+            parts.append(f"[{name}]\n{p.read_text(encoding='utf-8', errors='replace').strip()}")
+    return "\n\n".join(parts)[:limit]
+
+
+async def commit_message(diff: str, context: str = "", rules: str = "", previous: str = "", feedback: str = "") -> str:
+    """실제 변경(diff) 기준 커밋 메시지. 실패하면 변경 파일 목록으로 대신 만든다.
+    rules: 프로젝트의 커밋 규칙 (있으면 기본 형식보다 우선). previous·feedback: hook 이 거부한 메시지와 그 출력."""
     who = CONFIG["team"].get("assistant") or {"engine": "claude", "model": "claude-sonnet-5-5"}
-    prompt = (f"[참고: 이번 작업 명세 요약]\n{context[:4000]}\n\n" if context else "") + f"[git diff]\n{diff[:60000]}"
+    prompt = (f"[이 프로젝트의 커밋 규칙 — 기본 형식보다 우선, 허용된 type·scope 만 사용]\n{rules}\n\n" if rules else "") \
+        + (f"[거부된 메시지]\n{previous}\n\n[git hook 거부 사유 — 이걸 고친 메시지를 쓰세요]\n{feedback[-2000:]}\n\n"
+           if feedback else "") \
+        + (f"[참고: 이번 작업 명세 요약]\n{context[:4000]}\n\n" if context else "") + f"[git diff]\n{diff[:60000]}"
     try:
         res = await generate(who["engine"], who["model"], COMMIT_SYSTEM, prompt,
                              cwd=str(SANDBOX), effort=effort_of(who), timeout=300)
