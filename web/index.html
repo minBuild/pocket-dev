@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -123,6 +123,11 @@
       <button id="modelsBtn" title="이 작업의 모델 변경">⚙️ 모델</button>
       <button id="cancelBtn" class="danger">중단</button>
     </div>
+    <button id="browserChip" class="browser-chip" hidden></button>
+    <div id="browserOverlay" class="browser-overlay" hidden>
+      <div class="bo-head">📸 Chrome 화면</div>
+      <div class="bo-strip"></div><div class="bo-steps"></div><button class="bo-close">닫기</button>
+    </div>
     <div id="modelsPanel" class="card models-panel" hidden></div>
     <div id="stream"></div>
   </section>
@@ -156,6 +161,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=15"></script>
+<script src="/static/app.js?v=16"></script>
 </body>
 </html>

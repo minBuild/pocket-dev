@@ -1,10 +1,15 @@
 """Claude Code CLI 실행 (구독 로그인) + git 작업."""
 import asyncio
+import base64
+import binascii
+import contextlib
 import json
 import os
 import re
 import shutil
 import sys
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -135,11 +140,83 @@ async def prepare_branch(run: Run, branch: str) -> None:
     await run.emit("log", text=f"🌿 브랜치: {branch}")
 
 
+SHOT_MAX_BYTES = 5 * 1024 * 1024
+
+
+@dataclass
+class _Relay:
+    """run_claude_code 한 번 동안의 Chrome 화면 중계 상태."""
+    run_dir: Path
+    keep: int            # CONFIG browser.keep_shots
+    dump: bool           # CONFIG browser.debug_dump
+    shot_fail: int = 0   # 연속 해독·형식 실패 수
+    shots_off: bool = False
+    warned: bool = False # 중계 오류 로그 1회만
+    dumped: int = 0      # raw.jsonl 에 쓴 줄 수 (≤5)
+
+
+async def _relay_browser(run: Run, relay: _Relay, step_id: str, info: dict, block: dict, top) -> None:
+    """Chrome tool_result → 스크린샷 저장 + browser 이벤트 (단계 끝 줄)."""
+    verdict = run.browser_verdicts.pop(step_id, None)
+    status, images, text = browser.parse_result(block, verdict, top)
+
+    shot_url = None
+    if relay.keep > 0 and not relay.shots_off and images:
+        d = relay.run_dir / "browser"
+        try:
+            data = base64.b64decode(images[0][1], validate=True)
+            if len(data) > SHOT_MAX_BYTES:
+                raise ValueError(f"화면 이미지가 너무 큼 ({len(data) // 1024}KB)")
+            ext = browser.sniff(data)
+            if ext is None:
+                raise ValueError("PNG/JPEG/WebP 가 아닌 화면 이미지")
+            d.mkdir(exist_ok=True)
+            name = browser.shot_name(int(time.time() * 1000), step_id, ext)
+            part = d / (name + ".part")
+            part.write_bytes(data)
+            os.replace(part, d / name)
+        except (binascii.Error, ValueError, OSError) as e:
+            relay.shot_fail += 1
+            if relay.shot_fail == 1 and not relay.warned:
+                relay.warned = True
+                await run.emit("log", text=f"⚠️ Chrome 화면 저장 실패(구현은 계속): {e!s:.200}")
+            if relay.shot_fail >= 3:
+                relay.shots_off = True
+        else:
+            shot_url = f"/api/runs/{run.id}/browser/{name}"
+            relay.shot_fail = 0
+            for p in sorted(x for x in d.iterdir() if browser.SHOT_RE.match(x.name))[:-relay.keep]:
+                with contextlib.suppress(OSError):  # Windows 파일 잠금(WinError 32) 무시
+                    p.unlink()
+
+    no_image = info["action"] == "screenshot" and status == "ok" and not images
+    fields = {"step": step_id, "text": info["text"], "tool": browser.short(info["name"]), "status": status}
+    if shot_url:
+        fields["shot"] = shot_url
+    if no_image:
+        fields["no_image"] = True
+    if status in ("error", "denied"):
+        fields["result"] = text[:200]  # ok 본문은 싣지 않는다 (개인정보)
+    await run.emit("browser", **fields)
+
+    if relay.dump and relay.dumped < 5:  # 구조만 (본문·base64 없음). 파일명이 SHOT_RE 에 안 맞아 서빙되지 않음
+        with contextlib.suppress(Exception):
+            d = relay.run_dir / "browser"
+            d.mkdir(exist_ok=True)
+            with open(d / "raw.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(browser.structure(info["name"], block, top, verdict is not None),
+                                   ensure_ascii=False) + "\n")
+            relay.dumped += 1
+
+
 async def run_claude_code(run: Run, prompt: str, model: str, port: int,
-                          extra_mcp: Optional[dict] = None, extra_allowed: list | tuple = ()) -> dict:
+                          extra_mcp: Optional[dict] = None, extra_allowed: list | tuple = (),
+                          chrome: bool = True) -> dict:
     """Claude Code 를 구독 로그인으로 headless 실행. 권한 요청은 permission_mcp → 리뷰어 AI 가 심사.
-    extra_mcp: 추가 MCP 서버 (예: Stitch), extra_allowed: 묻지 않고 허용할 도구 (예: mcp__stitch)"""
+    extra_mcp: 추가 MCP 서버 (예: Stitch), extra_allowed: 묻지 않고 허용할 도구 (예: mcp__stitch)
+    chrome: False 면 작업 설정과 상관없이 Chrome 을 쓰지 않음 (Stitch 디자인 단계)"""
     ex = CONFIG["executor"]
+    use_chrome = chrome and browser.enabled(run.settings)
     run_dir = DATA_DIR / "runs" / run.id
     run_dir.mkdir(parents=True, exist_ok=True)
     mcp_config = run_dir / "mcp.json"
@@ -158,7 +235,8 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     if run.attachments:  # 사용자 첨부 자료도 읽을 수 있게
         args += ["--add-dir", run.attach_dir]
     allowed = [*ex.get("always_allow_tools", []), *extra_allowed]
-    if browser.enabled(run.settings):  # Claude in Chrome — 읽기 도구만 바로 허용, 나머지는 권한 심사
+    if use_chrome:  # Claude in Chrome — 규칙은 여기서 한 번만 붙임. 읽기 도구만 바로 허용, 나머지는 권한 심사
+        prompt += browser.EXEC_NOTE
         args.append("--chrome")
         allowed += browser.READ_ONLY
     if allowed:
@@ -174,6 +252,21 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     proc.stdin.close()
 
     result: dict = {}
+    bcfg = CONFIG.get("browser") or {}
+    relay = _Relay(run_dir, int(bcfg.get("keep_shots", 100)), bool(bcfg.get("debug_dump", False)))
+    pending: dict[str, dict] = {}  # tool_use_id → describe() + name (Chrome 단계 시작됨, 결과 대기)
+
+    async def end_step(step_id: str, b: dict, top) -> None:
+        info = pending.pop(step_id)
+        try:
+            await _relay_browser(run, relay, step_id, info, b, top)
+        except Exception as e:
+            with contextlib.suppress(Exception):
+                if not relay.warned:
+                    relay.warned = True
+                    await run.emit("log", text=f"⚠️ Chrome 화면 중계 오류(구현은 계속): {e!s:.200}")
+                await run.emit("browser", step=step_id, text=info["text"], tool=browser.short(info["name"]),
+                               status="error")
 
     async def read_stdout():
         nonlocal result
@@ -191,8 +284,25 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
                 for block in ev.get("message", {}).get("content", []):
                     if block.get("type") == "text" and block.get("text", "").strip():
                         await run.emit("cc", text=block["text"][:4000])
+                        run.last_text = block["text"][-300:]  # 권한 심사 참고용 (근거 아님)
                     elif block.get("type") == "tool_use":
-                        await run.emit("cc", tool=tool_summary(block, run.project))
+                        try:
+                            d = browser.describe(block) if use_chrome else None
+                        except Exception:
+                            d = None
+                        if d and block.get("id"):
+                            pending[block["id"]] = {**d, "name": block["name"]}
+                            await run.emit("cc", tool=d["text"], step=block["id"], browser=True)
+                        else:
+                            await run.emit("cc", tool=tool_summary(block, run.project))
+            elif t == "user" and pending:  # Chrome 도구 결과 → 단계 끝 줄 (+ 스크린샷)
+                try:
+                    content = (ev.get("message") or {}).get("content")
+                    for b in content if isinstance(content, list) else []:
+                        if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id") in pending:
+                            await end_step(b["tool_use_id"], b, ev.get("tool_use_result"))
+                except Exception:
+                    pass  # 중계 문제로 구현을 멈추지 않는다
             elif t == "result":
                 result = ev
 
@@ -203,7 +313,13 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     finally:
         if proc.returncode is None:
             proc.kill()
-    stderr = (await stderr_task).decode("utf-8", "replace")
+        # 결과 없이 끝난 Chrome 단계 → ⏹ 마감 (취소 중이라 못 보내면 재시작 때 orphan_steps 가 처리)
+        for step_id, info in list(pending.items()):
+            with contextlib.suppress(Exception):
+                await run.emit("browser", step=step_id, text=info["text"], tool=browser.short(info["name"]),
+                               status="stopped")
+        pending.clear()
+    stderr =(await stderr_task).decode("utf-8", "replace")
     if not result:
         check_limit(stderr)
         raise RuntimeError(f"Claude Code 비정상 종료 ({proc.returncode}):\n{stderr[-3000:]}")

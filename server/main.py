@@ -21,8 +21,8 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
-from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
+from . import attachments, auth, browser, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
+from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT, RUNS_DIR
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
 
@@ -38,6 +38,7 @@ RESTART_EXIT = 3                # start.bat 은 이 종료 코드면 서버를 �
 SERVER: "uvicorn.Server | None" = None
 restart_requested = False
 load_saved_runs()
+runs.prune_browser_shots(int((CONFIG.get("browser") or {}).get("retention_days", 14)))
 
 
 def _via(request: Request) -> str:
@@ -67,6 +68,22 @@ async def guard(request: Request, call_next):
         if not auth.valid_session(request.cookies.get(auth.SESSION_COOKIE)):
             return JSONResponse({"detail": "login required"}, status_code=401)
     return await call_next(request)
+
+
+_SHOT_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+
+
+@app.get("/api/runs/{run_id}/browser/{name}")
+async def browser_shot(run_id: str, name: str):
+    """구현 AI 가 찍은 Chrome 스크린샷 (로그인·잠금은 guard 가 처리, 캐시에 남지 않게)."""
+    if not re.fullmatch(r"[\w-]+", run_id) or not browser.SHOT_RE.match(name):
+        raise HTTPException(404)
+    _run(run_id)  # 삭제된 기록 → 404
+    path = RUNS_DIR / run_id / "browser" / name
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, media_type=_SHOT_TYPES[name.rsplit(".", 1)[1]],
+                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 app.mount("/static", StaticFiles(directory=WEB), name="static")
@@ -643,11 +660,12 @@ class PermissionReq(BaseModel):
     run_id: str
     tool_name: str
     input: dict
+    tool_use_id: str | None = None
 
 
 @app.post("/api/internal/permission")
 async def internal_permission(req: PermissionReq):
-    return await permissions.decide(_run(req.run_id), req.tool_name, req.input)
+    return await permissions.decide(_run(req.run_id), req.tool_name, req.input, req.tool_use_id)
 
 
 # ── 실행 ─────────────────────────────────────────────────────

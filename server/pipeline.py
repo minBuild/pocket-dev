@@ -188,7 +188,8 @@ async def _design(run: Run, s: dict, port: int) -> None:
     await agents.with_limit_retry(
         run, "Stitch 화면 디자인",
         lambda attempt: executor.run_claude_code(run, prompt + (RESUME_NOTE if attempt else ""), stitch.model(), port,
-                                                 extra_mcp=stitch.mcp_servers(), extra_allowed=["mcp__stitch"]))
+                                                 extra_mcp=stitch.mcp_servers(), extra_allowed=["mcp__stitch"],
+                                                 chrome=False))
     screens = sorted({f.rsplit(".", 1)[0] for f in await stitch.fetch_screens(run.project)})
     await run.emit("log", text=(f"🎨 Stitch 화면 {len(screens)}개 저장: {', '.join(screens)} (design/stitch/)" if screens
                                 else "⚠️ Stitch 화면 파일을 받지 못했어요 — design/stitch/README.md 기준으로 구현합니다"))
@@ -205,8 +206,6 @@ async def _execute(run: Run, s: dict, port: int) -> None:
     if cp.get("design_done"):
         prompt += ("\n\ndesign/stitch/ 에 Stitch 로 만든 화면 디자인(HTML·스크린샷·README)이 있다. "
                    "UI 는 이 디자인을 최대한 따라 구현해 (Flutter 등 다른 프레임워크면 위젯으로 옮겨서).")
-    if browser.enabled(s):
-        prompt += browser.EXEC_NOTE
     _set_phase(run, "execute", impl_started=True)
     await _implement(run, prompt, port)
 
@@ -329,7 +328,18 @@ async def run_pipeline(run: Run, port: int) -> None:
                     base = await executor.default_branch(run.project, run.checkpoint.get("base_branch") or "main")
                     if base and base != branch:
                         links["compare"] = f"{web}/compare/{base}...{branch}"
-                await run.emit("result", text=committed["summary"], links=links)
+                text, title = committed["summary"], None
+                if browser.enabled(s):
+                    sm = browser.summarize(run.events)
+                    head = (f"🌐 Chrome {sm['steps']}단계 (성공 {sm['ok']}·거부 {sm['denied']}·오류 {sm['error']}"
+                            + (f"·중단 {sm['stopped']}" if sm["stopped"] else "") + f") · 📷 {sm['shots']}장"
+                            if sm["used"] else "🌐 Chrome 은 이번엔 사용되지 않음")
+                    if sm["blocked"]:
+                        title = "⚠️ 코드는 완료 · Chrome 작업 미완료"
+                        head += (f"\n막힌 이유: {sm['blocked']}\n"
+                                 "집 PC Chrome 에서 처리(로그인 등)한 뒤 채팅에 '막힌 Chrome 작업 다시 해줘' 라고 보내세요")
+                    text = head + "\n\n" + text
+                await run.emit("result", text=text, links=links, **({"title": title} if title else {}))
                 if run.checkpoint.pop("merge_requested", False):  # 진행 중에 받은 main 머지 요청
                     await merge(run)
                 _set_phase(run, "done")

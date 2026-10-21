@@ -5,6 +5,7 @@ import re
 import uuid
 from pathlib import Path
 
+from . import browser
 from .agents import judge_permission
 from .config import CONFIG
 from .runs import Run
@@ -32,6 +33,8 @@ PATH_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 
 def hard_rule(project: str, tool_name: str, tool_input: dict) -> str | None:
     """무조건 거부해야 하면 사유를 돌려준다."""
+    if tool_name in browser.HARD_DENY_TOOLS:
+        return "하드 룰 거부: Chrome 스크립트 실행·파일 업로드 금지"
     if tool_name in SHELL_TOOLS:
         cmd = str(tool_input.get("command", ""))
         for pattern, why in HARD_DENY_SHELL:
@@ -65,16 +68,25 @@ def _aggregate(votes: list[dict], policy: str) -> str:
     return "disagree" if (allows or asks) else "deny"
 
 
-async def decide(run: Run, tool_name: str, tool_input: dict) -> dict:
+async def decide(run: Run, tool_name: str, tool_input: dict, tool_use_id: str | None = None) -> dict:
     """Claude Code --permission-prompt-tool 형식의 응답을 만든다."""
+    if browser.auto_allow(tool_name, tool_input):  # Chrome 스크린샷·스크롤 등 — 심사·카드 없이
+        return {"behavior": "allow", "updatedInput": tool_input}
     ex = CONFIG["executor"]
     req_id = uuid.uuid4().hex[:8]
     cache_key = json.dumps([tool_name, tool_input], sort_keys=True, ensure_ascii=False)
-    await run.emit("permission_request", req_id=req_id, tool=tool_name, input=tool_input)
+    chrome, label = browser.is_tool(tool_name), ""
+    if chrome:
+        d = browser.describe({"name": tool_name, "input": tool_input})
+        label = d["text"] if d else tool_name
+    await run.emit("permission_request", req_id=req_id, tool=tool_name, input=tool_input,
+                   label=label, browser=chrome)
 
     def done(allow: bool, reason: str, by: str, remember: bool = True) -> dict:
-        if remember:  # 같은 실행 안에서 똑같은 요청은 다시 심사하지 않음 (구독 한도 절약)
+        if remember and browser.rememberable(tool_name):  # 같은 실행 안에서 똑같은 요청은 다시 심사하지 않음 (구독 한도 절약)
             run.perm_cache[cache_key] = (allow, reason)
+        if tool_use_id and chrome:  # 단계 줄의 ✅/⛔ 판정용 (문구 추측보다 확실)
+            run.browser_verdicts[tool_use_id] = allow
         asyncio.create_task(run.emit("permission_decision", req_id=req_id, allow=allow,
                                      reason=reason, by=by))
         if allow:
@@ -91,7 +103,8 @@ async def decide(run: Run, tool_name: str, tool_input: dict) -> dict:
     reviewers = run.settings["permission_reviewers"]
     if not reviewers:
         return done(False, "권한 심사 리뷰어가 없습니다", "설정", remember=False)
-    votes = await asyncio.gather(*(judge_permission(r, run.spec, run.project, tool_name, tool_input)
+    votes = await asyncio.gather(*(judge_permission(r, run.spec, run.project, tool_name, tool_input,
+                                                    label=label, note=run.last_text if chrome else "")
                                    for r in reviewers))
     await run.emit("permission_votes", req_id=req_id, votes=votes)
     result = _aggregate(votes, ex.get("permission_policy", "unanimous"))
@@ -104,7 +117,7 @@ async def decide(run: Run, tool_name: str, tool_input: dict) -> dict:
     # 의견이 갈림 → 사람에게
     key = f"perm:{req_id}"
     await run.emit("awaiting_user", key=key, kind="permission", tool=tool_name, input=tool_input,
-                   votes=votes)
+                   votes=votes, label=label)
     try:
         answer = await asyncio.wait_for(run.wait_for(key), ex.get("human_timeout_sec", 600))
     except asyncio.TimeoutError:

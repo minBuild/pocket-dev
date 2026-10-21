@@ -24,7 +24,8 @@ async def approve(tool_name: str, input: dict, tool_use_id: str | None = None) -
             res = await client.post(
                 f"{os.environ['POCKETDEV_URL']}/api/internal/permission",
                 headers={"Authorization": f"Bearer {token}"} if token else {},
-                json={"run_id": os.environ["POCKETDEV_RUN_ID"], "tool_name": tool_name, "input": input},
+                json={"run_id": os.environ["POCKETDEV_RUN_ID"], "tool_name": tool_name, "input": input,
+                      "tool_use_id": tool_use_id},
             )
             res.raise_for_status()
             return json.dumps(res.json(), ensure_ascii=False)

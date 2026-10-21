@@ -7,6 +7,7 @@ import time
 import uuid
 from typing import Any, Optional
 
+from . import browser
 from .config import RUNS_DIR
 
 
@@ -27,6 +28,8 @@ class Run:
         self.spec: str = ""
         self.perm_cache: dict[str, tuple[bool, str]] = {}  # 같은 권한 요청 재심사 방지
         self.base_branch: str = ""  # 작업 브랜치를 만들기 전 원래 브랜치 (새 저장소에 함께 push)
+        self.browser_verdicts: dict[str, bool] = {}  # Chrome tool_use_id → 권한 판정 (메모리 전용)
+        self.last_text: str = ""    # 구현 AI 가 마지막으로 남긴 말 (Chrome 권한 심사 참고용, 메모리 전용)
         # ── 재개용 ──
         self.history: list[dict] = []   # 토론 기록 {round, pid, name, model, text}
         self.checkpoint: dict = {"phase": "debate", "round_from": 1,
@@ -169,6 +172,19 @@ def delete_run(run_id: str) -> None:
     shutil.rmtree(RUNS_DIR / run_id, ignore_errors=True)
 
 
+def prune_browser_shots(days: int) -> None:
+    """오래된 Chrome 스크린샷 폴더(data/runs/<id>/browser) 삭제. 0 이면 안 지움."""
+    if days <= 0:
+        return
+    cutoff = time.time() - days * 86400
+    for d in RUNS_DIR.glob("*/browser"):
+        try:
+            if d.is_dir() and d.stat().st_mtime < cutoff:
+                shutil.rmtree(d, ignore_errors=True)
+        except OSError:
+            pass
+
+
 def load_saved_runs() -> None:
     for path in sorted(RUNS_DIR.glob("*.json"))[-50:]:
         try:
@@ -178,6 +194,9 @@ def load_saved_runs() -> None:
         r = Run(d["project"], d["idea"], d.get("settings", {}), run_id=d["id"])
         r.events, r.stage, r.created, r.spec = d["events"], d["stage"], d["created"], d.get("spec", "")
         r.history, r.notes, r.attachments = d.get("history", []), d.get("notes", []), d.get("attachments", [])
+        orphans = browser.orphan_steps(r.events, time.time())  # 끝 이벤트 없이 끊긴 Chrome 단계 → ⏹
+        if orphans:
+            r.events.extend(orphans)
         if d.get("checkpoint"):
             r.checkpoint = d["checkpoint"]
         else:

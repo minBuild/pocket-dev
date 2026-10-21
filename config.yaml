@@ -116,6 +116,12 @@ git:
   # '새 프로젝트 만들기' 로 만든 폴더가 생기는 곳
   new_project_root: "~/IdeaProjects"
 
+# ── Chrome 작업 화면 중계 (Chrome 사용을 켠 작업) ──
+browser:
+  keep_shots: 100      # 작업당 보관할 스크린샷 수 (0 = 저장 안 함, 텍스트만)
+  retention_days: 14   # 서버 시작 때 이보다 오래된 스크린샷 폴더 삭제 (0 = 안 지움)
+  debug_dump: false    # true 면 첫 Chrome 결과 5개의 '구조'(타입·길이·키, 본문 없음)를 data/runs/<id>/browser/raw.jsonl 에 기록 — T1 실측 때만 켬
+
 # ── Google Stitch (화면 디자인, 선택) ─────────────────────────────
 # Stitch(https://stitch.withgoogle.com) → 프로필 → Stitch settings → API key 에서 키를 만들어
 # setup_stitch.bat 으로 저장하면 새 작업에 '🎨 Stitch로 화면 디자인 먼저 만들기' 가 나타남

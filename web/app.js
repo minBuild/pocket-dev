@@ -256,7 +256,7 @@ function collapsible(el) {
   el.append(b);
 }
 
-const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; out(d); };
+const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; out(d); return d; };
 const fmtTokens = u => u && (u.output_tokens != null) ? ` · 출력 ${u.output_tokens.toLocaleString()} 토큰` : "";
 
 let renderTimer = null;
@@ -296,10 +296,45 @@ function handle(ev, mode = "live") {
     }
     case "spec": addMsg("spec", "<b>📄 최종 작업 명세서 (TASK_SPEC.md)</b>", ev.text); break;
     case "log": line("log", ev.text); break;
-    case "cc": line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text); break;
+    case "cc": {
+      if (ev.step) {   // Chrome 단계 시작 — 끝 이벤트가 먼저 그려졌으면(이전 대화 경계) 건너뜀
+        if (!steps.has(ev.step)) steps.set(ev.step, line("cc tool bstep running", "⏳ " + ev.tool));
+      } else line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text);
+      const i = (ev.text || "").indexOf(BLOCK_MARK);
+      if (i >= 0 && !older) {
+        chrome.blocked = ev.text.slice(i + BLOCK_MARK.length).split("\n")[0].trim().slice(0, 200) || "이유 없음";
+        renderChip();
+      }
+      break;
+    }
+    case "browser": {   // Chrome 단계 끝 — 이 이벤트만으로 줄을 그릴 수 있음
+      let el = steps.get(ev.step);
+      if (!el) { el = line("cc tool bstep", ""); if (ev.step) steps.set(ev.step, el); }
+      fillStep(el, ev);
+      if (ev.shot) { shots.push({ url: ev.shot, ts: ev.ts, text: ev.text }); shots.sort((a, b) => a.ts - b.ts); }
+      if (!older) {
+        chrome.count++; chrome.last = ev; chrome.lastTs = ev.ts;
+        chrome.noImage ||= !!ev.no_image;
+        chrome.recent = [...chrome.recent, ev.status].slice(-8);
+        if (ev.status === "ok") { chrome.blocked = null; chrome.suspect = false; }
+        const last3 = chrome.recent.slice(-3);
+        if ((last3.length === 3 && last3.every(s => s === "denied" || s === "error"))
+            || (ev.tool === "tabs_context_mcp" && ev.status !== "ok")) chrome.suspect = true;
+        renderChip();
+      }
+      break;
+    }
     case "permission_request": {
       const d = document.createElement("div"); d.className = "perm"; d.id = "perm-" + ev.req_id;
-      d.innerHTML = `🔐 <b>권한 요청: ${esc(ev.tool)}</b><pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre><div class="votes"></div><div class="final muted">심사 중…</div>`;
+      d.innerHTML = `🔐 <b>권한 요청: ${esc(ev.label || ev.tool)}</b><details><summary>입력 보기</summary>` +
+        `<pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre></details><div class="votes"></div><div class="final muted">심사 중…</div>`;
+      if (ev.browser) d.dataset.browser = "1";
+      const s = shots[shots.length - 1];
+      if (!older && s) {
+        const box = shotBox(s.url);
+        box.insertAdjacentHTML("beforeend", `<span class="shot-ago">📷 ${esc(ago(s.ts))}</span>`);
+        $(".votes", d).before(box);
+      }
       out(d); break;
     }
     case "permission_votes": {
@@ -311,6 +346,7 @@ function handle(ev, mode = "live") {
     case "permission_decision": {
       const d = permBox(ev.req_id);
       if (d) $(".final", d).innerHTML = `<span class="${ev.allow ? "ok" : "no"}">${ev.allow ? "허용" : "거부"}</span> — ${esc(ev.by)}`;
+      if (d && d.dataset.browser && ev.allow) d.classList.add("compact");   // 허용된 Chrome 카드는 한 줄로
       if (!older) pending.delete("perm:" + ev.req_id);
       break;
     }
@@ -377,8 +413,15 @@ function renderComposer() {
     info.innerHTML = `⏳ <b>구독 사용량 한도에 걸렸어요.</b> ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동으로 이어서 진행해요.<div class="muted">${esc(ev.text)}</div>`;
     ta.placeholder = "질문하거나 지시를 남길 수 있어요 (재시도는 버튼)";
     btn("🔁 지금 재시도", () => reply("retry"), "primary");
+  } else if (ev?.label) {   // Chrome 동작
+    const s = shots[shots.length - 1];
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.label)}` +
+      (s ? ` <a href="${esc(s.url)}" target=_blank rel=noopener>📷 최근 화면 (${esc(ago(s.ts))})</a>` : "");
+    ta.placeholder = "질문하거나 지시를 남길 수 있어요";
+    btn("✅ 허용", () => reply("allow"), "primary");
+    btn("⛔ 거부", () => reply("deny"), "danger");
   } else if (ev) {
-    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input.command || ev.input.file_path || "").slice(0, 120))}</code>`;
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input?.command || ev.input?.file_path || "").slice(0, 120))}</code>`;
     ta.placeholder = "질문하거나 지시를 남길 수 있어요";
     btn("✅ 허용", () => reply("allow"), "primary");
     btn("⛔ 거부", () => reply("deny"), "danger");
@@ -398,7 +441,88 @@ function renderComposer() {
   ta.classList.toggle("mono", termMode);
   $("#sendBtn").textContent = termMode ? "실행" : "보내기";
   if (termMode) ta.placeholder = `$ 명령 (${currentRun.project.split(/[\\/]/).pop()} 폴더에서 실행 · 예: git status)`;
+  renderChip();   // 결정 대기·한도 대기 배지
 }
+
+// ── 🌐 Chrome 작업 진행 (단계 줄 · 상단 칩 · 스크린샷 오버레이) ──
+const steps = new Map();      // step(tool_use_id) → 줄 요소
+let shots = [];               // {url, ts, text}
+let chrome = null;
+const BSTAT = { ok: "✅", denied: "⛔", error: "⚠️", stopped: "⏹" };
+const BLOCK_MARK = "[CHROME-BLOCKED]";
+
+function resetChrome() {
+  steps.clear(); shots = [];
+  chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [] };
+  $("#browserChip").hidden = true; $("#browserOverlay").hidden = true;
+}
+resetChrome();
+
+function ago(ts) {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  return s < 60 ? `${s}초 전` : s < 3600 ? `${Math.floor(s / 60)}분 전` : `${Math.floor(s / 3600)}시간 전`;
+}
+
+function shotBox(url) {
+  const box = document.createElement("div"); box.className = "shot";
+  const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener";
+  const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = url;
+  img.onerror = () => { box.textContent = "🗑 정리된 화면"; box.classList.add("gone"); };
+  a.append(img); box.append(a);
+  return box;
+}
+
+function fillStep(el, ev) {
+  el.className = `cc tool bstep ${ev.status || ""}`;
+  el.textContent = `${BSTAT[ev.status] || ""} ${ev.text || ""}`;
+  const muted = text => { const s = document.createElement("span"); s.className = "muted"; s.textContent = text; el.append(s); };
+  if (ev.result) muted(" — " + ev.result);
+  if (ev.no_image) muted(" (화면 이미지 없음 — 텍스트로만)");
+  if (ev.shot) el.append(shotBox(ev.shot));
+}
+
+function renderChip() {
+  const chip = $("#browserChip");
+  if (!chrome || $("#tab-run").hidden) return;
+  if (chrome.count === 0 && !shots.length) { chip.hidden = true; return; }
+  const last = chrome.last, shot = shots[shots.length - 1];
+  let text = `🌐 Chrome · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
+  if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
+  if (shot) text += ` · 📷 ${ago(shot.ts)}`;
+  const waits = [...pending.values()];
+  const badge = chrome.blocked ? ["blocked", `🔒 집 PC Chrome 에서 처리 필요: ${chrome.blocked}`]
+    : waits.some(p => p.kind === "permission" && p.label) ? ["decide", "✋ 내 결정 대기"]
+    : waits.some(p => p.kind === "limit") ? ["limit", "⏳ 한도 대기"]
+    : chrome.suspect ? ["suspect", "⚠️ 막힘 의심"]
+    : chrome.noImage ? ["textonly", "텍스트로만"] : null;
+  chip.className = "browser-chip" + (badge ? " " + badge[0] : "");
+  chip.innerHTML = (badge ? `<span class="bc-badge">${esc(badge[1])}</span>` : "") + `<span class="bc-text">${esc(text)}</span>`;
+  chip.title = text;
+  chip.hidden = false;
+}
+setInterval(renderChip, 10000);   // "N초 전" 갱신
+
+function openOverlay() {
+  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov), list = $(".bo-steps", ov);
+  strip.innerHTML = ""; list.innerHTML = "";
+  if (!shots.length) strip.innerHTML = '<p class="muted">아직 찍은 화면이 없어요 — 텍스트로만 보여요</p>';
+  shots.forEach((s, i) => {
+    const fig = document.createElement("figure"); fig.className = "bo-shot";
+    const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+    const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = s.url;
+    img.onerror = () => { a.textContent = "🗑 정리된 화면"; a.classList.add("gone"); };
+    a.append(img);
+    const cap = document.createElement("figcaption");
+    cap.textContent = `${i + 1}/${shots.length} · ${new Date(s.ts * 1000).toLocaleTimeString()} · ${s.text}`;
+    fig.append(a, cap); strip.append(fig);
+  });
+  const rows = [...$("#stream").querySelectorAll(".bstep")].slice(-8);   // 화면 순서(시간순) 기준 마지막 8개
+  list.innerHTML = `<div class="bo-title">최근 단계 (${rows.length})</div>`;
+  rows.forEach(r => { const d = document.createElement("div"); d.className = r.className; d.textContent = r.textContent; list.append(d); });
+  ov.hidden = false;
+  strip.scrollLeft = strip.scrollWidth;   // 마지막 장부터
+}
+const closeOverlay = () => { $("#browserOverlay").hidden = true; };
 
 // ── 터미널 칸 (git·gh 처럼 직접 날려야 하는 명령) ──
 let termMode = false;
@@ -546,7 +670,7 @@ const fillScreen = () => { if (firstIndex && (scrollY < 400 || document.body.scr
 addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive: true });
 
 function openRun(run) {
-  currentRun = run; pending.clear(); msgs.clear(); $("#modelsPanel").hidden = true;
+  currentRun = run; pending.clear(); msgs.clear(); resetChrome(); $("#modelsPanel").hidden = true;
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
   firstIndex = 0; streamGen++;
   show("run");
@@ -556,7 +680,7 @@ function openRun(run) {
     const ev = JSON.parse(m.data);
     if (ev.type === "snapshot") {
       streamGen++; firstIndex = ev.first || 0;
-      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear();
+      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear(); resetChrome();
       $("#olderBar").onclick = loadOlder;
       currentRun = ev.run;
       ev.events.forEach(e => handle(e, "snapshot"));
@@ -764,6 +888,13 @@ async function startApp() {
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
   $("#modelsBtn").onclick = () => openModels().catch(e => alert(e.message));
+  $("#browserChip").onclick = () => $("#browserOverlay").hidden ? openOverlay() : closeOverlay();
+  $("#browserOverlay .bo-close").onclick = closeOverlay;
+  document.addEventListener("click", e => {   // 오버레이 바깥을 누르면 닫힘
+    const ov = $("#browserOverlay");
+    if (!ov.hidden && !ov.contains(e.target) && !$("#browserChip").contains(e.target)) closeOverlay();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
   bindFileInput($("#chatFiles"), chatFiles, $("#chatFileList"));
   bindFileInput($("#ideaFiles"), ideaFiles, $("#ideaFileList"));
   const send = async () => {

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pocket-Dev - Chrome 스크린샷 오버레이</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed": "#2a1700",
+            "tertiary-fixed-dim": "#ffb95f",
+            "on-error-container": "#ffdad6",
+            "surface-container": "#1e2024",
+            "on-secondary": "#003915",
+            "secondary-fixed": "#6bff8f",
+            "on-secondary-fixed-variant": "#005321",
+            "inverse-on-surface": "#2f3035",
+            "surface-tint": "#c0c1ff",
+            "secondary-container": "#00b954",
+            "error-container": "#93000a",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "background": "#111317",
+            "surface": "#111317",
+            "on-background": "#e2e2e8",
+            "on-secondary-fixed": "#002109",
+            "surface-container-highest": "#333539",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary": "#472a00",
+            "on-primary-container": "#0d0096",
+            "surface-dim": "#111317",
+            "secondary-fixed-dim": "#4ae176",
+            "primary-container": "#8083ff",
+            "surface-container-low": "#1a1c20",
+            "tertiary-container": "#ca8100",
+            "surface-container-high": "#282a2e",
+            "surface-variant": "#333539",
+            "on-secondary-container": "#004119",
+            "inverse-primary": "#494bd6",
+            "surface-bright": "#37393e",
+            "outline": "#908fa0",
+            "on-surface-variant": "#c7c4d7",
+            "on-primary": "#1000a9",
+            "on-error": "#690005",
+            "inverse-surface": "#e2e2e8",
+            "primary": "#c0c1ff",
+            "on-tertiary-container": "#3e2400",
+            "outline-variant": "#464554",
+            "tertiary-fixed": "#ffddb8",
+            "surface-container-lowest": "#0c0e12",
+            "secondary": "#4ae176",
+            "on-surface": "#e2e2e8",
+            "tertiary": "#ffb95f",
+            "on-primary-fixed": "#07006c",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-tertiary-fixed-variant": "#653e00",
+            "error": "#ffb4ab"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-xl": "2rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "headline-sm": ["\"Geist, 'Pretendard', sans-serif\""],
+            "body-lg": ["\"Geist, 'Pretendard', sans-serif\""],
+            "title-md": ["\"Geist, 'Pretendard', sans-serif\""],
+            "label-xs": ["\"JetBrains Mono, monospace\""],
+            "code-md": ["\"JetBrains Mono, monospace\""],
+            "headline-md": ["\"Geist, 'Pretendard', sans-serif\""],
+            "body-sm": ["\"Geist, 'Pretendard', sans-serif\""],
+            "title-sm": ["\"Geist, 'Pretendard', sans-serif\""],
+            "label-md": ["\"Geist, 'Pretendard', sans-serif\""],
+            "headline-lg": ["\"Geist, 'Pretendard', sans-serif\""],
+            "body-md": ["\"Geist, 'Pretendard', sans-serif\""],
+            "code-sm": ["\"JetBrains Mono, monospace\""]
+          },
+          "fontSize": {
+            "headline-sm": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "title-md": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-xs": ["10px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "code-md": ["13px", { "lineHeight": "20px", "fontWeight": "500" }],
+            "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "17px", "fontWeight": "400" }],
+            "title-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-md": ["13px", { "lineHeight": "19px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased overflow-hidden select-none h-screen w-screen flex justify-center items-center">
+<!-- Mobile Viewport Container -->
+<div class="relative w-full max-w-[420px] h-full max-h-[890px] bg-surface flex flex-col overflow-hidden border-x border-outline-variant/30">
+<!-- TOP APP BAR (Shared Component Anchor) -->
+<header class="fixed top-0 left-0 w-full z-20 flex items-center justify-between px-margin h-14 bg-surface-container-low border-b border-outline-variant text-title-md font-title-md text-on-surface">
+<div class="flex items-center gap-2">
+<button aria-label="뒤로가기" class="flex items-center justify-center p-1 rounded-lg text-primary hover:bg-surface-variant active:opacity-80 transition-opacity" type="button">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<span class="text-title-md font-title-md tracking-tight">웹 자동화 및 데이터 수집</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="px-2 py-0.5 rounded text-label-xs font-label-xs bg-secondary/10 text-secondary border border-secondary/30">실행 중</span>
+<button aria-label="더보기 메뉴" class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-variant active:opacity-80 transition-opacity" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- BACKGROUND TASK SCREEN (SCREEN_2 peek-through) -->
+<main class="w-full h-full pt-16 px-4 pb-24 overflow-y-auto space-y-4 select-none">
+<!-- Status Chip Bar -->
+<div class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container border border-outline-variant text-label-xs font-label-xs text-on-surface-variant">
+<div class="flex items-center gap-1.5 overflow-hidden">
+<span class="text-secondary font-bold">🌐 Chrome</span>
+<span class="text-outline">·</span>
+<span>7단계</span>
+<span class="text-outline">·</span>
+<span class="text-primary font-code-sm">✅🖱 클릭 (412, 300)</span>
+</div>
+<div class="flex items-center gap-1 text-outline shrink-0">
+<span>12초 전</span>
+<span>·</span>
+<span>📷15초</span>
+</div>
+</div>
+<!-- Execution Progress Step Flow -->
+<section class="space-y-3 relative pl-4 before:absolute before:left-2 before:top-3 before:bottom-3 before:w-0.5 before:bg-outline-variant">
+<!-- Step 1 Complete -->
+<div class="relative bg-surface-container-low border border-outline-variant rounded-xl p-3">
+<div class="flex items-center justify-between mb-1">
+<span class="text-title-sm font-title-sm text-on-surface flex items-center gap-1.5">
+<span class="text-secondary text-sm">✓</span> 세션 초기화 및 로그인 감지
+            </span>
+<span class="text-label-xs font-label-xs text-outline">16:09:45</span>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface-variant">세션 쿠키 로드 완료 (Target: https://example.com)</p>
+</div>
+<!-- Step 2 In-Progress -->
+<div class="relative bg-surface-container border-l-2 border-primary border-outline-variant rounded-xl p-3 shadow-sm">
+<div class="flex items-center justify-between mb-1">
+<span class="text-title-sm font-title-sm text-primary flex items-center gap-1.5">
+<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span> DOM 노드 타겟 클릭
+            </span>
+<span class="text-label-xs font-label-xs text-primary">16:10:32</span>
+</div>
+<div class="bg-surface-container-lowest p-2 rounded border border-outline-variant/60 font-code-sm text-code-sm text-on-surface-variant">
+<code>page.click("button#cta-export", { x: 412, y: 300 })</code>
+</div>
+</div>
+<!-- Step 3 Planned -->
+<div class="relative bg-surface-container-low border border-outline-variant/40 rounded-xl p-3 opacity-60">
+<div class="flex items-center justify-between mb-1">
+<span class="text-title-sm font-title-sm text-on-surface">데이터 수집 파싱 및 CSV 변환</span>
+<span class="text-label-xs font-label-xs text-outline">대기</span>
+</div>
+<p class="text-body-sm font-body-sm text-outline">페이지 내 테이블 요소 렌더링 완료 대기 중</p>
+</div>
+</section>
+</main>
+<!-- BACKDROP DIMMER & BLUR -->
+<div class="absolute inset-0 z-30 bg-black/75 backdrop-blur-md transition-opacity"></div>
+<!-- BOTTOM SHEET MODAL (Chrome 스크린샷 오버레이) -->
+<section class="absolute bottom-0 left-0 right-0 z-40 max-h-[636px] flex flex-col bg-surface-container-low border-t border-outline-variant rounded-t-[28px] shadow-2xl transition-transform duration-300">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
+<div class="w-10 h-1.5 bg-outline-variant rounded-full"></div>
+</div>
+<!-- Sheet Header Bar -->
+<div class="flex items-center justify-between px-4 py-2 border-b border-outline-variant/50">
+<div class="flex items-center gap-2">
+<span class="text-title-md font-title-md text-on-surface">📸 Chrome 스크린샷 뷰어</span>
+<span class="flex items-center gap-1 px-1.5 py-0.5 rounded text-label-xs font-label-xs bg-primary/10 text-primary border border-primary/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+            실시간 동기화
+          </span>
+</div>
+<button aria-label="오버레이 닫기" class="w-7 h-7 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-variant active:opacity-80 transition-all" type="button">
+<span class="text-sm font-bold">✕</span>
+</button>
+</div>
+<!-- Scrollable Sheet Content -->
+<div class="overflow-y-auto flex-1 pb-4 space-y-4">
+<!-- Horizontal Scroll-Snap Carousel Strip -->
+<div class="pt-3">
+<div class="flex items-center justify-between px-4 mb-2">
+<span class="text-label-md font-label-md text-on-surface-variant">타임라인 스크린샷</span>
+<span class="text-label-xs font-label-xs text-outline">3 / 8 캡처됨</span>
+</div>
+<div class="flex gap-3 px-4 overflow-x-auto scroll-smooth snap-x snap-mandatory no-scrollbar pb-1">
+<!-- Card 1 (Past) -->
+<article class="w-[82%] shrink-0 snap-center rounded-xl bg-surface-container border border-outline-variant/60 p-2.5 flex flex-col space-y-2">
+<div class="flex items-center justify-between text-label-xs font-label-xs bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant/40">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="ml-1 text-outline font-code-sm truncate max-w-[120px]">example.com</span>
+</div>
+<span class="text-outline">16:09:45</span>
+</div>
+<!-- Viewport graphic preview -->
+<div class="relative w-full h-32 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/30 flex flex-col p-2 space-y-1.5">
+<div class="h-3 w-1/3 bg-surface-container-high rounded"></div>
+<div class="h-2 w-2/3 bg-surface-container rounded"></div>
+<div class="h-2 w-1/2 bg-surface-container rounded"></div>
+<div class="mt-auto flex justify-end">
+<div class="px-2 py-0.5 rounded text-label-xs font-code-sm bg-surface-container-high text-outline">HTTP 200 OK</div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/30 text-label-xs font-label-xs">
+<span class="text-on-surface-variant font-code-sm">1단계 / 8</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">🌐 URL 탐색</span>
+</div>
+</article>
+<!-- Card 2 (Previous) -->
+<article class="w-[82%] shrink-0 snap-center rounded-xl bg-surface-container border border-outline-variant/60 p-2.5 flex flex-col space-y-2">
+<div class="flex items-center justify-between text-label-xs font-label-xs bg-surface-container-lowest px-2 py-1 rounded border border-outline-variant/40">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="ml-1 text-outline font-code-sm truncate max-w-[120px]">example.com/reports</span>
+</div>
+<span class="text-outline">16:10:15</span>
+</div>
+<!-- Viewport graphic preview -->
+<div class="relative w-full h-32 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/30 p-2 space-y-2">
+<div class="grid grid-cols-3 gap-1">
+<div class="h-7 bg-surface-container-high rounded"></div>
+<div class="h-7 bg-surface-container-high rounded"></div>
+<div class="h-7 bg-surface-container-high rounded"></div>
+</div>
+<div class="w-full h-10 bg-surface-container rounded p-1 flex items-center justify-center">
+<span class="text-label-xs font-code-sm text-outline">#data-table.grid</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/30 text-label-xs font-label-xs">
+<span class="text-on-surface-variant font-code-sm">4단계 / 8</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">👀 DOM 파싱</span>
+</div>
+</article>
+<!-- Card 3 (Active / Focused - Latest) -->
+<article class="w-[82%] shrink-0 snap-center rounded-xl bg-surface-container border-2 border-primary/80 p-2.5 flex flex-col space-y-2 shadow-lg shadow-primary/5">
+<div class="flex items-center justify-between text-label-xs font-label-xs bg-surface-container-lowest px-2 py-1 rounded border border-primary/30">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="ml-1 text-primary font-code-sm font-semibold truncate max-w-[120px]">example.com/export</span>
+</div>
+<span class="px-1.5 py-0.2 rounded text-label-xs font-label-xs bg-secondary/10 text-secondary border border-secondary/30">LIVE</span>
+</div>
+<!-- Simulated Browser Screen with Click Target -->
+<div class="relative w-full h-32 bg-surface-container-lowest rounded-lg overflow-hidden border border-outline-variant/50 p-2 flex flex-col justify-between">
+<div class="space-y-1">
+<div class="h-3 w-1/2 bg-surface-container-high rounded"></div>
+<div class="h-2 w-3/4 bg-surface-container rounded"></div>
+</div>
+<!-- Highlighted Action Target Indicator (X:412 Y:300) -->
+<div class="relative w-full flex justify-center items-center py-2">
+<div class="relative flex items-center justify-center">
+<span class="absolute w-8 h-8 rounded-full bg-primary/20 animate-ping"></span>
+<span class="w-5 h-5 rounded-full border-2 border-primary bg-primary/40 flex items-center justify-center shadow">
+<span class="w-1.5 h-1.5 rounded-full bg-white"></span>
+</span>
+<!-- Tooltip Pill -->
+<span class="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-surface-bright text-[10px] font-code-sm text-primary-fixed border border-primary/50 shadow whitespace-nowrap">
+                      X:412 Y:300
+                    </span>
+</div>
+</div>
+<div class="flex items-center justify-between text-label-xs font-code-sm text-outline">
+<span>selector: button#cta-export</span>
+<span class="text-secondary">READY</span>
+</div>
+</div>
+<!-- Caption Bar -->
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/30 text-label-xs font-label-xs">
+<span class="text-on-surface font-code-sm font-bold">7단계 / 8</span>
+<span class="px-2 py-0.5 rounded bg-primary/15 text-primary border border-primary/30 font-semibold">
+                  🖱 클릭 (412, 300)
+                </span>
+<span class="text-outline font-code-sm">16:10:32</span>
+</div>
+</article>
+</div>
+</div>
+<!-- Recent Execution Log Steps Section -->
+<section class="px-4 space-y-2">
+<div class="flex items-center justify-between pt-1">
+<h2 class="text-title-sm font-title-sm text-on-surface">최근 실행 단계 (8개)</h2>
+<span class="text-label-xs font-label-xs text-outline">기준 16:10:35</span>
+</div>
+<div class="bg-surface-container border border-outline-variant/60 rounded-xl divide-y divide-outline-variant/30 font-code-sm text-code-sm overflow-hidden shadow-inner">
+<!-- Step 1: Paused/Tab Wait -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:34</span>
+<span class="text-outline shrink-0">⏹</span>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface truncate">chrome://tab-allocator (ID: #4)</p>
+<p class="text-body-sm font-body-sm text-outline">새 탭 생성 대기</p>
+</div>
+</div>
+<!-- Step 2: Warning Delay -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors bg-tertiary-container/10">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:32</span>
+<span class="text-tertiary shrink-0">⚠️</span>
+<div class="flex-1 min-w-0">
+<p class="text-tertiary-fixed-dim truncate">DOM 변경 관측 (250ms 지연)</p>
+<p class="text-body-sm font-body-sm text-outline">페이지 읽기 완료 후 렌더 안정화 대기</p>
+</div>
+</div>
+<!-- Step 3: Blocked/Permission -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors bg-error-container/10">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:30</span>
+<span class="text-error shrink-0">⛔</span>
+<div class="flex-1 min-w-0">
+<p class="text-error truncate font-medium">권한 차단: 키스트로크 입력 승인 필요</p>
+<p class="text-body-sm font-body-sm text-outline">자동 승인 가드레일에 의해 일시정지</p>
+</div>
+</div>
+<!-- Step 4: Click Success -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors bg-primary/5">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:22</span>
+<span class="text-secondary shrink-0">✅</span>
+<div class="flex-1 min-w-0">
+<p class="text-primary truncate font-semibold">🖱 클릭 (412, 300) - button#cta-export</p>
+<p class="text-body-sm font-body-sm text-on-surface-variant">요소 바운딩 박스 중앙 조준 성공</p>
+</div>
+</div>
+<!-- Step 5: Navigate Success -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:18</span>
+<span class="text-secondary shrink-0">🌐</span>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface truncate">이동 https://example.com (HTTP 200 OK)</p>
+<p class="text-body-sm font-body-sm text-outline">도메인 네비게이션 320ms 소요</p>
+</div>
+</div>
+<!-- Step 6: Storage Session Init -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:10</span>
+<span class="text-secondary shrink-0">✅</span>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface truncate">쿠키 및 로컬 스토리지 세션 초기화</p>
+<p class="text-body-sm font-body-sm text-outline">인증 토큰(Bearer) 주입 완료</p>
+</div>
+</div>
+<!-- Step 7: Context Create -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:05</span>
+<span class="text-secondary shrink-0">✅</span>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface truncate">브라우저 컨텍스트 생성 (창 크기 1280x800)</p>
+<p class="text-body-sm font-body-sm text-outline">모바일 에뮬레이션 비활성화 모드</p>
+</div>
+</div>
+<!-- Step 8: Start Task -->
+<div class="p-2.5 flex items-start gap-2 hover:bg-surface-container-high transition-colors">
+<span class="text-outline text-xs mt-0.5 shrink-0">16:10:00</span>
+<span class="text-secondary shrink-0">✅</span>
+<div class="flex-1 min-w-0">
+<p class="text-on-surface truncate">작업 시작: 에이전트 인스턴스 초기화</p>
+<p class="text-body-sm font-body-sm text-outline">Playwright CDP 엔드포인트 연결됨</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Sticky Footer Dock -->
+<footer class="p-4 bg-surface-container-low border-t border-outline-variant/60">
+<button class="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-title-sm font-title-sm flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all" type="button">
+<span>오버레이 닫기</span>
+<span class="text-label-xs font-label-xs px-1.5 py-0.5 rounded bg-on-primary/20 text-on-primary">ESC</span>
+</button>
+</footer>
+</section>
+</div>
+</body></html>

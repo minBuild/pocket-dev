@@ -167,3 +167,50 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .models-panel .model-pick select.exec-model { flex: 1; width: auto; }
 .models-panel .actions { margin-top: 10px; }
 @media (max-width: 480px) { .models-panel .role { flex-basis: 100%; } }
+
+/* 🌐 Chrome 작업 진행 — 단계 줄 · 상단 칩 · 스크린샷 오버레이 (design/stitch) */
+:root { --b-indigo: #6366f1; --b-ok: #22c55e; --b-no: #ef4444; --b-warn: #f59e0b; }
+.cc.tool.bstep::before { content: none; }
+.bstep { padding: 6px 8px; margin: 4px 0; border: 1px solid var(--line); border-left: 2px solid var(--line); border-radius: 8px; background: var(--card); }
+.bstep.running { border-left-color: var(--b-indigo); box-shadow: 0 0 0 1px color-mix(in srgb, var(--b-indigo) 15%, transparent); }
+.bstep.ok { border-left-color: var(--b-ok); }
+.bstep.denied { border-left-color: var(--b-no); }
+.bstep.error { border-left-color: var(--b-warn); }
+.bstep .shot { margin-top: 6px; }
+.shot { aspect-ratio: 16/10; max-width: 240px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; position: relative; font-size: 12px; color: var(--muted); }
+.shot a { display: block; width: 100%; height: 100%; }
+.shot img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.shot-ago { position: absolute; right: 4px; bottom: 4px; padding: 0 6px; border-radius: 6px; font-size: 11px; background: rgba(0,0,0,.6); color: #fff; }
+.perm .shot { margin: 6px 0; }
+.perm.compact { padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.perm.compact .votes, .perm.compact details, .perm.compact .shot { display: none; }
+
+.browser-chip { display: flex; gap: 8px; align-items: center; width: 100%; margin: 0 0 10px; padding: 6px 10px; text-align: left;
+  font-size: 13px; border-radius: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.browser-chip .bc-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.browser-chip .bc-badge { flex: 0 1 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; padding: 2px 8px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; border: 1px solid; }
+.browser-chip.blocked, .browser-chip.suspect, .browser-chip.limit { border-color: color-mix(in srgb, var(--b-warn) 30%, transparent); }
+.browser-chip.blocked .bc-badge, .browser-chip.suspect .bc-badge, .browser-chip.limit .bc-badge {
+  color: var(--b-warn); background: color-mix(in srgb, var(--b-warn) 12%, transparent); border-color: color-mix(in srgb, var(--b-warn) 30%, transparent); }
+.browser-chip.decide .bc-badge {
+  color: var(--b-indigo); background: color-mix(in srgb, var(--b-indigo) 12%, transparent); border-color: color-mix(in srgb, var(--b-indigo) 30%, transparent); }
+.browser-chip.textonly .bc-badge { color: var(--muted); background: var(--bg); border-color: var(--line); font-weight: normal; }
+
+.browser-overlay { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-width: 820px; margin: 0 auto; max-height: 70vh; overflow: auto;
+  background: var(--card); border: 1px solid var(--line); border-bottom: 0; border-radius: 16px 16px 0 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 8px 32px rgba(0,0,0,.45); }
+.bo-head { font-weight: 600; margin-bottom: 8px; }
+.bo-strip { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; }
+.bo-strip > * { scroll-snap-align: center; flex: 0 0 85%; }
+.bo-shot { margin: 0; }
+.bo-shot a { display: block; aspect-ratio: 16/10; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg);
+  color: var(--muted); font-size: 13px; text-align: center; text-decoration: none; }
+.bo-shot a.gone { display: flex; align-items: center; justify-content: center; }
+.bo-shot img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.bo-shot figcaption { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-steps { margin: 10px 0; }
+.bo-steps .bo-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.bo-close { width: 100%; }
