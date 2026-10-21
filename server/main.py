@@ -465,7 +465,8 @@ async def run_events(run_id: str):
     queue: asyncio.Queue = asyncio.Queue()
     first, events = run.snapshot_events(PAGE_EVENTS)
     snapshot = {"type": "snapshot", "run": run.summary(), "events": events, "first": first,
-                "pending": run.pending_events(), "stage_label": run.stage_label()}
+                "pending": run.pending_events(), "stage_label": run.stage_label(),
+                "browser": browser.summarize(run.events)}
     run.subscribers.add(queue)
 
     async def gen():
@@ -496,10 +497,24 @@ async def reply(run_id: str, req: ReplyReq):
     value = {"action": req.action, "text": req.text, "allow": req.action in ("allow", "approve")}
     if not run.resolve(req.key, value):
         raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
+    chat_id = None
     if req.key == "plan" and req.text.strip():
-        await run.emit("user", text=req.text.strip())
+        chat_id = uuid.uuid4().hex[:10]
+        await run.emit("user", text=req.text.strip(), chat_id=chat_id)
     await run.emit("user_reply", key=req.key, action=req.action, text=req.text)
+    if req.key == "plan" and req.action in _PLAN_ACTIONS:
+        await run.emit("chat_action", **_rt(chat_id), action=req.action, text=_PLAN_ACTIONS[req.action])
     return {"ok": True}
+
+
+_PLAN_ACTIONS = {"approve": "🚀 승인 — 코멘트를 명세서에 반영하고 진행해요",
+                 "feedback": "✏️ 기획안 수정 요청 → 한 라운드 더 토론해요",
+                 "cancel": "⏹ 작업을 취소했어요"}
+
+
+def _rt(chat_id: str | None) -> dict:
+    """채팅 응답 쪽 이벤트의 묶음 키."""
+    return {"reply_to": chat_id} if chat_id else {}
 
 
 # ── 진행 중인 작업의 역할별 모델 변경 ─────────────────────────────
@@ -610,22 +625,29 @@ async def run_message(run_id: str, req: MessageReq):
         run.save()
         names = ", ".join(f["name"] for f in files)
         text = f"{text}\n\n[첨부 파일 추가: {names}]" if text else f"첨부 파일을 올렸어요: {names}"
+    chat_id = None
     if req.text.strip() or files:
-        await run.emit("user", text=req.text.strip(), files=[f["name"] for f in files])
+        chat_id = uuid.uuid4().hex[:10]
+        await run.emit("user", text=req.text.strip(), files=[f["name"] for f in files], chat_id=chat_id)
     if _is_resume(text):
         limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
         for key in limit_keys:
             run.resolve(key, {"action": "retry"})
             await run.emit("user_reply", key=key, action="retry", text="")
         if limit_keys:
+            await run.emit("chat_action", **_rt(chat_id), action="resume", text="🔁 지금 재시도할게요")
             return {"mode": "retry"}
         if run.alive:
+            await run.emit("chat_action", **_rt(chat_id), action="resume", text="ℹ️ 이미 진행 중이에요")
             return {"mode": "running"}
         if run.status == "done":
+            await run.emit("chat_action", **_rt(chat_id), action="resume",
+                           text="ℹ️ 이미 끝난 작업이에요 — 추가로 바꿀 내용을 적어 주세요")
             raise HTTPException(400, "이미 끝난 작업이에요. 추가로 바꿀 내용을 적어 주세요")
+        await run.emit("chat_action", **_rt(chat_id), action="resume", text="▶ 멈춘 단계부터 이어서 진행해요")
         pipeline.start(run, PORT)
         return {"mode": "resumed"}
-    asyncio.create_task(pipeline.handle_chat(run, text, PORT))
+    asyncio.create_task(pipeline.handle_chat(run, text, PORT, reply_to=chat_id))
     return {"mode": "assistant"}
 
 
@@ -666,6 +688,16 @@ class PermissionReq(BaseModel):
 @app.post("/api/internal/permission")
 async def internal_permission(req: PermissionReq):
     return await permissions.decide(_run(req.run_id), req.tool_name, req.input, req.tool_use_id)
+
+
+class ChromeAccountReq(BaseModel):
+    run_id: str
+    email: str = ""
+
+
+@app.post("/api/internal/chrome_account")
+async def internal_chrome_account(req: ChromeAccountReq):
+    return {"text": await permissions.report_account(_run(req.run_id), req.email[:300])}
 
 
 # ── 실행 ─────────────────────────────────────────────────────

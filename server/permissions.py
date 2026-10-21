@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import browser
 from .agents import judge_permission
-from .config import CONFIG
+from .config import CONFIG, chrome_accounts_setting
 from .runs import Run
 
 _GIT = r"\bgit(?:\s+(?:-[Cc]\s+(?:\"[^\"]*\"|'[^']*'|\S+)|--[\w-]+(?:=\S+)?))*\s+"  # git -C 경로 / -c 키=값 / --옵션 뒤의 하위 명령
@@ -49,6 +49,10 @@ def hard_rule(project: str, tool_name: str, tool_input: dict) -> str | None:
     return None
 
 
+def _allowed() -> list[str]:
+    return browser.allowed_list(chrome_accounts_setting())
+
+
 def _aggregate(votes: list[dict], policy: str) -> str:
     """allow / deny / disagree"""
     allows = sum(v["decision"] == "allow" for v in votes)
@@ -87,6 +91,11 @@ async def decide(run: Run, tool_name: str, tool_input: dict, tool_use_id: str | 
             run.perm_cache[cache_key] = (allow, reason)
         if tool_use_id and chrome:  # 단계 줄의 ✅/⛔ 판정용 (문구 추측보다 확실)
             run.browser_verdicts[tool_use_id] = allow
+        if allow and tool_name in (browser.PREFIX + "navigate", browser.PREFIX + "tabs_create_mcp"):
+            new = browser.scope_after(tool_name, tool_input, run.chrome_scope)
+            if new != run.chrome_scope:
+                run.chrome_seen = set()          # 다른 콘솔·계정 범위 → 이전 근거 무효
+            run.chrome_scope = new
         asyncio.create_task(run.emit("permission_decision", req_id=req_id, allow=allow,
                                      reason=reason, by=by))
         if allow:
@@ -96,6 +105,10 @@ async def decide(run: Run, tool_name: str, tool_input: dict, tool_use_id: str | 
     blocked = hard_rule(run.project, tool_name, tool_input)
     if blocked:
         return done(False, blocked, "hard-rule")
+    if browser.is_tool(tool_name):  # Google 콘솔 쓰기는 로그인 계정 확인 뒤에만 (Haiku 호출 없이)
+        why = browser.account_gate(tool_name, tool_input, run.chrome_scope, run.chrome_account, _allowed())
+        if why:
+            return done(False, why, "계정 확인", remember=False)
     if cache_key in run.perm_cache:
         allow, reason = run.perm_cache[cache_key]
         return done(allow, reason, "이전 판정 재사용")
@@ -124,3 +137,19 @@ async def decide(run: Run, tool_name: str, tool_input: dict, tool_use_id: str | 
         run.waiters.pop(key, None)
         return done(False, "사람 응답 시간 초과", "timeout", remember=False)
     return done(bool(answer.get("allow")), answer.get("text") or "사용자 결정", "사용자")
+
+
+async def report_account(run: Run, email: str) -> str:
+    """구현 AI 의 chrome_account 보고 → 근거(지금 범위에서 읽은 페이지)·허용 목록 판정, 도구 응답 문구."""
+    e = browser.norm_email(email)
+    seen = bool(e) and e in run.chrome_seen
+    if e and not seen:                      # stdout 처리보다 HTTP 가 먼저 온 경우
+        await asyncio.sleep(1.5)
+        seen = e in run.chrome_seen
+    allowed = _allowed()
+    gate = bool(allowed)
+    ok = seen and (not gate or browser.account_allowed(e, allowed))
+    run.chrome_account = (e, run.chrome_scope, ok) if seen else None
+    await run.emit("browser_account", email=e or str(email or "")[:254], text=f"{browser.ACCOUNT_MARK} {e or email}",
+                   allowed=ok, verified=seen, gate=gate, scope=run.chrome_scope or "")
+    return browser.account_reply(e, seen, ok, gate)

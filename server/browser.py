@@ -9,6 +9,7 @@
 """
 import base64
 import re
+from urllib.parse import urlsplit, parse_qs
 
 READ_ONLY = [f"mcp__claude-in-chrome__{t}" for t in (
     "tabs_context_mcp", "read_page", "find", "get_page_text", "list_connected_browsers")]
@@ -19,7 +20,15 @@ REMEMBER_TOOLS = {PREFIX + "navigate", PREFIX + "tabs_create_mcp"}
 HARD_DENY_TOOLS = {PREFIX + t for t in ("javascript_tool", "file_upload", "upload_image")}  # 실제 이름은 T1 프로브 때 도구 목록으로 확인
 BLOCK_MARK = "[CHROME-BLOCKED]"
 SHOT_RE = re.compile(r"^\d{13}-[A-Za-z0-9]{1,8}\.(png|jpe?g|webp)$")
-DENY_PREFIX_RE = re.compile(r"^\s*\[(hard-rule|AI 리뷰어|사용자|timeout|설정|이전 판정 재사용)\]")
+DENY_PREFIX_RE = re.compile(r"^\s*\[(hard-rule|AI 리뷰어|사용자|timeout|설정|이전 판정 재사용|계정 확인)\]")
+ACCOUNT_MARK = "[CHROME-ACCOUNT]"
+ACCOUNT_TOOL = "mcp__pocketdev__chrome_account"
+GOOGLE_SUFFIXES = ("google.com", "admob.com")
+NON_WRITE_TOOLS = {PREFIX + t for t in ("navigate", "tabs_create_mcp", "tabs_context_mcp")}
+EVIDENCE_TOOLS = {PREFIX + t for t in ("read_page", "get_page_text", "find")}   # 계정 근거로 인정하는 결과 (E2b)
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:(?!\d)")   # about: chrome: javascript: … (host:port 는 제외)
+_EMAIL_FULL_RE = re.compile(r"^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]+$")
 
 PLAN_NOTE = ("\n\n[구현 환경] 이번 작업의 구현 AI 는 이 PC 의 Chrome(사용자가 로그인한 상태)을 조작할 수 있다 "
              "(클릭·입력은 하나하나 권한 심사를 거침). AdMob·Firebase 같은 웹 콘솔에서 앱 등록, 광고 단위 생성, "
@@ -32,7 +41,15 @@ EXEC_NOTE = """
 클릭·입력·이동은 하나하나 권한 심사를 거치니, 각 동작이 무엇을 위한 것인지 분명하게 하고 꼭 필요한 동작만 한다.
 명세서에 있는 웹 콘솔 작업(예: AdMob 앱 추가·광고 단위 생성·앱 ID/광고 단위 ID 확인)만 한다.
 - 시작할 때 tabs_context_mcp 로 연결을 확인하고, 새 탭을 만들어서 작업한다. 사용자가 열어 둔 탭은 건드리지 않는다.
-- 만들기 전에 같은 이름의 앱·광고 단위가 이미 있는지 먼저 확인하고, 있으면 새로 만들지 말고 그 ID 를 쓴다.
+- 만들기 전에 같은 이름의 앱·광고 단위가 이미 있는지 먼저 확인하고, 있으면 새로 만들지 말고 그 ID 를 쓴다 (ID 를 읽기만 할 때도 먼저 계정을 보고한다).
+- 로그인 계정 확인 (필수): Google 계정을 쓰는 콘솔(AdMob·Firebase·Play Console·Google Cloud 등)에 들어가면 클릭·입력이나 ID 읽기 전에
+  그 페이지에서 find/read_page/get_page_text 로 화면 오른쪽 위 계정 버튼(aria-label "Google 계정: 이름 (이메일)")의 이메일을 텍스트로 읽고,
+  곧바로 mcp__pocketdev__chrome_account 도구에 그 이메일을 보고한다. 탭 목록·스크린샷을 근거로 보고하지 말고, 이메일을 짐작하거나
+  다른 곳(세션 정보·명세서·이전 콘솔)에서 가져오지 않는다. 다른 콘솔(주소)로 옮기면 그 페이지에서 다시 읽어 보고한다.
+  주소는 navigate 로 연다 (링크 클릭으로 다른 콘솔로 넘어가지 않는다).
+- 보고 전의 클릭·입력은 서버가 거부한다. 도구 답이 '허용' 이 아니면(허용 목록에 없음·확인 불가) 그 콘솔에서 쓰기 작업을 하지 말고,
+  그 콘솔의 ID 를 코드·설정에 반영하지 말고, "[CHROME-BLOCKED] 계정 불일치: <이메일>" 또는 "[CHROME-BLOCKED] 로그인 계정 확인 불가"
+  한 줄을 남긴 뒤 Chrome 작업을 멈춘다 (코드 작업은 계속). 계정 전환·로그아웃·계정 추가는 하지 않는다.
 - 금지: 결제·요금제·지급 정보, 계정·사용자 권한 설정, 기존 앱·광고 단위·프로젝트 삭제나 비활성화, 약관 동의,
   앱 게시·심사 제출, 로컬 파일 업로드. 이런 단계가 필요하면 멈추고 "[CHROME-BLOCKED] <무엇이 필요한지>" 한 줄을 남긴다.
 - 로그인·2단계 인증·캡차가 나오면 우회하지 말고 멈춰서 "[CHROME-BLOCKED] 사용자가 Chrome 에서 로그인해야 함" 한 줄을 남긴다.
@@ -72,6 +89,141 @@ def auto_allow(name, inp) -> bool:
 def rememberable(name) -> bool:
     """같은 입력이면 이전 판정을 재사용해도 되는 도구 — 클릭 좌표는 페이지마다 뜻이 달라서 안 됨."""
     return not is_tool(name) or name in REMEMBER_TOOLS
+
+
+# ── 로그인 계정 확인 (순수 함수, 예외를 던지지 않음) ──
+
+def is_evidence(name) -> bool:
+    """계정 근거로 인정하는 읽기 도구인가 (탭 목록·스크린샷·navigate 결과는 제외)."""
+    return name in EVIDENCE_TOOLS
+
+
+def norm_email(s) -> str | None:
+    try:
+        e = str(s or "").strip().strip(" \t\r\n<>()[]\"'.,;:").lower()
+    except Exception:
+        return None
+    return e if len(e) <= 254 and _EMAIL_FULL_RE.match(e) else None
+
+
+def emails_in(text) -> set[str]:
+    out: set[str] = set()
+    try:
+        for m in _EMAIL_RE.findall(str(text)[:200_000]):
+            e = norm_email(m)
+            if e:
+                out.add(e)
+                if len(out) >= 50:
+                    break
+    except Exception:
+        pass
+    return out
+
+
+def allowed_list(value) -> list[str]:
+    """허용 계정 설정값(문자열·리스트) → 정규화된 이메일 목록 (순서 유지, 중복 제거)."""
+    if isinstance(value, str):
+        items = re.split(r"[,;\s]+", value)
+    elif isinstance(value, (list, tuple)):
+        items = [str(v) for v in value]
+    else:
+        return []
+    out: list[str] = []
+    for it in items:
+        e = norm_email(it)
+        if e and e not in out:
+            out.append(e)
+    return out
+
+
+def account_allowed(email, allowed) -> bool:
+    e = norm_email(email)
+    return bool(e) and e in {norm_email(a) for a in (allowed or [])}
+
+
+def scope_of(url) -> str | None:
+    """URL → 계정 확인 범위. Google 호스트면 "host#authuser", localhost·비-Google 은 "", 모르면 None."""
+    try:
+        s = str(url or "").strip()
+        if not s or s.lower() in ("back", "forward"):
+            return None
+        if "://" not in s:
+            if _SCHEME_RE.match(s):
+                return None
+            s = "https://" + s.lstrip("/")
+        parts = urlsplit(s)
+        if parts.scheme.lower() not in ("http", "https") or not parts.hostname:
+            return None
+        host = parts.hostname.lower().rstrip(".")
+        if (host == "localhost" or host.endswith(".localhost") or host.startswith("127.")
+                or host in ("::1", "0.0.0.0")):
+            return ""
+        if "." not in host:
+            return None
+        if not any(host == sfx or host.endswith("." + sfx) for sfx in GOOGLE_SUFFIXES):
+            return ""
+        q = parse_qs(parts.query).get("authuser")
+        if q and q[0].strip():
+            authuser = q[0].strip().lower()[:64]
+        else:
+            m = re.search(r"/u/(\d+)(/|$)", parts.path)
+            authuser = m.group(1) if m else "0"
+        return f"{host}#{authuser}"
+    except Exception:
+        return None
+
+
+def scope_after(name, inp, current) -> str | None:
+    """허용된 도구 호출 뒤의 범위."""
+    inp = inp if isinstance(inp, dict) else {}
+    if name == PREFIX + "navigate":
+        return scope_of(inp.get("url"))
+    if name == PREFIX + "tabs_create_mcp":
+        return scope_of(inp["url"]) if inp.get("url") else None
+    return current
+
+
+def is_write(name, inp) -> bool:
+    """읽기·이동·자동 허용을 뺀 Chrome 도구 (모르는 도구도 쓰기로 봄)."""
+    return (is_tool(name) and name not in READ_ONLY and name not in NON_WRITE_TOOLS
+            and not auto_allow(name, inp))
+
+
+def account_gate(name, inp, scope, account, allowed) -> str | None:
+    """Google 콘솔 쓰기 동작을 막아야 하면 사유. account = (email, scope, ok) | None"""
+    if not allowed or not is_write(name, inp) or scope == "":
+        return None
+    if scope is None:
+        return "어느 페이지인지 확인되지 않아 쓰기 동작을 막았어요 — navigate 로 콘솔 주소를 연 뒤 로그인 계정을 chrome_account 로 보고하세요"
+    host = scope.split("#")[0]
+    if not account or account[1] != scope:
+        return (f"{host} 의 로그인 계정이 확인되지 않았어요 — 이 페이지에서 find/read_page/get_page_text 로 계정 버튼의 이메일을 "
+                "텍스트로 읽고 chrome_account 도구로 보고한 뒤 다시 시도하세요")
+    if not account[2]:
+        return (f"로그인 계정 {account[0]} 은(는) 허용 목록에 없어요 — 쓰기 작업·ID 코드 반영 금지, "
+                "'[CHROME-BLOCKED] 계정 불일치' 한 줄을 남기고 Chrome 작업을 멈추세요")
+    return None
+
+
+def account_reply(email, seen, ok, gate) -> str:
+    """chrome_account 도구의 응답 — 허용 목록의 다른 이메일은 절대 넣지 않는다."""
+    if not email:
+        return ("이메일 형식이 아니에요. 계정 버튼의 이메일을 텍스트로 읽어 다시 보고하세요. "
+                "읽을 수 없으면 '[CHROME-BLOCKED] 로그인 계정 확인 불가' 를 남기고 Chrome 작업을 멈추세요.")
+    if not seen:
+        return (f"{email} 은(는) 지금 콘솔 페이지에서 Chrome 으로 읽은 내용에 없어요. 지금 페이지에서 "
+                "find/read_page/get_page_text 로 계정 버튼(aria-label 'Google 계정: 이름 (이메일)')의 이메일을 읽은 뒤 "
+                "다시 보고하세요. 다른 콘솔에서 읽었거나 짐작한 이메일은 보고하지 마세요. "
+                "읽을 수 없으면 '[CHROME-BLOCKED] 로그인 계정 확인 불가' 를 남기고 멈추세요.")
+    if not gate:
+        return f"로그인 계정 {email} 확인 (허용 목록 검사 꺼짐). 명세의 작업을 진행하세요."
+    if ok:
+        return (f"허용된 계정이에요 ({email}). 이 콘솔에서 명세의 작업을 진행하세요. "
+                "다른 콘솔로 옮기면 그 페이지에서 다시 읽어 보고하세요.")
+    return (f"{email} 은(는) 허용 목록에 없는 계정이에요. 이 콘솔에서 클릭·입력하지 말고, "
+            "이 콘솔의 ID 를 코드·설정에 반영하지 말고(이미 있는 ID 포함), "
+            f"'[CHROME-BLOCKED] 계정 불일치: {email}' 한 줄을 남긴 뒤 Chrome 작업을 멈추세요. "
+            "계정 전환·로그아웃은 하지 마세요.")
 
 
 def _cut(s, n: int) -> str:
@@ -262,7 +414,8 @@ def blocked_reason(text) -> str | None:
 
 def summarize(events) -> dict:
     """마지막 result 이벤트 이후의 Chrome 작업 집계 (결과 카드용)."""
-    sm = {"used": False, "steps": 0, "ok": 0, "denied": 0, "error": 0, "stopped": 0, "shots": 0, "blocked": None}
+    sm = {"used": False, "steps": 0, "ok": 0, "denied": 0, "error": 0, "stopped": 0, "shots": 0, "blocked": None,
+          "account": None, "report": None}
     try:
         evs = list(events or [])
         last = max((i for i, e in enumerate(evs) if isinstance(e, dict) and e.get("type") == "result"), default=-1)
@@ -276,8 +429,13 @@ def summarize(events) -> dict:
                     sm[st] += 1
                 if e.get("shot"):
                     sm["shots"] += 1
-                if st == "ok":
+                if st == "ok" and e.get("write", True):  # 마커 뒤 screenshot 같은 읽기 단계는 막힘을 풀지 않음
                     sm["blocked"] = None
+            elif e.get("type") == "browser_account":
+                acc = {k: e.get(k) for k in ("email", "allowed", "verified", "gate", "scope")}
+                sm["account"] = acc
+                if e.get("email"):
+                    sm["report"] = acc
             elif e.get("type") == "cc" and e.get("text"):
                 reason = blocked_reason(e["text"])
                 if reason:

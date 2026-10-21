@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from .config import ACCESS_TOKEN, CONFIG, DATA_DIR
+from .config import ACCESS_TOKEN, CONFIG, DATA_DIR, chrome_accounts_setting
 from . import browser
 from . import usage as usage_log
 from .engines import check_limit, claude_bin, subscription_env, tool_summary
@@ -159,6 +159,9 @@ async def _relay_browser(run: Run, relay: _Relay, step_id: str, info: dict, bloc
     """Chrome tool_result → 스크린샷 저장 + browser 이벤트 (단계 끝 줄)."""
     verdict = run.browser_verdicts.pop(step_id, None)
     status, images, text = browser.parse_result(block, verdict, top)
+    if status == "ok" and browser.is_evidence(info["name"]) and info.get("scope") == run.chrome_scope:
+        with contextlib.suppress(Exception):  # 지금 범위에서 읽은 페이지에 나온 이메일 → 계정 보고 근거
+            run.chrome_seen |= browser.emails_in(text)
 
     shot_url = None
     if relay.keep > 0 and not relay.shots_off and images:
@@ -190,7 +193,8 @@ async def _relay_browser(run: Run, relay: _Relay, step_id: str, info: dict, bloc
                     p.unlink()
 
     no_image = info["action"] == "screenshot" and status == "ok" and not images
-    fields = {"step": step_id, "text": info["text"], "tool": browser.short(info["name"]), "status": status}
+    fields = {"step": step_id, "text": info["text"], "tool": browser.short(info["name"]), "status": status,
+              "write": bool(info.get("write", True))}
     if shot_url:
         fields["shot"] = shot_url
     if no_image:
@@ -238,7 +242,16 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     if use_chrome:  # Claude in Chrome — 규칙은 여기서 한 번만 붙임. 읽기 도구만 바로 허용, 나머지는 권한 심사
         prompt += browser.EXEC_NOTE
         args.append("--chrome")
-        allowed += browser.READ_ONLY
+        allowed += [*browser.READ_ONLY, browser.ACCOUNT_TOOL]
+        # 로그인 계정 상태는 실행마다 새로 (그 사이 사용자가 계정을 바꿀 수 있음) — 칩의 옛 ✅ 도 지움
+        run.chrome_account = None
+        run.chrome_scope = None
+        run.chrome_seen = set()
+        gate = bool(browser.allowed_list(chrome_accounts_setting()))
+        await run.emit("browser_account", email="", allowed=False, verified=False, gate=gate, scope="")
+        if not gate:
+            await run.emit("log", text="👤 Chrome 로그인 계정 검사 꺼짐 — browser.allowed_chrome_accounts"
+                                       "(또는 .env CHROME_ALLOWED_ACCOUNTS)가 비어 있어 계정은 표시만 해요")
     if allowed:
         args += ["--allowedTools", *allowed]
 
@@ -291,7 +304,9 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
                         except Exception:
                             d = None
                         if d and block.get("id"):
-                            pending[block["id"]] = {**d, "name": block["name"]}
+                            pending[block["id"]] = {**d, "name": block["name"],
+                                                    "write": browser.is_write(block["name"], block.get("input")),
+                                                    "scope": run.chrome_scope}  # 이 시점의 범위 (E2a)
                             await run.emit("cc", tool=d["text"], step=block["id"], browser=True)
                         else:
                             await run.emit("cc", tool=tool_summary(block, run.project))

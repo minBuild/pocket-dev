@@ -4,6 +4,7 @@
 진행 중에 받은 사용자 메시지(run.notes)는 다음 AI 호출에 반영한다.
 """
 import asyncio
+import contextlib
 from pathlib import Path
 
 from . import agents, browser, executor, github, stitch
@@ -53,48 +54,77 @@ def start(run: Run, port: int) -> None:
     run.task = asyncio.create_task(run_pipeline(run, port))
 
 
-async def handle_chat(run: Run, text: str, port: int) -> None:
-    """작업 화면 채팅 — 진행 비서가 먼저 읽고, 질문이면 답만 하고 작업 요청일 때만 작업을 진행시킨다."""
-    decision = await agents.assistant_decide(run, text)
-    action, task = decision["action"], decision["task"]
-    if decision.get("browser") and not browser.enabled(run.settings):  # "Chrome 켜서 AdMob …" 같은 요청
-        run.settings["browser"] = True
-        run.save()
-        await run.emit("log", text="🌐 이 작업의 Chrome 사용을 켰어요 (채팅 요청) — 구현 단계에서 웹 콘솔 작업을 하고, "
-                                   "클릭·입력은 하나하나 권한 심사를 거쳐요. ⚙️ 에서 끌 수 있어요")
-    if action == "work":
-        if "plan" in run.waiters:  # 기획안 승인 대기 → 수정 요청으로 한 라운드 더
-            run.resolve("plan", {"action": "feedback", "text": task})
-            await run.emit("user_reply", key="plan", action="feedback", text=task)
-        elif run.alive:  # 진행 중 → 다음 단계에 반영
-            run.notes.append(task)
+def _rt(reply_to: str | None) -> dict:
+    """채팅 응답 쪽 이벤트의 묶음 키."""
+    return {"reply_to": reply_to} if reply_to else {}
+
+
+async def handle_chat(run: Run, text: str, port: int, reply_to: str | None = None) -> None:
+    """작업 화면 채팅 — 진행 비서가 먼저 읽고, 질문이면 답만 하고 작업 요청일 때만 작업을 진행시킨다.
+    처리 결과는 chat_action(reply_to) 으로 사용자 말풍선 아래에 붙는다."""
+    async def said(action: str, msg: str) -> None:
+        await run.emit("chat_action", **_rt(reply_to), action=action, text=msg)
+
+    try:
+        decision = await agents.assistant_decide(run, text, reply_to)
+        action, task = decision["action"], decision["task"]
+        if decision.get("browser") and not browser.enabled(run.settings):  # "Chrome 켜서 AdMob …" 같은 요청
+            run.settings["browser"] = True
             run.save()
-        elif run.status == "done":  # 완료 → 추가 작업 한 바퀴
-            start_followup(run, task)
-            start(run, port)
-        else:  # 멈춤 → 지시를 담아 재개
-            run.notes.append(task)
-            start(run, port)
-    elif action == "resume":
-        for key in [k for k in list(run.waiters) if k.startswith("limit:")]:
-            run.resolve(key, {"action": "retry"})
-            await run.emit("user_reply", key=key, action="retry", text="")
-        if not run.alive and run.status not in ("done",):
-            start(run, port)
-    elif action == "merge":
-        if run.alive:  # 진행 중 → 이번 커밋·push 가 끝나면 머지
-            run.checkpoint["merge_requested"] = True
-            if task:
+            await run.emit("log", **_rt(reply_to),
+                           text="🌐 이 작업의 Chrome 사용을 켰어요 (채팅 요청) — 구현 단계에서 웹 콘솔 작업을 하고, "
+                                "클릭·입력은 하나하나 권한 심사를 거쳐요. ⚙️ 에서 끌 수 있어요")
+        if action == "work":
+            if "plan" in run.waiters:  # 기획안 승인 대기 → 수정 요청으로 한 라운드 더
+                run.resolve("plan", {"action": "feedback", "text": task})
+                await run.emit("user_reply", key="plan", action="feedback", text=task)
+                await said("plan_feedback", "✏️ 기획안 수정 요청 → 한 라운드 더 토론해요")
+            elif run.alive:  # 진행 중 → 다음 단계에 반영
                 run.notes.append(task)
-            run.save()
-        else:
-            await merge(run)
-            if task:  # 같은 메시지의 추가 작업 요청 (예: "머지하고 더 할 거 검토해줘")
-                if run.status == "done":
-                    start_followup(run, task)
-                else:
-                    run.notes.append(task)
+                run.save()
+                await said("note", "📌 다음 단계에 반영할 지시로 등록했어요")
+            elif run.status == "done":  # 완료 → 추가 작업 한 바퀴
+                start_followup(run, task)
+                await said("followup", "🔁 추가 작업 한 바퀴를 시작해요 (토론 → 명세서 → 구현 → 리뷰 → 커밋)")
                 start(run, port)
+            else:  # 멈춤 → 지시를 담아 재개
+                run.notes.append(task)
+                await said("resume_with_note", "▶ 지시를 담아 멈춘 단계부터 재개해요")
+                start(run, port)
+        elif action == "resume":
+            limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
+            for key in limit_keys:
+                run.resolve(key, {"action": "retry"})
+                await run.emit("user_reply", key=key, action="retry", text="")
+            if limit_keys:
+                await said("resume", "🔁 지금 재시도할게요")
+                if not run.alive and run.status != "done":
+                    start(run, port)
+            elif run.alive:
+                await said("resume", "ℹ️ 이미 진행 중이에요")
+            elif run.status == "done":
+                await said("resume", "ℹ️ 이미 끝난 작업이에요")
+            else:
+                await said("resume", "▶ 이어서 진행해요")
+                start(run, port)
+        elif action == "merge":
+            if run.alive:  # 진행 중 → 이번 커밋·push 가 끝나면 머지
+                run.checkpoint["merge_requested"] = reply_to or True
+                if task:
+                    run.notes.append(task)
+                run.save()
+                await said("merge_scheduled", "🔀 이번 커밋·push 가 끝나면 main 에 머지할게요")
+            else:
+                await merge(run, reply_to)
+                if task:  # 같은 메시지의 추가 작업 요청 (예: "머지하고 더 할 거 검토해줘")
+                    if run.status == "done":
+                        start_followup(run, task)
+                    else:
+                        run.notes.append(task)
+                    start(run, port)
+    except Exception as e:
+        with contextlib.suppress(Exception):
+            await said("error", f"⚠️ 처리하지 못했어요: {e!s:.300}")
 
 
 def start_followup(run: Run, text: str) -> None:
@@ -105,16 +135,16 @@ def start_followup(run: Run, text: str) -> None:
     run.save()
 
 
-async def merge(run: Run) -> None:
+async def merge(run: Run, reply_to: str | None = None) -> None:
     """작업 브랜치 → main 머지 (채팅 요청). AI 를 거치지 않고 Pocket-Dev 가 직접 한다."""
-    await run.emit("log", text="🔀 main 에 머지하는 중…")
+    await run.emit("log", **_rt(reply_to), text="🔀 main 에 머지하는 중…")
     try:
         res = await executor.merge_into_default(run, run.settings.get("branch") or CONFIG["git"]["branch"])
     except Exception as e:
-        await run.emit("error", text=f"머지하지 못했어요: {e}")
+        await run.emit("error", **_rt(reply_to), text=f"머지하지 못했어요: {e}")
         return
     web = await github.web_url(run.project) if res["pushed"] else None
-    await run.emit("result", title="🔀 main 머지", text=res["text"],
+    await run.emit("result", **_rt(reply_to), title="🔀 main 머지", text=res["text"],
                    links={"branch": f"{web}/tree/{res['base']}"} if web else {})
 
 
@@ -338,10 +368,23 @@ async def run_pipeline(run: Run, port: int) -> None:
                         title = "⚠️ 코드는 완료 · Chrome 작업 미완료"
                         head += (f"\n막힌 이유: {sm['blocked']}\n"
                                  "집 PC Chrome 에서 처리(로그인 등)한 뒤 채팅에 '막힌 Chrome 작업 다시 해줘' 라고 보내세요")
+                    rep, cur = sm.get("report"), sm.get("account")
+                    gate = (cur or rep or {}).get("gate", True)
+                    if rep:
+                        state = (" (허용 목록 검사 꺼짐)" if not rep.get("gate", True) else " ✅" if rep.get("allowed")
+                                 else " ⛔ 허용 목록에 없음" if rep.get("verified") else " ⚠️ 페이지에서 확인 안 됨")
+                        head += f"\n👤 로그인 계정 {rep['email']}{state}"
+                    elif sm["used"] and gate:
+                        head += "\n👤 로그인 계정 미확인 — Google 콘솔 쓰기 작업은 하지 않았어요"
+                    if rep and rep.get("verified") and rep.get("gate", True) and not rep.get("allowed"):
+                        title = "⚠️ 코드는 완료 · Chrome 계정 불일치"
+                        head += ("\n집 PC Chrome 을 허용 계정으로 바꾼 뒤 채팅에 '막힌 Chrome 작업 다시 해줘' 라고 보내세요. "
+                                 "허용 목록은 PC 의 config.yaml (browser.allowed_chrome_accounts) 또는 .env CHROME_ALLOWED_ACCOUNTS 를 고친 뒤 🔄 재시작")
                     text = head + "\n\n" + text
                 await run.emit("result", text=text, links=links, **({"title": title} if title else {}))
-                if run.checkpoint.pop("merge_requested", False):  # 진행 중에 받은 main 머지 요청
-                    await merge(run)
+                req = run.checkpoint.pop("merge_requested", False)  # 진행 중에 받은 main 머지 요청
+                if req:
+                    await merge(run, req if isinstance(req, str) else None)
                 _set_phase(run, "done")
                 if pending := take_notes(run):  # 커밋 중에(또는 커밋 단계에서 멈춘 뒤) 받은 작업 요청 → 한 바퀴 더
                     await run.emit("log", text="▶ 받아 둔 추가 요청으로 이어서 진행합니다")

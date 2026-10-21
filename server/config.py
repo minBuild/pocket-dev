@@ -33,3 +33,8 @@ PROJECTS_ROOTS = [Path(os.path.expanduser(r)) for r in (_roots if isinstance(_ro
 NEW_PROJECT_ROOT = Path(os.path.expanduser(CONFIG["git"].get("new_project_root") or str(PROJECTS_ROOTS[0])))
 if NEW_PROJECT_ROOT not in PROJECTS_ROOTS:
     PROJECTS_ROOTS.append(NEW_PROJECT_ROOT)
+
+
+def chrome_accounts_setting():
+    """Chrome 허용 계정 원본 값 — .env CHROME_ALLOWED_ACCOUNTS 가 있으면 우선 (쉼표 구분), 없으면 config.yaml."""
+    return os.environ.get("CHROME_ALLOWED_ACCOUNTS", "").strip() or (CONFIG.get("browser") or {}).get("allowed_chrome_accounts")

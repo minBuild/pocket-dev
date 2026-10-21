@@ -234,8 +234,10 @@ function md(text) {
   return `<pre>${esc(text)}</pre>`;
 }
 const msgs = new Map();
+const threads = new Map();   // chat_id → .thread (내 채팅 말풍선 + 그에 대한 답·처리 결과 묶음)
 let sink = null;   // 이전 대화를 그릴 때만 임시 상자 (평소엔 #stream)
-const out = el => (sink || $("#stream")).append(el);
+let into = null;   // 지금 이벤트가 붙을 채팅 묶음 (reply_to)
+const out = el => (into || sink || $("#stream")).append(el);
 
 function addMsg(cls, whoHtml, text, id) {
   const el = document.createElement("div");
@@ -264,10 +266,28 @@ let renderTimer = null;
 function handle(ev, mode = "live") {
   const nearBottom = innerHeight + scrollY > document.body.scrollHeight - 200;
   const older = mode === "older";
+  into = (ev.reply_to && threads.get(ev.reply_to)) || null;   // 묶음이 화면에 없으면 최상위에 그림
+  try {
   switch (ev.type) {
     case "user": {
+      if (ev.chat_id) {
+        const th = document.createElement("div"); th.className = "thread";
+        out(th); threads.set(ev.chat_id, th); into = th;
+      }
       const el = addMsg("user", "<b>⬜ 나</b>", ev.text);
       if (ev.files?.length) el.insertAdjacentHTML("beforeend", `<div class="file-chips">${ev.files.map(n => `<span class="chip">📎 ${esc(n)}</span>`).join("")}</div>`);
+      break;
+    }
+    case "chat_action": line("log chat-action", ev.text); break;
+    case "browser_account": {   // 구현 AI 의 로그인 계정 보고 (email 이 빈 건 실행 시작 리셋)
+      if (ev.email) {
+        const host = (ev.scope || "").split("#")[0];
+        const state = !ev.verified ? "⚠️ 지금 페이지에서 읽은 내용에 없는 이메일 — 다시 확인 필요"
+          : ev.gate === false ? "✅ (허용 목록 검사 꺼짐)"
+          : ev.allowed ? "✅ 허용 계정" : "⛔ 허용 목록에 없음 — 쓰기 작업 안 함";
+        line("cc tool bstep account", `👤 로그인 계정: ${ev.email}${host ? " · " + host : ""} ${state}`);
+      }
+      if (!older) { chrome.account = ev.email ? ev : null; chrome.gate = ev.gate !== false; renderChip(); }
       break;
     }
     case "stage": line("stage", ev.label); if (!older) $("#runStage").textContent = ev.label; break;
@@ -292,6 +312,8 @@ function handle(ev, mode = "live") {
       if (ev.error) el.classList.add("failed");
       $(".who", el).insertAdjacentHTML("beforeend", `<span class="muted">${fmtTokens(ev.usage)}</span>`);
       if (!el.classList.contains("spec")) collapsible(el);
+      const th = el.closest(".thread");   // 답이 끝나면 묶음을 맨 아래로 (그 사이 쌓인 Chrome 줄보다 아래에 보이게)
+      if (th) th.parentNode?.append(th);
       break;
     }
     case "spec": addMsg("spec", "<b>📄 최종 작업 명세서 (TASK_SPEC.md)</b>", ev.text); break;
@@ -316,7 +338,7 @@ function handle(ev, mode = "live") {
         chrome.count++; chrome.last = ev; chrome.lastTs = ev.ts;
         chrome.noImage ||= !!ev.no_image;
         chrome.recent = [...chrome.recent, ev.status].slice(-8);
-        if (ev.status === "ok") { chrome.blocked = null; chrome.suspect = false; }
+        if (ev.status === "ok" && ev.write !== false) { chrome.blocked = null; chrome.suspect = false; }   // 스크린샷·읽기는 막힘을 풀지 않음
         const last3 = chrome.recent.slice(-3);
         if ((last3.length === 3 && last3.every(s => s === "denied" || s === "error"))
             || (ev.tool === "tabs_context_mcp" && ev.status !== "ok")) chrome.suspect = true;
@@ -362,7 +384,7 @@ function handle(ev, mode = "live") {
       out(d); break;
     }
     case "result": {
-      const el = addMsg("user", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
+      const el = addMsg("result", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
       const l = ev.links || {};
       if (l.compare || l.branch) {
         const box = document.createElement("div"); box.className = "links";
@@ -383,6 +405,7 @@ function handle(ev, mode = "live") {
       if (ev.status === "done") addRollback();
       break;
   }
+  } finally { if (into) into.parentNode?.append(into); into = null; }   // 새 요소가 붙은 묶음은 맨 아래로
   if (mode === "live") { renderComposer(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
 }
 
@@ -453,7 +476,8 @@ const BLOCK_MARK = "[CHROME-BLOCKED]";
 
 function resetChrome() {
   steps.clear(); shots = [];
-  chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [] };
+  chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [],
+             account: null, gate: true };
   $("#browserChip").hidden = true; $("#browserOverlay").hidden = true;
 }
 resetChrome();
@@ -484,13 +508,16 @@ function fillStep(el, ev) {
 function renderChip() {
   const chip = $("#browserChip");
   if (!chrome || $("#tab-run").hidden) return;
-  if (chrome.count === 0 && !shots.length) { chip.hidden = true; return; }
-  const last = chrome.last, shot = shots[shots.length - 1];
+  if (chrome.count === 0 && !shots.length && !chrome.account) { chip.hidden = true; return; }
+  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account;
   let text = `🌐 Chrome · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
+  if (a) text += ` · 👤 ${a.email}` + (chrome.gate === false ? " · 검사 꺼짐" : "");
+  else if (chrome.gate === false) text += " · 👤 계정 검사 꺼짐";
   if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
   if (shot) text += ` · 📷 ${ago(shot.ts)}`;
   const waits = [...pending.values()];
-  const badge = chrome.blocked ? ["blocked", `🔒 집 PC Chrome 에서 처리 필요: ${chrome.blocked}`]
+  const badge = a && a.verified && a.gate !== false && !a.allowed ? ["blocked", `🔒 계정 불일치: ${a.email}`]
+    : chrome.blocked ? ["blocked", `🔒 집 PC Chrome 에서 처리 필요: ${chrome.blocked}`]
     : waits.some(p => p.kind === "permission" && p.label) ? ["decide", "✋ 내 결정 대기"]
     : waits.some(p => p.kind === "limit") ? ["limit", "⏳ 한도 대기"]
     : chrome.suspect ? ["suspect", "⚠️ 막힘 의심"]
@@ -670,7 +697,7 @@ const fillScreen = () => { if (firstIndex && (scrollY < 400 || document.body.scr
 addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive: true });
 
 function openRun(run) {
-  currentRun = run; pending.clear(); msgs.clear(); resetChrome(); $("#modelsPanel").hidden = true;
+  currentRun = run; pending.clear(); msgs.clear(); threads.clear(); resetChrome(); $("#modelsPanel").hidden = true;
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
   firstIndex = 0; streamGen++;
   show("run");
@@ -680,10 +707,17 @@ function openRun(run) {
     const ev = JSON.parse(m.data);
     if (ev.type === "snapshot") {
       streamGen++; firstIndex = ev.first || 0;
-      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear(); resetChrome();
+      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear(); threads.clear(); resetChrome();
       $("#olderBar").onclick = loadOlder;
       currentRun = ev.run;
       ev.events.forEach(e => handle(e, "snapshot"));
+      if (ev.browser) {   // 계정 보고·막힘은 이벤트 창 밖에 있을 수 있어 서버 집계로 덮어씀
+        const acc = ev.browser.account;
+        chrome.account = acc?.email ? acc : null;
+        chrome.gate = (acc || ev.browser.report || {}).gate !== false;
+        chrome.blocked = ev.browser.blocked || null;
+        renderChip();
+      }
       pending.clear();
       (ev.pending || []).forEach(p => pending.set(p.key, p));   // 앞부분이 안 불러와져도 대기 중인 요청은 서버 기준으로
       if (ev.stage_label) $("#runStage").textContent = ev.stage_label;

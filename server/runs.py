@@ -30,6 +30,9 @@ class Run:
         self.base_branch: str = ""  # 작업 브랜치를 만들기 전 원래 브랜치 (새 저장소에 함께 push)
         self.browser_verdicts: dict[str, bool] = {}  # Chrome tool_use_id → 권한 판정 (메모리 전용)
         self.last_text: str = ""    # 구현 AI 가 마지막으로 남긴 말 (Chrome 권한 심사 참고용, 메모리 전용)
+        self.chrome_account: tuple | None = None   # (email, scope, ok) — 근거가 확인된 보고만
+        self.chrome_scope: str | None = None       # 마지막으로 허용된 navigate/tabs_create 의 scope_of()
+        self.chrome_seen: set[str] = set()         # 현재 chrome_scope 에서 근거 도구 결과 텍스트에 나온 이메일 (범위 바뀌면 비움)
         # ── 재개용 ──
         self.history: list[dict] = []   # 토론 기록 {round, pid, name, model, text}
         self.checkpoint: dict = {"phase": "debate", "round_from": 1,
@@ -74,14 +77,19 @@ class Run:
         evs = self.events
         end = len(evs) if before is None else max(0, min(before, len(evs)))
         start = max(0, end - limit)
+        floor = max(0, start - limit)  # 채팅 질문(user)은 이 안쪽일 때만 당김
         while start:
             msg_ids = {e["msg_id"] for e in evs[start:end] if e["type"] in ("tool", "message_end")}
             if before is None:
                 msg_ids |= set(self.partials)
             req_ids = {e["req_id"] for e in evs[start:end] if e["type"] in ("permission_votes", "permission_decision")}
+            reply_ids = {e.get("reply_to") for e in evs[start:end]
+                         if e["type"] in ("message_start", "chat_action") and e.get("reply_to")}
             first = next((i for i, e in enumerate(evs[:start])
                           if (e["type"] == "message_start" and e.get("msg_id") in msg_ids)
-                          or (e["type"] == "permission_request" and e.get("req_id") in req_ids)), start)
+                          or (e["type"] == "permission_request" and e.get("req_id") in req_ids)
+                          or (i >= floor and e["type"] == "user" and e.get("chat_id")
+                              and e.get("chat_id") in reply_ids)), start)
             if first == start:
                 break
             start = first
@@ -162,6 +170,20 @@ def reconstruct(run: Run) -> None:
                       "impl_started": phase in ("execute", "code_review", "git")}
 
 
+def close_orphan_messages(events, now: float) -> list[dict]:
+    """시작만 있고 끝이 없는 메시지 → error 마감 이벤트 (재시작 후 '읽는 중…' 이 남지 않게)."""
+    evs = [e for e in (events or []) if isinstance(e, dict)]
+    ended = {e.get("msg_id") for e in evs if e.get("type") == "message_end"}
+    out, seen = [], set()
+    for e in evs:
+        mid = e.get("msg_id")
+        if e.get("type") == "message_start" and mid and mid not in ended and mid not in seen:
+            seen.add(mid)
+            out.append({"type": "message_end", "ts": now, "msg_id": mid,
+                        "text": "⚠️ 서버가 다시 시작돼 응답이 끊겼어요", "error": True})
+    return out
+
+
 RUNS: dict[str, Run] = {}
 
 
@@ -197,6 +219,7 @@ def load_saved_runs() -> None:
         orphans = browser.orphan_steps(r.events, time.time())  # 끝 이벤트 없이 끊긴 Chrome 단계 → ⏹
         if orphans:
             r.events.extend(orphans)
+        r.events.extend(close_orphan_messages(r.events, time.time()))  # 끊긴 메시지 → ⚠️ 마감
         if d.get("checkpoint"):
             r.checkpoint = d["checkpoint"]
         else:

@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 
+from . import browser
 from .config import CONFIG
 from .attachments import prompt_block
 from .engines import SANDBOX, UsageLimitError, generate
@@ -295,7 +296,8 @@ ASSIST_ACTIONS = ("answer", "work", "resume", "merge")
 
 def situation(run: Run) -> str:
     """진행 비서에게 줄 작업 상황 요약."""
-    recent = [e for e in run.events if e["type"] in ("stage", "log", "error", "user", "result", "spec", "terminal")][-25:]
+    recent = [e for e in run.events if e["type"] in ("stage", "log", "error", "user", "result", "spec", "terminal",
+                                                      "chat_action")][-25:]
     lines = []
     for e in recent:
         if e["type"] == "terminal":  # 사용자가 터미널 칸에서 직접 실행한 명령
@@ -305,18 +307,30 @@ def situation(run: Run) -> str:
         text = (e.get("label") or e.get("text") or "").replace("\n", " ")
         lines.append(f"- [{e['type']}] {text[:300]}")
     files = ", ".join(a["name"] for a in run.attachments) or "없음"
+    chrome = ""
+    if run.settings.get("browser"):
+        sm = browser.summarize(run.events)
+        rep = sm.get("report")
+        if rep:
+            state = (" (검사 꺼짐)" if not rep.get("gate", True) else " ✅ 허용" if rep.get("allowed")
+                     else " ⛔ 허용 목록에 없음" if rep.get("verified") else " ⚠️ 페이지에서 확인 안 됨")
+            acc = f"{rep.get('email')}{state}"
+        else:
+            acc = "미확인"
+        chrome = f"🌐 Chrome 로그인 계정: {acc} · 막힘: {sm['blocked'] or '없음'}\n"
     return (f"프로젝트 폴더: {run.project}\n처음 아이디어: {run.idea[:1500]}\n첨부 파일: {files}\n"
             f"상태: {run.status} / 진행 단계: {run.checkpoint.get('phase')}\n"
             f"🌐 Chrome 사용: {'켜짐' if run.settings.get('browser') else '꺼짐 (웹 콘솔 작업을 요청받으면 켤 수 있음)'}\n"
+            + chrome +
             f"작업 명세서 앞부분:\n{run.spec[:3000] or '(아직 없음)'}\n\n최근 진행 기록:\n" + "\n".join(lines))
 
 
-async def assistant_decide(run: Run, text: str) -> dict:
+async def assistant_decide(run: Run, text: str, reply_to: str | None = None) -> dict:
     """채팅 메시지 → {"action", "reply", "task"}. 화면에는 비서의 답(reply)만 보여준다."""
     who = CONFIG["team"].get("assistant") or {"engine": "claude", "model": "claude-sonnet-5-5"}
     msg_id = uuid.uuid4().hex[:10]
     await run.emit("message_start", msg_id=msg_id, kind="assistant", name="진행 비서", engine=who["engine"],
-                   model=who["model"], icon="🤖")
+                   model=who["model"], icon="🤖", **({"reply_to": reply_to} if reply_to else {}))
     await run.emit("delta", msg_id=msg_id, text="읽는 중…")
     decision, usage = {"action": "answer", "reply": "", "task": ""}, {}
     try:

@@ -121,6 +121,9 @@ browser:
   keep_shots: 100      # 작업당 보관할 스크린샷 수 (0 = 저장 안 함, 텍스트만)
   retention_days: 14   # 서버 시작 때 이보다 오래된 스크린샷 폴더 삭제 (0 = 안 지움)
   debug_dump: false    # true 면 첫 Chrome 결과 5개의 '구조'(타입·길이·키, 본문 없음)를 data/runs/<id>/browser/raw.jsonl 에 기록 — T1 실측 때만 켬
+  # Chrome 콘솔 작업을 허용할 Google 계정 (.env CHROME_ALLOWED_ACCOUNTS 가 있으면 그걸 우선, 쉼표 구분)
+  # 비우면([]) 검사를 끄고 계정은 표시만 함 — 화면에 '검사 꺼짐' 으로 보임
+  allowed_chrome_accounts: [hayaeseong@gmail.com]
 
 # ── Google Stitch (화면 디자인, 선택) ─────────────────────────────
 # Stitch(https://stitch.withgoogle.com) → 프로필 → Stitch settings → API key 에서 키를 만들어
