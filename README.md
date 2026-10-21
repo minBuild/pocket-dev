@@ -37,7 +37,10 @@ AI 회사 API를 직접 부르지 않고, 구독 계정으로 로그인해 둔 *
 - **진행 비서:** 작업 화면 채팅은 비서(Sonnet)가 먼저 읽습니다. 질문·상태 확인("왜 멈췄어?")엔 답만 하고,
   코드를 바꿔 달라는 요청일 때만 작업 지시로 정리해서 진행합니다 (질문이 작업·커밋으로 바뀌지 않음).
 - **커밋 메시지:** 실제 변경(git diff)을 보고 Conventional Commits 형식 한국어로 작성 (요청 문장·'ai' 표기 없음).
-  프로젝트의 git hook 이 실행 환경 문제로 실패하면 이유를 기록하고 hook 없이 커밋합니다.
+  프로젝트의 커밋 규칙(`CLAUDE.md`·`AGENTS.md`·`CONTRIBUTING.md` 의 '커밋' 절, commitlint 설정)이 있으면 그 규칙(허용 type·scope 등)을 따릅니다.
+  메시지는 `git commit -F <UTF-8 파일>` 로 넘깁니다. 프로젝트 hook 이 메시지를 거부하면 거부 사유를 보고 최대 2번 고쳐 다시 커밋합니다 (작업 트리는 그대로).
+  hook 이 규칙 위반이 아니라 실행 환경 문제(node 없음 등)로 실패했을 때만 이유를 기록하고 hook 없이 커밋합니다.
+- **터미널 칸 (⌨️):** 프로젝트 폴더에서 Git Bash 로 실행합니다 (`pwd`·`ls`·`git`·`gh` 등). Git Bash 가 없으면 cmd 로 실행합니다.
 - **파일 첨부:** 새 작업·채팅에서 📎 — md·txt·docx 는 내용을 토론에 넣고, PDF·이미지는 AI 가 직접 열어봅니다.
 - **토큰 사용량:** 새 작업 탭의 📊 — 오늘 / 최근 7일, 이 PC 전체 Claude Code 와 Pocket-Dev 따로.
 - **Stitch 화면 디자인 (선택):** `setup_stitch.bat` 으로 Stitch API 키를 넣고 새 작업에서 🎨 를 켜면,
@@ -137,7 +140,10 @@ gh auth login              # GitHub (저장소 자동 생성용)
 ## GitHub
 
 - 커밋 작성자는 `config.yaml` 의 `git.author_name/author_email` (minBuild · noreply 주소). 전역 git 설정은 안 건드림.
-- 작업은 `feat/ai-remote` 브랜치에 커밋 후 push (main 은 채팅으로 머지를 요청할 때만).
+- 작업은 기본으로 `main` 에 바로 커밋 후 push (`config.yaml` 의 `git.branch`, 새 작업 화면의 "브랜치" 칸에서 작업마다 바꿀 수 있음).
+  다른 브랜치로 작업하면 main 머지는 채팅으로 요청할 때만 합니다.
+- 작업 시작 전 GitHub 의 최신 커밋을 받아옵니다 (`git.pull_before_work`, 빨리 감기만). 새 브랜치는 최신 기준 브랜치에서 땁니다.
+  로컬과 GitHub 가 갈라져 있으면 받아오지 않고 알리기만 합니다 — push 가 거부되면 터미널 칸에서 `git pull --rebase` 후 `git push`.
 - **원격 저장소가 없는 프로젝트**는 첫 push 때 `minBuild/<폴더명>` 비공개 저장소를 자동으로 만들고 연결합니다.
 - 웹 화면 프로젝트 목록의 **"＋ 새 프로젝트 만들기"** → `git.new_project_root` 에 폴더 + git 저장소 생성.
 - 프로젝트 목록에 **GitHub 계정의 저장소(비공개 포함)** 도 나옵니다 (`gh repo list`). 아직 PC에 없는 저장소를 고르면

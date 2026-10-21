@@ -359,15 +359,24 @@ async def run_pipeline(run: Run, port: int) -> None:
                     await executor.git(run.project, "checkout", branch)  # 구현 중 다른 브랜치로 옮겨졌으면 되돌림 (변경은 따라옴)
                 diff = await executor.staged_diff(run.project)
                 message = ""
+                rules = agents.project_commit_rules(run.project)  # 프로젝트 CLAUDE.md·commitlint 의 커밋 규칙
                 if diff.strip():  # 바뀐 게 없으면 메시지도 만들지 않는다 (commit_and_push → "변경 사항 없음")
-                    message = await agents.commit_message(diff, run.spec)  # 요청 문장이 아니라 실제 변경 내용으로
+                    message = await agents.commit_message(diff, run.spec, rules)  # 요청 문장이 아니라 실제 변경 내용으로
                     await run.emit("log", text=f"📝 커밋 메시지: {message.splitlines()[0]}")
                 cp = run.checkpoint
                 if message:  # 커밋 직후 끊겨 재개돼도 같은 완료 줄을 내도록
                     cp["done_basis"] = {"subject": message.splitlines()[0][:100], "files": count_stat_files(diff)}
                     run.save()
                 basis = cp.get("done_basis") or {}
-                committed = await executor.commit_and_push(run, branch, message)
+                async def rewrite(previous: str, feedback: str) -> str:  # hook 이 거부하면 사유를 보고 다시 씀
+                    return await agents.commit_message(diff, run.spec, rules, previous, feedback)
+
+                committed = await executor.commit_and_push(run, branch, message, rewrite)
+                if committed.get("message") and committed["message"] != message:  # 고쳐 쓴 메시지로 완료 줄 갱신
+                    cp["done_basis"] = {**(cp.get("done_basis") or {}),
+                                        "subject": committed["message"].splitlines()[0][:100]}
+                    run.save()
+                    basis = cp["done_basis"]
                 links = {}
                 web = await github.web_url(run.project) if committed["pushed"] else None
                 if web:  # GitHub 에서 바로 볼 수 있는 링크 (비공개 저장소는 GitHub 로그인 필요)
