@@ -156,10 +156,39 @@ async def prepare_branch(run: Run, branch: str) -> None:
             raise RuntimeError("커밋 안 된 변경사항이 있어 중단합니다 (config.yaml git.require_clean_tree):\n" + status)
     current = (await git(cwd, "rev-parse", "--abbrev-ref", "HEAD")).strip()
     run.base_branch = current
+    pull = CONFIG["git"].get("pull_before_work", True) and await has_origin(cwd)
     if current != branch:
         code, _ = await sh(["git", "rev-parse", "--verify", branch], cwd)
-        await git(cwd, "checkout", branch) if code == 0 else await git(cwd, "checkout", "-b", branch)
+        if code == 0:
+            await git(cwd, "checkout", branch)
+        else:
+            if pull and current != "HEAD":  # 새 브랜치는 최신 기준 브랜치에서 딴다
+                await ff_pull(run, cwd, current)
+            await git(cwd, "checkout", "-b", branch)
+    if pull:
+        await ff_pull(run, cwd, branch)
     await run.emit("log", text=f"🌿 브랜치: {branch}")
+
+
+async def ff_pull(run: Run, cwd: str, branch: str) -> None:
+    """체크아웃된 branch 를 GitHub(origin) 의 최신 커밋으로 빨리 감기. 원격에 없거나 갈라졌으면 건드리지 않고 알리기만 한다
+    (main 에 바로 작업할 때 GitHub 에서 머지된 PR 때문에 push 가 거부되지 않도록)."""
+    code, out = await sh(["git", "fetch", "origin", branch], cwd, timeout=120)
+    if code:
+        if not re.search(r"couldn't find remote ref", out, re.I):  # 원격에 없는 브랜치면 조용히 넘어감
+            await run.emit("log", text=f"⚠️ GitHub 에서 {branch} 최신 내용을 못 받아왔어요 (지금 상태로 진행):\n{out.strip()[-300:]}")
+        return
+    remote = f"refs/remotes/origin/{branch}"
+    if not await _ok(cwd, "rev-parse", "--verify", "-q", remote) or await _ok(cwd, "merge-base", "--is-ancestor", remote, "HEAD"):
+        return  # 이미 최신
+    if not await _ok(cwd, "merge-base", "--is-ancestor", "HEAD", remote):
+        await run.emit("log", text=f"⚠️ {branch} 브랜치가 로컬과 GitHub 에서 서로 갈라져 있어서 받아오지 않았어요. "
+                                   f"push 가 거부되면 터미널에서 git pull --rebase 후 git push 하세요")
+        return
+    count = (await git(cwd, "rev-list", "--count", f"HEAD..{remote}")).strip()
+    code, out = await sh(["git", "merge", "--ff-only", remote], cwd)
+    await run.emit("log", text=(f"⬇️ GitHub 에서 {branch} 최신 커밋 {count}개를 받아왔어요" if code == 0
+                                else f"⚠️ {branch} 최신 내용 반영 실패 (지금 상태로 진행):\n{out.strip()[-300:]}"))
 
 
 SHOT_MAX_BYTES = 5 * 1024 * 1024

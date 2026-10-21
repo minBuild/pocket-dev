@@ -104,7 +104,8 @@ executor:
   timeout_sec: 7200
 
 git:
-  branch: feat/ai-remote
+  branch: main               # 작업 브랜치 기본값 (새 작업 화면에서 작업마다 바꿀 수 있음)
+  pull_before_work: true     # 작업 시작 전 GitHub 의 최신 커밋을 받아옴 (빨리 감기만, 갈라졌으면 알리기만)
   auto_push: true
   require_clean_tree: true   # 작업 전 커밋 안 된 변경이 있으면 중단
   # 커밋 작성자 (깃헙 noreply 주소 → 커밋이 minBuild 프로필로 연결되고 개인 이메일은 노출 안 됨)
