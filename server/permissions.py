@@ -30,15 +30,21 @@ HARD_DENY_SHELL = [
 ]
 SHELL_TOOLS = {"Bash", "PowerShell"}   # Windows 에서는 Claude Code 가 PowerShell 도구도 씀
 PATH_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+# 파이프라인에서만 막는 규칙 (커밋·push·브랜치는 Pocket-Dev 가 함) — 사용자가 직접 대화하는 💬 세션에선 사용자에게 묻는다
+PIPELINE_ONLY = {"push 는 Pocket-Dev 가 실행 끝에 함",
+                 "커밋·머지·브랜치는 Pocket-Dev 가 실행 끝에 변경 내용 기준으로 함 — 커밋하지 말고 작업만 끝내",
+                 "브랜치 전환은 Pocket-Dev 가 함 — 지금 브랜치에서 작업해"}
 
 
-def hard_rule(project: str, tool_name: str, tool_input: dict) -> str | None:
-    """무조건 거부해야 하면 사유를 돌려준다."""
+def hard_rule(project: str, tool_name: str, tool_input: dict, direct: bool = False) -> str | None:
+    """무조건 거부해야 하면 사유를 돌려준다. direct: 💬 직접 세션 (파이프라인 전용 규칙은 빼고)."""
     if tool_name in browser.HARD_DENY_TOOLS:
         return "하드 룰 거부: Chrome 스크립트 실행·파일 업로드 금지"
     if tool_name in SHELL_TOOLS:
         cmd = str(tool_input.get("command", ""))
         for pattern, why in HARD_DENY_SHELL:
+            if direct and why in PIPELINE_ONLY:
+                continue
             if re.search(pattern, cmd, re.I):
                 return f"하드 룰 거부: {why}"
     if tool_name in PATH_TOOLS:

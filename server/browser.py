@@ -7,8 +7,13 @@
 작업 화면 중계용 함수(describe·parse_result·summarize …)는 서버 모듈을 import 하지 않는 순수 함수다 (stdlib 만).
 파일 저장과 emit 은 executor 가 한다.
 """
+import asyncio
 import base64
+import os
 import re
+import shutil
+import subprocess
+from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 
 READ_ONLY = [f"mcp__claude-in-chrome__{t}" for t in (
@@ -101,6 +106,34 @@ def exec_note(policy, max_shots, text_only: bool) -> str:
     """구현 프롬프트에 붙일 Chrome 규칙 전체 (EXEC_NOTE + 스크린샷 정책 한 줄)."""
     p = "minimal" if text_only else shot_policy(policy)
     return EXEC_NOTE + (_SHOT_KEY.format(n=clamp_max_shots(max_shots)) if p == "key" else _SHOT_MINIMAL)
+
+
+def _chrome_exe() -> str | None:
+    for base in (os.environ.get("ProgramFiles", r"C:\Program Files"), os.environ.get("ProgramFiles(x86)", ""),
+                 os.environ.get("LOCALAPPDATA", "")):
+        exe = Path(base) / "Google" / "Chrome" / "Application" / "chrome.exe"
+        if base and exe.is_file():
+            return str(exe)
+    return shutil.which("chrome")
+
+
+def _chrome_running() -> bool:
+    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH"], capture_output=True,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    return b"chrome.exe" in out
+
+
+async def ensure_chrome() -> str:
+    """Claude in Chrome 은 Chrome 이 켜져 있어야 연결된다 — 꺼져 있으면 (PC 재부팅 뒤 등) 켜고 확장이 붙을 때까지 잠깐 기다린다.
+    화면에 남길 안내를 돌려준다 (이미 켜져 있으면 빈 문자열)."""
+    if await asyncio.to_thread(_chrome_running):
+        return ""
+    exe = _chrome_exe()
+    if not exe:
+        return "⚠️ Chrome 을 찾지 못했어요 — 집 PC 에 Chrome 을 설치하고 Claude 확장에 로그인해 주세요"
+    subprocess.Popen([exe], close_fds=True)
+    await asyncio.sleep(8)
+    return "🌐 꺼져 있던 Chrome 을 켰어요 (Claude 확장이 연결될 때까지 잠깐 기다렸어요)"
 
 
 def enabled(settings: dict) -> bool:

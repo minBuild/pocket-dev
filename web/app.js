@@ -825,11 +825,160 @@ function openRun(run) {
 
 // ── 탭 ──
 function show(tab) {
-  if (!["new", "runs", "run"].includes(tab)) return;
-  ["new", "runs", "run"].forEach(t => $("#tab-" + t).hidden = t !== tab);
-  document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  if (!["new", "runs", "run", "chat", "session"].includes(tab)) return;
+  ["new", "runs", "run", "chat", "session"].forEach(t => $("#tab-" + t).hidden = t !== tab);
+  const navTab = tab === "session" ? "chat" : tab;
+  document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === navTab));
   if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
+  if (tab !== "session") { $("#sessComposer").hidden = true; if (sessEs) { sessEs.close(); sessEs = null; } }
   if (tab === "runs") loadRuns();
+  if (tab === "chat") loadSessions();
+}
+
+// ── 💬 Claude 직접 세션 (토론 없이 Claude Code 와 바로 대화 · 권한은 폰으로) ──
+let sessEs = null, currentSess = null;
+const sessPick = { engine: "claude", model: "claude-sonnet-5-5", effort: "medium" };
+const STATUS_LABEL = { idle: "대기", working: "working · 답하는 중…", waiting: "waiting · 🔐 내 허락을 기다리는 중" };
+
+async function loadSessions() {
+  const list = await api("/api/sessions");
+  const box = $("#sessList");
+  box.innerHTML = list.length ? "" : '<p class="muted">아직 대화가 없어요.</p>';
+  list.forEach(s => {
+    const row = document.createElement("div"); row.className = "run-row";
+    const b = document.createElement("button"); b.className = "run-item";
+    b.innerHTML = `<span class="status ${s.status === "idle" ? "done" : "awaiting_user"}">${STATUS_LABEL[s.status] || s.status}</span>
+      <b>${esc((s.browser ? "🌐 " : "") + (s.title || "(빈 대화)"))}</b>
+      <div class="muted">${new Date(s.updated * 1000).toLocaleString()} · ${esc(s.project.split(/[\\/]/).pop())} · ${esc(s.model)}</div>`;
+    b.onclick = () => openSession(s);
+    const del = document.createElement("button"); del.className = "run-del"; del.textContent = "🗑"; del.title = "대화 삭제";
+    del.onclick = async () => {
+      if (!confirm(`이 대화를 삭제할까요?\n\n${s.title || "(빈 대화)"}`)) return;
+      try { await api(`/api/sessions/${s.id}`, { method: "DELETE" }); row.remove(); } catch (e) { alert(e.message); }
+    };
+    row.append(b, del); box.append(row);
+  });
+}
+
+function sessHandle(ev, live = true) {
+  const nearBottom = innerHeight + scrollY > document.body.scrollHeight - 200;
+  sink = $("#sessStream");
+  try {
+    switch (ev.type) {
+      case "user": addMsg("user", "<b>⬜ 나</b>", ev.text); break;
+      case "assistant_start": addMsg("claude", `<b>🤖 Claude</b> · ${esc(ev.model || "")}`, "", ev.msg_id); break;
+      case "delta": {
+        const el = msgs.get(ev.msg_id); if (!el) break;
+        el._raw += ev.text;
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(() => $(".body", el).innerHTML = md(el._raw), 120);
+        break;
+      }
+      case "assistant_end": {
+        const el = msgs.get(ev.msg_id); if (!el) break;
+        el._raw = ev.text; $(".body", el).innerHTML = md(ev.text); break;
+      }
+      case "tool": line("cc tool", ev.text); break;
+      case "permission": {
+        const d = document.createElement("div"); d.className = "perm"; d.id = "sperm-" + ev.req_id;
+        const what = ev.input.command || ev.input.url || ev.input.file_path || ev.input.action || "";
+        d.innerHTML = `🔐 <b>허락이 필요해요: ${esc(ev.tool)}</b> ${what ? `<code>${esc(String(what).slice(0, 200))}</code>` : ""}
+          <pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre><div class="final muted">기다리는 중…</div>`;
+        const acts = document.createElement("div"); acts.className = "actions";
+        [["✅ 허용", "allow", "primary"], [`♾️ 이 대화에서 ${ev.tool.replace("mcp__claude-in-chrome__", "Chrome ")} 계속 허용`, "always", ""],
+         ["⛔ 거부", "deny", "danger"]].forEach(([label, action, cls]) => {
+          const b = document.createElement("button"); b.textContent = label; b.className = cls;
+          b.onclick = async () => {
+            acts.querySelectorAll("button").forEach(x => x.disabled = true);
+            try { await post(`/api/sessions/${currentSess.id}/permission`, { req_id: ev.req_id, action }); }
+            catch (e) { alert(e.message); acts.querySelectorAll("button").forEach(x => x.disabled = false); }
+          };
+          acts.append(b);
+        });
+        d.append(acts); out(d); break;
+      }
+      case "permission_done": {
+        const d = $("#sperm-" + ev.req_id, $("#sessStream")); if (!d) break;
+        $(".actions", d)?.remove();
+        const txt = { allow: "✅ 허용", always: "♾️ 이 대화에서 계속 허용", deny: "⛔ 거부" }[ev.action] || ev.action;
+        $(".final", d).textContent = txt + (ev.timeout ? " (응답 시간 초과)" : "");
+        break;
+      }
+      case "turn_end": line("log", "— 답 끝" + fmtTokens(ev.usage)); break;
+      case "log": line("log", ev.text); break;
+      case "error": line("msg error", "❌ " + ev.text); if (ENGINE_ERROR.test(ev.text || "")) out(fixButton()); break;
+      case "status":
+        if (currentSess) currentSess.status = ev.status;
+        renderSessHead(); break;
+    }
+  } finally { sink = null; }
+  if (live && nearBottom) scrollTo(0, document.body.scrollHeight);
+}
+
+function renderSessHead() {
+  const s = currentSess; if (!s) return;
+  $("#sessTitle").textContent = s.title || "(새 대화)";
+  $("#sessInfo").textContent = `${s.project.split(/[\\/]/).pop()} · ${s.model} · ${STATUS_LABEL[s.status] || s.status}`;
+  $("#sessStop").hidden = s.status === "idle";
+  $("#sessSend").disabled = s.status !== "idle";
+  $("#sessBrowserNow").checked = !!s.browser;
+}
+
+function openSession(s) {
+  currentSess = s; msgs.clear();
+  $("#sessStream").innerHTML = "";
+  show("session");
+  $("#sessComposer").hidden = false;
+  renderSessHead();
+  if (sessEs) sessEs.close();
+  sessEs = new EventSource(`/api/sessions/${s.id}/events`);
+  sessEs.onmessage = m => {
+    const ev = JSON.parse(m.data);
+    if (ev.type === "snapshot") {
+      $("#sessStream").innerHTML = ""; msgs.clear();
+      currentSess = ev.session;
+      ev.events.forEach(e => sessHandle(e, false));
+      // 이미 답한 권한 요청의 버튼은 숨김 (서버 기준으로 아직 기다리는 것만 남김)
+      $("#sessStream").querySelectorAll(".perm[id^=sperm-]").forEach(d => {
+        if (!ev.session.pending.includes(d.id.slice(6))) $(".actions", d)?.remove();
+      });
+      renderSessHead(); scrollTo(0, document.body.scrollHeight);
+    } else sessHandle(ev);
+  };
+}
+
+async function sendSession() {
+  const ta = $("#sessInput"), text = ta.value.trim();
+  if (!text || !currentSess) return;
+  $("#sessSend").disabled = true;
+  try { await post(`/api/sessions/${currentSess.id}/message`, { text }); ta.value = ""; scrollTo(0, document.body.scrollHeight); }
+  catch (e) { alert(e.message); $("#sessSend").disabled = false; }
+}
+
+function bindSessions() {
+  modelPicker($("#sessModelPick"), sessPick, () => {});
+  $("#sessStart").onclick = async () => {
+    const text = $("#sessText").value.trim();
+    if (!text) return alert("Claude 에게 할 말을 적어 주세요");
+    const project = $("#project").value;
+    if (!project || project.startsWith("__") || project.startsWith("gh:")) return alert("위에서 프로젝트를 고르세요");
+    $("#sessStart").disabled = true;
+    try {
+      const s = await post("/api/sessions", { project, model: sessPick.model, effort: sessPick.effort || "",
+                                               browser: $("#sessBrowser").checked, text });
+      $("#sessText").value = "";
+      openSession(s);
+    } catch (e) { alert(e.message); }
+    $("#sessStart").disabled = false;
+  };
+  $("#sessBack").onclick = () => show("chat");
+  $("#sessSend").onclick = sendSession;
+  $("#sessInput").onkeydown = e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendSession(); } };
+  $("#sessStop").onclick = async () => { if (currentSess) await post(`/api/sessions/${currentSess.id}/stop`, {}).catch(e => alert(e.message)); };
+  $("#sessBrowserNow").onchange = async e => {
+    try { currentSess = await post(`/api/sessions/${currentSess.id}/settings`, { browser: e.target.checked }); renderSessHead(); }
+    catch (err) { alert(err.message); e.target.checked = !e.target.checked; }
+  };
 }
 
 // ── 기록 목록 (폴링 없이: 기록 버튼·탭 복귀 때 1회) ──
@@ -1082,6 +1231,7 @@ async function startApp() {
   $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
+  bindSessions();
   $("#modelsBtn").onclick = () => openModels().catch(e => alert(e.message));
   $("#browserChip").onclick = () => $("#browserOverlay").hidden ? openOverlay() : closeOverlay();
   $("#browserOverlay .bo-close").onclick = closeOverlay;
