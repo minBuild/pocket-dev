@@ -22,6 +22,18 @@ def display_status(status: str, waiter_keys) -> str:
     return "waiting" if any(k == "plan" or str(k).startswith("perm:") for k in waiter_keys) else "working"
 
 
+def busy_reply(display: str) -> tuple[str, str]:
+    """진행 중인 작업에 '이어서 진행' 을 보냈을 때 (mode, 안내 문구)."""
+    if display == "waiting":
+        return "waiting", "✋ 내 결정을 기다리고 있어요 — 아래 🚀 승인 또는 ✅ 허용/⛔ 거부를 눌러 주세요"
+    return "busy", "ℹ️ 이미 진행 중이에요"
+
+
+def norm_title(s) -> str:
+    """대화명 정규화 — 공백·탭·개행은 한 칸, 앞뒤 공백 제거, 100자. HTML 이스케이프는 표시하는 쪽 책임."""
+    return " ".join(str(s or "").split())[:100]
+
+
 def wait_info(pending: list[dict]) -> dict | None:
     """대기 중 요청 → {kind: perm|plan|limit, label, until(epoch|None)}. 권한 > 기획안 > 한도 순."""
     by = {}

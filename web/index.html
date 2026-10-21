@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=19">
+<link rel="stylesheet" href="/static/style.css?v=20">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -49,6 +49,7 @@
 </header>
 
 <main>
+  <div id="staleBanner" class="lock-banner" hidden></div>
   <!-- 새 작업 -->
   <section id="tab-new">
     <div id="lockBanner" class="lock-banner" hidden></div>
@@ -121,12 +122,12 @@
     <form method="dialog">
       <h2>✏️ 대화명 바꾸기</h2>
       <label for="renameInput" class="muted">대화명</label>
-      <input id="renameInput" maxlength="100" autocomplete="off">
+      <input id="renameInput" maxlength="100" autocomplete="off" enterkeyhint="done">
       <p class="muted rename-hint">ⓘ 비우면 처음 아이디어로 표시돼요</p>
       <p id="renameError" class="error rename-hint" hidden></p>
       <div class="actions">
-        <button value="cancel" formnovalidate>취소</button>
-        <button value="ok" class="primary">✓ 저장</button>
+        <button type="button" id="renameCancel">취소</button>
+        <button type="submit" class="primary">✓ 저장</button>
       </div>
     </form>
   </dialog>
@@ -135,7 +136,7 @@
   <section id="tab-run" hidden>
     <div class="run-head">
       <button id="backBtn">←</button>
-      <div><div id="runTitle"></div><div id="runStage" class="muted"></div></div>
+      <div><div id="runTitle"></div><div class="run-sub"><span id="runStatus" class="status" hidden></span><span id="runStage" class="muted"></span></div></div>
       <button id="modelsBtn" title="이 작업의 모델 변경">⚙️ 모델</button>
       <button id="cancelBtn" class="danger">중단</button>
     </div>
@@ -177,6 +178,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=19"></script>
+<script src="/static/app.js?v=20"></script>
 </body>
 </html>

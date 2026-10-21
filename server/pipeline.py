@@ -5,13 +5,14 @@
 """
 import asyncio
 import contextlib
+import re
 from pathlib import Path
 
 from . import agents, browser, executor, github, stitch
-from .config import CONFIG
+from .config import CONFIG, ROOT
 from .attachments import prompt_block
 from .context import build_context
-from .runs import Run, FEEDBACK_DONE, count_stat_files, done_line
+from .runs import Run, FEEDBACK_DONE, busy_reply, count_stat_files, done_line
 
 PHASE_LABEL = {"debate": "설계 토론", "spec": "명세서 작성", "plan_review": "기획안 검토", "plan_gate": "기획안 승인 대기",
                "design": "Stitch 화면 디자인",
@@ -107,7 +108,7 @@ async def handle_chat(run: Run, text: str, port: int, reply_to: str | None = Non
                     run.track_chat(reply_to, "resume", text, True)
                     start(run, port)
             elif run.alive:
-                await said("resume", "ℹ️ 이미 진행 중이에요")
+                await said("resume", busy_reply(run.summary()["status"])[1])
             elif run.status == "done":
                 await said("resume", "ℹ️ 이미 끝난 작업이에요")
             else:
@@ -398,6 +399,8 @@ async def run_pipeline(run: Run, port: int) -> None:
                         head += ("\n집 PC Chrome 을 허용 계정으로 바꾼 뒤 채팅에 '막힌 Chrome 작업 다시 해줘' 라고 보내세요. "
                                  "허용 목록은 PC 의 config.yaml (browser.allowed_chrome_accounts) 또는 .env CHROME_ALLOWED_ACCOUNTS 를 고친 뒤 🔄 재시작")
                     text = head + "\n\n" + text
+                if diff.strip() and Path(run.project).resolve() == ROOT and re.search(r"^ (server/\S+|config\.yaml)\s+\|", diff, re.M):
+                    text += "\n\n🔄 서버 코드가 바뀌었어요 — 화면을 새로고침한 뒤 상단 🔄 로 재시작해야 반영돼요"
                 await run.emit("result", text=text, links=links, **({"title": title} if title else {}))
                 chrome_ok = sm["ok"] if sm and sm["used"] else 0
                 push_failed = bool(diff.strip()) and CONFIG["git"].get("auto_push", True) and not committed["pushed"]

@@ -1,8 +1,9 @@
 """표시 상태(working/waiting)·대기 정보·채팅 완료 요약 추적 — emit() 없이 이벤트와 waiters 를 직접 넣는다."""
 import asyncio
 
-from server.runs import (FEEDBACK_DONE, MAX_OPEN_CHATS, Run, count_stat_files, display_status, done_line,
-                         wait_info)
+from server import runs
+from server.runs import (FEEDBACK_DONE, MAX_OPEN_CHATS, Run, busy_reply, count_stat_files, display_status, done_line,
+                         norm_title, wait_info)
 
 
 # ── display_status ──
@@ -148,3 +149,28 @@ def test_count_stat_files():
 
 def test_feedback_done_text():
     assert FEEDBACK_DONE.startswith("✏️")
+
+
+# ── busy_reply · norm_title ──
+def test_busy_reply():
+    mode, msg = busy_reply("waiting")
+    assert mode == "waiting" and "결정" in msg
+    assert busy_reply("working") == ("busy", "ℹ️ 이미 진행 중이에요")
+
+
+def test_norm_title():
+    assert norm_title("  a\t\nb  ") == "a b"
+    assert norm_title("x" * 101) == "x" * 100
+    assert norm_title(None) == "" and norm_title("") == ""
+    assert norm_title("<b>x</b>") == "<b>x</b>"
+
+
+def test_title_save_load_roundtrip(monkeypatch, tmp_path):
+    monkeypatch.setattr(runs, "RUNS_DIR", tmp_path)
+    monkeypatch.setattr(runs, "RUNS", {})
+    r = Run("p", "idea", {})
+    r.title = norm_title(" 새 이름 ")
+    r.status = "done"
+    r.save()
+    runs.load_saved_runs()
+    assert runs.RUNS[r.id].title == "새 이름"

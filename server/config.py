@@ -1,4 +1,5 @@
 """config.yaml + .env 로딩."""
+import hashlib
 import os
 from pathlib import Path
 
@@ -38,3 +39,15 @@ if NEW_PROJECT_ROOT not in PROJECTS_ROOTS:
 def chrome_accounts_setting():
     """Chrome 허용 계정 원본 값 — .env CHROME_ALLOWED_ACCOUNTS 가 있으면 우선 (쉼표 구분), 없으면 config.yaml."""
     return os.environ.get("CHROME_ALLOWED_ACCOUNTS", "").strip() or (CONFIG.get("browser") or {}).get("allowed_chrome_accounts")
+
+
+def code_sig(files=None) -> str | None:
+    """서버가 import 할 때 읽는 파일(server/*.py · config.yaml · .env)의 서명 — 바뀌면 🔄 재시작이 필요. 절대 raise 하지 않음."""
+    try:
+        fs = files if files is not None else [*(ROOT / "server").glob("*.py"), ROOT / "config.yaml", ROOT / ".env"]
+        h = hashlib.sha1()
+        for p in sorted(fs):
+            h.update(p.name.encode() + b"\0" + (p.read_bytes() if p.exists() else b"-"))
+        return h.hexdigest()
+    except Exception:
+        return None

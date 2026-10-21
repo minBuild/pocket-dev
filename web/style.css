@@ -238,3 +238,6 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .bo-todo .todo-item { font-size: 13px; padding: 2px 0; }
 .bo-todo .todo-item.completed { color: var(--muted); }
 .bo-close { width: 100%; }
+.run-sub { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.run-sub .status { flex: none; }
+#staleBanner { border-color: var(--claude); }

@@ -3,6 +3,10 @@ const $ = (s, el = document) => el.querySelector(s);
 const LS_KEY = "pocketdev.team.v3";  // v3: effort 기본값 medium
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
 const FINAL = ["done", "error", "cancelled"];   // 이 외(working·waiting)는 진행 중
+// 서버 runs.display_status 와 같은 규칙 — 사람 결정(기획안 승인·권한 결정, Chrome 클릭 포함)을 기다리면 waiting
+const dispStatus = s => FINAL.includes(s) ? s
+  : ([...pending.values()].some(e => e.kind === "plan" || e.kind === "permission") ? "waiting" : "working");
+const paintStatus = s => { const el = $("#runStatus"); if (!el) return; el.className = "status " + s; el.textContent = s; el.hidden = !s; };
 
 let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
@@ -14,6 +18,7 @@ async function api(path, opts = {}) {
   if (res.status === 401 && path !== "/api/login") { showGate("login"); throw new Error("로그인이 필요해요"); }
   if (res.status === 423) { showGate("locked"); throw new Error("잠겨 있어요"); }
   const body = await res.json().catch(() => ({}));
+  if (res.status === 405) throw Object.assign(new Error("서버가 아직 이전 코드예요 — 상단 🔄 로 재시작한 뒤 다시 해 주세요"), { status: 405 });
   if (!res.ok) throw Object.assign(new Error(body.detail || res.statusText), { body, status: res.status });
   return body;
 }
@@ -436,6 +441,7 @@ const expiry = ev => ev.expires_at ? ` · ${esc(new Date(ev.expires_at * 1000).t
 function renderComposer() {
   const box = $("#composer");
   if (!currentRun || $("#tab-run").hidden) { box.hidden = true; return; }
+  paintStatus(dispStatus(currentRun.status));
   box.hidden = false;
   const [key, ev] = [...pending.entries()].pop() || [];
   const status = currentRun.status, alive = !FINAL.includes(status);
@@ -785,6 +791,7 @@ addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive:
 function openRun(run) {
   currentRun = run; pending.clear(); msgs.clear(); threads.clear(); resetChrome(); $("#modelsPanel").hidden = true;
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.title || run.idea; $("#runStage").textContent = "";
+  paintStatus(FINAL.includes(run.status) || run.status === "waiting" ? run.status : "working");
   firstIndex = 0; streamGen++;
   show("run");
   if (es) es.close();
@@ -818,6 +825,7 @@ function openRun(run) {
 
 // ── 탭 ──
 function show(tab) {
+  if (!["new", "runs", "run"].includes(tab)) return;
   ["new", "runs", "run"].forEach(t => $("#tab-" + t).hidden = t !== tab);
   document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
@@ -879,16 +887,23 @@ async function loadRuns() {
 // 대화명 바꾸기 — 서버에 저장 (빈 값이면 처음 아이디어로 표시)
 function renameRun(r) {
   const dlg = $("#renameDialog"), input = $("#renameInput"), err = $("#renameError"), form = $("form", dlg);
-  input.value = r.title || r.idea; err.hidden = true;
+  if (typeof dlg.showModal !== "function") {   // <dialog> 가 없는 옛 WebView
+    const v = prompt("대화명 (비우면 처음 아이디어로 표시)", r.title || "");
+    if (v !== null) api(`/api/runs/${r.id}`, { method: "PATCH", body: JSON.stringify({ title: v }) }).then(loadRuns).catch(e => alert(e.message));
+    return;
+  }
+  input.value = r.title || ""; input.placeholder = (r.idea || "").slice(0, 60); err.hidden = true;
+  $("#renameCancel", dlg).onclick = () => dlg.close();      // Esc 는 dialog 기본 동작
   form.onsubmit = async e => {
-    if (e.submitter?.value !== "ok") return;   // 취소 → 그냥 닫힘
-    e.preventDefault();
-    const ok = e.submitter; ok.disabled = true;
+    e.preventDefault();                                     // Enter·키보드 완료 키·✓ 모두 저장
+    const btn = $("button[type=submit]", form); btn.disabled = true;
     try {
       await api(`/api/runs/${r.id}`, { method: "PATCH", body: JSON.stringify({ title: input.value }) });
       dlg.close(); loadRuns();
-    } catch (ex) { err.textContent = `⚠️ ${ex.message}`; err.hidden = false; }
-    finally { ok.disabled = false; }
+    } catch (ex) {
+      if (ex.status === 404) { dlg.close(); alert("이미 삭제된 기록이에요"); loadRuns(); return; }
+      err.textContent = `⚠️ ${ex.message}`; err.hidden = false;
+    } finally { btn.disabled = false; }
   };
   dlg.showModal(); input.select();
 }
@@ -960,6 +975,14 @@ function renderLockBanner() {
   box.hidden = false;
 }
 
+function renderStaleBanner() {
+  const box = $("#staleBanner");
+  if (SESSION.stale === false) { box.hidden = true; return; }   // 옛 서버는 stale 필드가 없어 → 배너가 뜸 (의도)
+  box.textContent = "⚠️ 서버 코드가 바뀌었어요 — 진행 중인 작업이 끝난 뒤 🔄 재시작해야 반영돼요 (Chrome 화면 보기·상태 표시 포함).";
+  const b = document.createElement("button"); b.className = "primary"; b.textContent = "🔄 지금 재시작";
+  b.onclick = restartServer; box.append(b); box.hidden = false;
+}
+
 async function boot() {
   SESSION = await api("/api/session");
   if (SESSION.locked && SESSION.via === "public") return showGate("locked");
@@ -967,6 +990,7 @@ async function boot() {
   $("#tab-login").hidden = $("#tab-locked").hidden = true;
   $("#app").hidden = false;
   renderLockBanner();
+  renderStaleBanner();
   if (!started) { started = true; await startApp(); }
 }
 
@@ -1047,10 +1071,9 @@ async function startApp() {
     remote = d.repos.filter(r => !r.local_path);
     fillProjects(); badge();
   }).catch(() => {});
+  document.querySelectorAll(".top nav button[data-tab]").forEach(b => b.onclick = () => show(b.dataset.tab));
   $("#restartBtn").onclick = restartServer;
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
-
-  document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
   document.addEventListener("visibilitychange", () => {   // 기록 탭을 보던 중 앱으로 돌아오면 1회 새로고침
     if (document.visibilityState === "visible" && !$("#app").hidden && !$("#tab-runs").hidden) loadRuns();
   });

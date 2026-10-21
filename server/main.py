@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import attachments, auth, browser, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
-from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT, RUNS_DIR
+from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT, RUNS_DIR, code_sig
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
 
@@ -34,6 +34,7 @@ PUBLIC_PORT = CONFIG["server"].get("public_port", 8001)
 UPCOMING_ENGINES = {"codex": "ChatGPT (2차 예정)", "gemini": "Gemini (3차 예정)"}
 OPEN_API = {"/api/login", "/api/session"}  # 로그인 없이 부를 수 있는 API
 BOOT_ID = uuid.uuid4().hex[:8]  # 재시작 뒤 화면이 새 서버로 바뀌었는지 알아보는 용도
+BOOT_SIG = code_sig()  # 이 프로세스가 켜질 때의 코드 — 바뀌면 화면에 🔄 안내
 RESTART_EXIT = 3                # start.bat 은 이 종료 코드면 서버를 다시 켠다
 SERVER: "uvicorn.Server | None" = None
 restart_requested = False
@@ -67,7 +68,10 @@ async def guard(request: Request, call_next):
     if path.startswith("/api/") and path not in OPEN_API:
         if not auth.valid_session(request.cookies.get(auth.SESSION_COOKIE)):
             return JSONResponse({"detail": "login required"}, status_code=401)
-    return await call_next(request)
+    resp = await call_next(request)
+    if path == "/" or path.startswith("/static/"):   # 화면 파일은 항상 재검증 (?v= 범프를 잊어도 새로고침으로 반영)
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 _SHOT_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
@@ -109,6 +113,8 @@ async def session(request: Request):
     if logged_in:  # 실패 기록은 로그인한 사람에게만
         state = auth.load_state()
         info.update(failures=state.get("failures", 0), log=state.get("log", [])[-5:])
+        cur = code_sig()
+        info["stale"] = bool(BOOT_SIG and cur and cur != BOOT_SIG)
     return info
 
 
@@ -452,7 +458,7 @@ class TitleReq(BaseModel):
 async def rename_run(run_id: str, req: TitleReq):
     """기록 대화명 변경 — 빈 값이면 처음 아이디어로 표시."""
     run = _run(run_id)
-    run.title = re.sub(r"\s+", " ", req.title or "").strip()[:100]
+    run.title = runs.norm_title(req.title)
     run.save()
     return _row(run)
 
@@ -660,8 +666,9 @@ async def run_message(run_id: str, req: MessageReq):
             await run.emit("chat_action", **_rt(chat_id), action="resume", text="🔁 지금 재시도할게요")
             return {"mode": "retry"}
         if run.alive:
-            await run.emit("chat_action", **_rt(chat_id), action="resume", text="ℹ️ 이미 진행 중이에요")
-            return {"mode": "running"}
+            mode, msg = runs.busy_reply(run.summary()["status"])
+            await run.emit("chat_action", **_rt(chat_id), action="resume", text=msg)
+            return {"mode": mode}
         if run.status == "done":
             await run.emit("chat_action", **_rt(chat_id), action="resume",
                            text="ℹ️ 이미 끝난 작업이에요 — 추가로 바꿀 내용을 적어 주세요")
