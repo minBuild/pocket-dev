@@ -2,6 +2,7 @@
 const $ = (s, el = document) => el.querySelector(s);
 const LS_KEY = "pocketdev.team.v3";  // v3: effort 기본값 medium
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
+const FINAL = ["done", "error", "cancelled"];   // 이 외(working·waiting)는 진행 중
 
 let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
@@ -278,7 +279,11 @@ function handle(ev, mode = "live") {
       if (ev.files?.length) el.insertAdjacentHTML("beforeend", `<div class="file-chips">${ev.files.map(n => `<span class="chip">📎 ${esc(n)}</span>`).join("")}</div>`);
       break;
     }
-    case "chat_action": line("log chat-action", ev.text); break;
+    case "chat_action": {
+      const cls = ev.action === "done" ? " done" : "";
+      line("log chat-action" + cls, (!into && ev.quote ? `「${ev.quote}」 → ` : "") + ev.text);   // 묶음이 화면 밖이면 인용으로
+      break;
+    }
     case "browser_account": {   // 구현 AI 의 로그인 계정 보고 (email 이 빈 건 실행 시작 리셋)
       if (ev.email) {
         const host = (ev.scope || "").split("#")[0];
@@ -401,7 +406,7 @@ function handle(ev, mode = "live") {
     case "status":
       if (older) break;
       if (currentRun) currentRun.status = ev.status;
-      if (["done", "error", "cancelled"].includes(ev.status)) pending.clear();
+      if (FINAL.includes(ev.status)) pending.clear();
       if (ev.status === "done") addRollback();
       break;
   }
@@ -412,13 +417,16 @@ function handle(ev, mode = "live") {
 // 이전 대화를 그리는 중이면 임시 상자에서 먼저 찾는다 (아직 화면에 안 붙어 있음)
 const permBox = id => (sink && $("#perm-" + id, sink)) || $("#perm-" + id);
 
+// 권한 결정 자동 거부 시각
+const expiry = ev => ev.expires_at ? ` · ${esc(new Date(ev.expires_at * 1000).toLocaleTimeString())}까지 (지나면 자동 거부)` : "";
+
 // ── 작업 화면 채팅창 (상황에 따라 버튼·안내가 바뀜) ──
 function renderComposer() {
   const box = $("#composer");
   if (!currentRun || $("#tab-run").hidden) { box.hidden = true; return; }
   box.hidden = false;
   const [key, ev] = [...pending.entries()].pop() || [];
-  const status = currentRun.status, alive = ["running", "awaiting_user"].includes(status);
+  const status = currentRun.status, alive = !FINAL.includes(status);
   const info = $("#composerInfo"), acts = $("#composerActions"), ta = $("#composerText");
   info.innerHTML = ""; acts.innerHTML = "";
   const btn = (label, onClick, cls = "") => {
@@ -439,12 +447,12 @@ function renderComposer() {
   } else if (ev?.label) {   // Chrome 동작
     const s = shots[shots.length - 1];
     info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.label)}` +
-      (s ? ` <a href="${esc(s.url)}" target=_blank rel=noopener>📷 최근 화면 (${esc(ago(s.ts))})</a>` : "");
+      (s ? ` <a href="${esc(s.url)}" target=_blank rel=noopener>📷 최근 화면 (${esc(ago(s.ts))})</a>` : "") + expiry(ev);
     ta.placeholder = "질문하거나 지시를 남길 수 있어요";
     btn("✅ 허용", () => reply("allow"), "primary");
     btn("⛔ 거부", () => reply("deny"), "danger");
   } else if (ev) {
-    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input?.command || ev.input?.file_path || "").slice(0, 120))}</code>`;
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input?.command || ev.input?.file_path || "").slice(0, 120))}</code>` + expiry(ev);
     ta.placeholder = "질문하거나 지시를 남길 수 있어요";
     btn("✅ 허용", () => reply("allow"), "primary");
     btn("⛔ 거부", () => reply("deny"), "danger");
@@ -599,7 +607,7 @@ async function sendMessage(text) {
   const r = await post(`/api/runs/${currentRun.id}/message`, { text, attachments });
   chatFiles.length = 0; renderChips($("#chatFileList"), chatFiles);
   $("#composerText").value = "";
-  if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "running"; $("#rollbackBtn")?.remove(); }
+  if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "working"; $("#rollbackBtn")?.remove(); }
   renderComposer();
   return r;
 }
@@ -640,7 +648,7 @@ async function openModels() {
   bl.innerHTML = '<input type="checkbox"> 🌐 Chrome 사용 <span class="muted">(웹 콘솔 작업 · 다음 구현 실행부터 · 클릭마다 권한 심사)</span>';
   const browserOn = $("input", bl); browserOn.checked = !!cur.browser; box.append(bl);
   let now = null;
-  if (cur.status === "running") {
+  if (cur.status === "working") {
     const lab = document.createElement("label"); lab.className = "row";
     lab.innerHTML = '<input type="checkbox"> 지금 진행 중인 단계도 새 모델로 다시 시작 <span class="muted">(하던 발언·구현은 처음부터 다시 해요)</span>';
     box.append(lab); now = $("input", lab);
@@ -698,7 +706,7 @@ addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive:
 
 function openRun(run) {
   currentRun = run; pending.clear(); msgs.clear(); threads.clear(); resetChrome(); $("#modelsPanel").hidden = true;
-  $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
+  $("#stream").innerHTML = ""; $("#runTitle").textContent = run.title || run.idea; $("#runStage").textContent = "";
   firstIndex = 0; streamGen++;
   show("run");
   if (es) es.close();
@@ -710,6 +718,7 @@ function openRun(run) {
       $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear(); threads.clear(); resetChrome();
       $("#olderBar").onclick = loadOlder;
       currentRun = ev.run;
+      $("#runTitle").textContent = ev.run.title || ev.run.idea;
       ev.events.forEach(e => handle(e, "snapshot"));
       if (ev.browser) {   // 계정 보고·막힘은 이벤트 창 밖에 있을 수 있어 서버 집계로 덮어씀
         const acc = ev.browser.account;
@@ -736,26 +745,72 @@ function show(tab) {
   if (tab === "runs") loadRuns();
 }
 
+// ── 기록 목록 (폴링 없이: 기록 버튼·탭 복귀 때 1회) ──
+let runsGen = 0;
+const WAIT_FMT = w => {
+  const t = w.until ? new Date(w.until * 1000).toLocaleTimeString() : "";
+  if (w.kind === "perm") return `🔐 권한 결정 필요 · ${w.label}${t ? ` · ${t}까지 (지나면 자동 거부)` : ""}`;
+  if (w.kind === "plan") return "📋 기획안 승인 대기";
+  return `⏳ 한도 대기${w.label ? " · " + w.label : ""}${t ? ` · ${t} 자동 재시도` : ""}`;
+};
+const CHROME_FMT = c => {
+  let s = `🌐 Chrome ${c.steps}단계`;
+  if (c.blocked) s += ` · 🔒 막힘: ${c.blocked}`;
+  if (c.current) s += ` · ⏳ ${c.current.text}`;
+  else if (c.last) s += ` · ${BSTAT[c.last.status] || ""} ${c.last.text} · ${ago(c.last.ts)}`;
+  if (c.shot_ts) s += ` · 📷 ${ago(c.shot_ts)}`;
+  if (c.account) s += ` · 👤 ${c.account.email}${c.account.ok ? "" : " ⛔"}`;
+  return s;
+};
+
 async function loadRuns() {
-  const runs = await api("/api/runs");
+  const gen = ++runsGen, nav = $('.top nav button[data-tab="runs"]'), meta = $("#runsMeta");
+  nav.textContent = "기록 ⟳";
+  let runs;
+  try { runs = await api("/api/runs", { cache: "no-store" }); }
+  catch (e) { if (gen === runsGen) meta.textContent = `⚠️ 목록을 불러오지 못했어요: ${e.message}`; return; }   // 이전 목록은 그대로
+  finally { if (gen === runsGen) nav.textContent = "기록"; }
+  if (gen !== runsGen) return;   // 늦게 온 응답
+  meta.textContent = `마지막 갱신 ${new Date().toLocaleTimeString()}`;
   const box = $("#runList"); box.innerHTML = runs.length ? "" : '<p class="muted">아직 실행 기록이 없어요.</p>';
   runs.forEach(r => {
+    const name = r.title || r.idea;
     const row = document.createElement("div"); row.className = "run-row";
     const b = document.createElement("button"); b.className = "run-item";
-    b.innerHTML = `<span class="status ${r.status}">${r.status}</span><b>${esc(r.idea.slice(0, 80))}</b>
-      <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.stage)}</div>`;
+    b.innerHTML = `<span class="status ${esc(r.status)}">${esc(r.status)}</span><b class="run-title">${esc(name)}</b>
+      <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.wait ? WAIT_FMT(r.wait) : r.stage)}</div>` +
+      (r.chrome ? `<div class="muted run-chrome${r.chrome.blocked ? " blocked" : ""}">${esc(CHROME_FMT(r.chrome))}</div>` : "");
     b.onclick = () => openRun(r);
+    const edit = document.createElement("button"); edit.className = "run-edit"; edit.textContent = "✏️"; edit.title = "대화명 바꾸기";
+    edit.onclick = () => renameRun(r);
     const del = document.createElement("button"); del.className = "run-del"; del.textContent = "🗑";
     del.title = r.alive ? "진행 중인 작업은 먼저 중단해야 삭제할 수 있어요" : "기록 삭제";
     del.disabled = r.alive;
     del.onclick = async () => {
-      if (!confirm(`이 기록을 삭제할까요?\n\n${r.idea.slice(0, 80)}\n\n대화 기록과 첨부 파일이 지워지고 되돌릴 수 없어요. (프로젝트 코드·커밋은 그대로)`)) return;
+      if (!confirm(`이 기록을 삭제할까요?\n\n${name.slice(0, 80)}\n\n대화 기록과 첨부 파일이 지워지고 되돌릴 수 없어요. (프로젝트 코드·커밋은 그대로)`)) return;
       del.disabled = true;
       try { await api(`/api/runs/${r.id}`, { method: "DELETE" }); row.remove(); if (!box.children.length) loadRuns(); }
       catch (e) { alert(e.message); del.disabled = false; }
     };
-    row.append(b, del); box.append(row);
+    row.append(b, edit, del); box.append(row);
   });
+}
+
+// 대화명 바꾸기 — 서버에 저장 (빈 값이면 처음 아이디어로 표시)
+function renameRun(r) {
+  const dlg = $("#renameDialog"), input = $("#renameInput"), err = $("#renameError"), form = $("form", dlg);
+  input.value = r.title || r.idea; err.hidden = true;
+  form.onsubmit = async e => {
+    if (e.submitter?.value !== "ok") return;   // 취소 → 그냥 닫힘
+    e.preventDefault();
+    const ok = e.submitter; ok.disabled = true;
+    try {
+      await api(`/api/runs/${r.id}`, { method: "PATCH", body: JSON.stringify({ title: input.value }) });
+      dlg.close(); loadRuns();
+    } catch (ex) { err.textContent = `⚠️ ${ex.message}`; err.hidden = false; }
+    finally { ok.disabled = false; }
+  };
+  dlg.showModal(); input.select();
 }
 
 // ── 서버 재시작 (Pocket-Dev 자기 코드 수정 반영) ──
@@ -916,6 +971,9 @@ async function startApp() {
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
 
   document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
+  document.addEventListener("visibilitychange", () => {   // 기록 탭을 보던 중 앱으로 돌아오면 1회 새로고침
+    if (document.visibilityState === "visible" && !$("#app").hidden && !$("#tab-runs").hidden) loadRuns();
+  });
   document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { state.participants = PRESETS[b.dataset.preset](); save(); renderTeam(); });
   $("#addParticipant").onclick = () => { state.participants.push({ ...member("p" + Date.now(), "참가자", "claude-sonnet-5-5"), persona: "" }); save(); renderTeam(); };
   $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };

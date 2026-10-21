@@ -347,3 +347,59 @@ def test_summarize_account_and_report():
     sm = browser.summarize([rep, {"type": "result", "text": "x"}])
     assert sm["account"] is None and sm["report"] is None
     assert browser.summarize([])["account"] is None
+
+
+# ── progress (기록 목록용 Chrome 진행 한 줄) ──
+def _cc(**kw):
+    return {"type": "cc", "ts": 0, **kw}
+
+
+def _bev(step, status="ok", text="🖱 클릭", ts=5, **kw):
+    return {"type": "browser", "step": step, "status": status, "text": text, "ts": ts, **kw}
+
+
+def test_progress_empty_or_plain_cc_is_none():
+    assert browser.progress([]) is None
+    assert browser.progress(None) is None
+    assert browser.progress([_cc(text="hi")]) is None
+
+
+def test_progress_current_then_finished():
+    evs = [_cc(browser=True, step="a", tool="🖱 클릭", ts=1)]
+    p = browser.progress(evs)
+    assert p["current"]["text"] == "🖱 클릭" and p["steps"] == 0
+    evs.append(_bev("a", ts=5))
+    p = browser.progress(evs)
+    assert p["current"] is None and p["steps"] == 1
+    assert p["last"] == {"text": "🖱 클릭", "status": "ok", "ts": 5}
+
+
+def test_progress_shot_ts():
+    p = browser.progress([_bev("a", ts=3), _bev("b", ts=7, shot="/x.png"), _bev("c", ts=9)])
+    assert p["shot_ts"] == 7 and p["steps"] == 3
+
+
+def test_progress_blocked_kept_by_read_cleared_by_write():
+    evs = [_cc(text=f"{browser.BLOCK_MARK} 로그인 필요"), _bev("a", write=False)]
+    assert browser.progress(evs)["blocked"] == "로그인 필요"
+    evs.append(_bev("b", write=True))
+    assert browser.progress(evs)["blocked"] is None
+
+
+def test_progress_ignores_steps_before_result():
+    evs = [_bev("a"), _bev("b"), {"type": "result", "ts": 6}, _bev("c", ts=8)]
+    assert browser.progress(evs)["steps"] == 1
+    assert browser.progress([_bev("a"), {"type": "result", "ts": 6}]) is None
+
+
+def test_progress_account():
+    acc = lambda **kw: browser.progress([{"type": "browser_account", "ts": 0, **kw}])  # noqa: E731
+    assert acc(email="a@b.com", allowed=True)["account"] == {"email": "a@b.com", "ok": True}
+    assert acc(email="a@b.com", allowed=False, gate=False)["account"] == {"email": "a@b.com", "ok": True}
+    assert acc(email="a@b.com", allowed=False, gate=True)["account"] == {"email": "a@b.com", "ok": False}
+    assert acc(email="") is None
+
+
+def test_progress_tolerates_non_dict_items():
+    p = browser.progress(["x", None, 3, _bev("a")])
+    assert p["steps"] == 1

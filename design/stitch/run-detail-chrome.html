@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - 광고 단위 생성</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Inter, Pretendard & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary-fixed-dim": "#68dba9",
+            "outline-variant": "#c3c6d7",
+            "surface-dim": "#d7dae5",
+            "inverse-on-surface": "#eef0fc",
+            "surface-container-low": "#f1f3ff",
+            "on-surface": "#181c23",
+            "outline": "#737686",
+            "primary-container": "#2563eb",
+            "inverse-primary": "#b4c5ff",
+            "tertiary-container": "#a65900",
+            "tertiary": "#824500",
+            "surface-container-lowest": "#ffffff",
+            "secondary-container": "#82f5c1",
+            "secondary": "#006c4a",
+            "surface": "#f9f9ff",
+            "primary-fixed-dim": "#b4c5ff",
+            "background": "#f9f9ff",
+            "surface-bright": "#f9f9ff",
+            "on-primary-container": "#eeefff",
+            "surface-container-highest": "#dfe2ed",
+            "on-primary-fixed-variant": "#003ea8",
+            "surface-tint": "#0053db",
+            "surface-variant": "#dfe2ed",
+            "secondary-fixed": "#85f8c4",
+            "on-secondary-fixed": "#002114",
+            "surface-container": "#ebedf9",
+            "inverse-surface": "#2c3039",
+            "error": "#ba1a1a",
+            "primary": "#004ac6",
+            "error-container": "#ffdad6",
+            "on-error": "#ffffff",
+            "on-tertiary-container": "#ffede1",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "on-primary-fixed": "#00174b",
+            "on-surface-variant": "#434655",
+            "tertiary-fixed-dim": "#ffb77d",
+            "primary-fixed": "#dbe1ff",
+            "on-tertiary": "#ffffff",
+            "on-tertiary-fixed": "#2f1500",
+            "on-error-container": "#93000a",
+            "tertiary-fixed": "#ffdcc3",
+            "surface-container-high": "#e5e8f3",
+            "on-secondary-fixed-variant": "#005137",
+            "on-primary": "#ffffff",
+            "on-background": "#181c23",
+            "on-secondary-container": "#00714e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin": "1rem",
+            "space-xl": "2rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem"
+          },
+          "fontFamily": {
+            "body-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "label-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "badge-mono": ["\"JetBrains Mono, monospace\""],
+            "label-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "code-body": ["\"JetBrains Mono, monospace\""],
+            "code-inline": ["\"JetBrains Mono, monospace\""],
+            "headline-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""]
+          },
+          "fontSize": {
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "badge-mono": ["10px", { "lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-body": ["12px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-inline": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Native smooth scrolling & scrollbar hide for horizontal strips */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 1.8s infinite ease-in-out;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased font-body-md min-h-screen selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Mobile Viewport Shell (Max 480px Centered) -->
+<div class="relative w-full max-w-[480px] mx-auto min-h-screen flex flex-col bg-background pb-36 border-x border-outline-variant/30">
+<!-- 1. Header (Sticky Top with Back, Title, Status & Pause Action) -->
+<header class="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/40 px-margin pt-[env(safe-area-inset-top,8px)] h-14 flex items-center justify-between transition-colors">
+<div class="flex items-center gap-2.5 min-w-0">
+<button aria-label="뒤로가기" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors active:scale-95 shrink-0" type="button">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</button>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center gap-2">
+<h1 class="font-headline-sm text-headline-sm text-on-surface truncate font-bold leading-tight">광고 단위 생성</h1>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary-fixed text-primary text-[10px] font-badge-mono font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-subtle"></span>
+              실행 중
+            </span>
+</div>
+<span class="font-badge-mono text-[10px] text-outline truncate leading-none mt-0.5">/apps/admob/create</span>
+</div>
+</div>
+<div class="flex items-center gap-1 shrink-0">
+<button aria-label="일시중지" class="w-8 h-8 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface hover:bg-surface-container-high flex items-center justify-center transition-colors active:scale-95 shadow-sm" title="작업 일시중지" type="button">
+<span class="material-symbols-outlined text-[18px]">pause</span>
+</button>
+<button aria-label="더보기" class="w-8 h-8 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container-high flex items-center justify-center transition-colors active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</header>
+<!-- 2. Stage Progress Stepper (4 Stages: 기획 -> 구현 -> 리뷰 -> 커밋) -->
+<nav aria-label="작업 단계" class="bg-surface-container-lowest border-b border-outline-variant/30 px-margin py-2.5">
+<ol class="flex items-center justify-between relative">
+<!-- Connecting Line Background -->
+<div class="absolute top-[13px] left-3 right-3 h-[2px] bg-surface-container-highest z-0"></div>
+<!-- Active Connecting Line (Progressed to Stage 2) -->
+<div class="absolute top-[13px] left-3 w-1/3 h-[2px] bg-primary z-0"></div>
+<!-- Step 1: 기획 (완료) -->
+<li class="relative z-10 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-secondary text-on-secondary flex items-center justify-center shadow-xs">
+<span class="material-symbols-outlined text-[14px]">check</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-semibold mt-1">기획</span>
+</li>
+<!-- Step 2: 구현 (진행 중) -->
+<li class="relative z-10 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-primary-container text-on-primary ring-4 ring-primary-fixed/50 flex items-center justify-center shadow-xs animate-pulse-subtle">
+<span class="material-symbols-outlined text-[13px]">code_blocks</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-bold mt-1">구현</span>
+</li>
+<!-- Step 3: 리뷰 (대기) -->
+<li class="relative z-10 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant text-outline flex items-center justify-center">
+<span class="font-badge-mono text-[10px]">3</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline mt-1 font-medium">리뷰</span>
+</li>
+<!-- Step 4: 커밋 (대기) -->
+<li class="relative z-10 flex flex-col items-center">
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant text-outline flex items-center justify-center">
+<span class="font-badge-mono text-[10px]">4</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline mt-1 font-medium">커밋</span>
+</li>
+</ol>
+</nav>
+<!-- Main Content Area -->
+<main class="px-margin pt-3 flex flex-col gap-3.5">
+<!-- 3. Active Chrome Status Summary Card (Prominent Alert / Intervention Card) -->
+<section aria-label="Chrome 자동화 상태" class="bg-surface-container-lowest rounded-xl border border-outline-variant/60 p-3 shadow-xs">
+<!-- Top Status Meta -->
+<div class="flex items-center justify-between pb-2 mb-2 border-b border-surface-container-highest">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px] text-primary">public</span>
+<span class="font-code-body text-code-body text-on-surface font-semibold">Chrome 자동화 #12</span>
+<span class="font-badge-mono text-badge-mono text-outline">· 8초 전</span>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-sm text-[10px] font-bold">
+<span class="material-symbols-outlined text-[12px]">lock</span>
+            막힘: 로그인 필요
+          </span>
+</div>
+<!-- Automation Micro Specs -->
+<div class="bg-surface-container-low rounded-lg p-2.5 border border-outline-variant/40 space-y-1.5 font-code-body text-[11px] text-on-surface-variant">
+<div class="flex items-center justify-between">
+<span class="flex items-center gap-1 text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-primary">ads_click</span>
+              클릭 대상: <strong class="text-on-surface font-semibold">'앱 추가'</strong>
+</span>
+<span class="font-badge-mono text-[10px] text-outline">타임아웃 18s</span>
+</div>
+<div class="flex items-center justify-between text-outline">
+<span class="flex items-center gap-1 truncate">
+<span class="material-symbols-outlined text-[13px]">person</span>
+              계정: <span class="text-on-surface font-badge-mono">me@gmail.com</span>
+</span>
+<span class="font-badge-mono text-secondary font-medium">Chrome v122 (Remote)</span>
+</div>
+</div>
+<!-- Intervention Action Buttons -->
+<div class="grid grid-cols-2 gap-2 mt-2.5">
+<button class="h-9 px-3 rounded-lg border border-outline-variant bg-surface-container-lowest text-on-surface font-label-md text-label-md font-medium hover:bg-surface-container-high flex items-center justify-center gap-1.5 transition-colors active:scale-98" type="button">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+            스냅샷 보기
+          </button>
+<button class="h-9 px-3 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md font-medium hover:bg-primary flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-98" type="button">
+<span class="material-symbols-outlined text-[16px]">open_in_new</span>
+            해결하기 (브라우저)
+          </button>
+</div>
+</section>
+<!-- 4. Horizontal Screenshot Strip (가로 스크롤 스크린샷 썸네일 스트립) -->
+<section aria-labelledby="screenshots-title" class="space-y-1.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">photo_library</span>
+<h2 class="font-label-md text-label-md font-bold text-on-surface" id="screenshots-title">캡처된 화면 (3개)</h2>
+</div>
+<span class="font-badge-mono text-badge-mono text-primary font-semibold hover:underline cursor-pointer">전체보기</span>
+</div>
+<!-- Scrollable Cards -->
+<div class="flex gap-2.5 overflow-x-auto no-scrollbar py-1 -mx- margin px-margin">
+<!-- Thumbnail Card 1 -->
+<article class="w-40 shrink-0 bg-surface-container-lowest rounded-xl border border-outline-variant/60 overflow-hidden shadow-xs hover:border-primary transition-all cursor-pointer">
+<div class="relative w-full h-24 bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A clean light modern UI screenshot of Google account OAuth login screen with email entry box, pristine white card interface, modern minimalism with subtle blue highlights matching the developer utility tool tone." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOXh9eYRnQtXeet98wmaH0S9q9bgbhoWDRbbTmd96Z3XzJ7chLtLUoWKf-se4_QmqADE7T-O-t8Hce_X2prxfQt63r6YBA3wAz2IMJ-FDR56Uce8H17_HWuLpiESOdSHr2-GC2A-BP7Zfoj6VOjKz-iJGzo774h8qMsavmuYTdert4p3cqyKa88YliZYSFqOjk3puYt4Eii9mdCO4IY6Vh-MXM5TesaQGuuUixyBMsA3kW3AoJtBcfBwWpXJVv-AJuujkcSyxshVXI"/>
+<!-- Visual Click Pointer Target -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-primary bg-primary/20 flex items-center justify-center">
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+</div>
+<span class="absolute bottom-1 right-1 bg-inverse-surface/80 text-inverse-on-surface font-badge-mono text-[9px] px-1 py-0.2 rounded">14:31:02</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest">
+<p class="font-label-sm text-[10px] text-on-surface truncate font-semibold">1단계: Google 로그인</p>
+<p class="font-badge-mono text-[9px] text-secondary font-medium">완료 · 200 OK</p>
+</div>
+</article>
+<!-- Thumbnail Card 2 -->
+<article class="w-40 shrink-0 bg-surface-container-lowest rounded-xl border border-outline-variant/60 overflow-hidden shadow-xs hover:border-primary transition-all cursor-pointer">
+<div class="relative w-full h-24 bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A detailed software interface screenshot of Google AdMob developer console dashboard with app navigation sidebar, analytics data cards, high-key clean light lighting with sharp crisp borders." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAX-OezEiTM5WH1ymnnqVX5-gDKVfzMcVKNBtNn0yZX6yOyCl_MsxsrSgplNkPG_m_tWaOgNrgweUzXCGGvzrPxNGuSoUrJyGD6DO5tos8z8z5hpsmCJcvp19iDIynnsCRcs0lmBWkK6Yd7-dIuNCd92TNMCQQJOOxA5kAKBm0WMaSqidPP4Me4iioTr2iDHusP33eVCI9xEAQ-POazIukYDabOKNSP3NLGScVQhZB0QNAe5dqoqnS8fRgkPQT5EtzMLXXhKt47k1_p"/>
+<!-- Click Target Box -->
+<div class="absolute top-4 left-6 w-10 h-5 border border-primary bg-primary/20 rounded-xs"></div>
+<span class="absolute bottom-1 right-1 bg-inverse-surface/80 text-inverse-on-surface font-badge-mono text-[9px] px-1 py-0.2 rounded">14:31:40</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest">
+<p class="font-label-sm text-[10px] text-on-surface truncate font-semibold">2단계: AdMob 대시보드</p>
+<p class="font-badge-mono text-[9px] text-secondary font-medium">완료 · DOM 로드</p>
+</div>
+</article>
+<!-- Thumbnail Card 3 (Current Active Blocked State) -->
+<article class="w-40 shrink-0 bg-surface-container-lowest rounded-xl border-2 border-primary ring-2 ring-primary/20 overflow-hidden shadow-xs cursor-pointer">
+<div class="relative w-full h-24 bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A developer screenshot modal view of Google AdMob Add App dialog window requiring two-factor authorization prompt, high key lighting with pure white containers and subtle error alert outline." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFsyzHir0UFMO1ab8gnIKxsS2otUhOZ4MYHk8aq82_FjKT5N_8t5CW_geHJqwlGHHwkRfyl51vBQbzce_OXH9vVLBugNlIJ3y5CitSM22rfDOudEfoUmHi4EvnTSf7TGP_oRQrGX-a09CfKhVtfxnqnnfbuVkWaX0jlxFf6lOgudoRgXbSENGpl_IPSkdDHzZIrnIyHsIMc8kPGCx105CDviEvNx92By6flO04ofmkAVBfquXa7x3LFs-cBwuqGRgpz5lNUegosjkz"/>
+<!-- Alert indicator overlaid on snapshot -->
+<div class="absolute inset-0 bg-error/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-[24px]">lock_reset</span>
+</div>
+<span class="absolute top-1 left-1 bg-error text-on-error font-badge-mono text-[8px] font-bold px-1 rounded">BLOCKED</span>
+<span class="absolute bottom-1 right-1 bg-inverse-surface/80 text-inverse-on-surface font-badge-mono text-[9px] px-1 py-0.2 rounded">14:32:15</span>
+</div>
+<div class="p-1.5 bg-surface-container-lowest">
+<p class="font-label-sm text-[10px] text-error font-bold truncate">3단계: 앱 추가 팝업</p>
+<p class="font-badge-mono text-[9px] text-error">2FA 인증 대기 중</p>
+</div>
+</article>
+</div>
+</section>
+<!-- 5. Scrollable Live Log Feed (실시간 단계 로그 리스트) -->
+<section aria-labelledby="live-logs-title" class="bg-surface-container-lowest rounded-xl border border-outline-variant/60 p-3 shadow-xs">
+<div class="flex items-center justify-between pb-2 mb-1 border-b border-surface-container-highest">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+<h2 class="font-label-md text-label-md font-bold text-on-surface" id="live-logs-title">실행 로그</h2>
+</div>
+<div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-error-container/60 text-error font-badge-mono text-[9px] font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+            LIVE
+          </div>
+</div>
+<!-- Log Rows List -->
+<div class="divide-y divide-surface-container-high font-code-body text-[11px]">
+<!-- Log 1: Success Click with small preview tag -->
+<div class="py-2 flex items-start justify-between gap-2">
+<div class="flex items-start gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[15px] text-secondary shrink-0 mt-0.5">check_circle</span>
+<div>
+<p class="text-on-surface leading-tight">
+<span class="text-on-surface font-medium">🖱 클릭 <strong class="font-semibold">'로그인'</strong> 성공</span>
+</p>
+<div class="flex items-center gap-1 mt-1">
+<span class="inline-flex items-center gap-0.5 font-badge-mono text-[9px] bg-surface-container text-on-surface-variant px-1 rounded border border-outline-variant/40">
+<span class="material-symbols-outlined text-[10px]">image</span> 스냅샷
+                  </span>
+<span class="font-badge-mono text-[9px] text-outline">selector: #identifierNext</span>
+</div>
+</div>
+</div>
+<span class="font-badge-mono text-[10px] text-outline shrink-0">14:31:50</span>
+</div>
+<!-- Log 2: Keyboard Input Done -->
+<div class="py-2 flex items-start justify-between gap-2">
+<div class="flex items-start gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[15px] text-secondary shrink-0 mt-0.5">check_circle</span>
+<div>
+<p class="text-on-surface leading-tight">
+<span>⌨️ 입력 <span class="bg-surface-container px-1 py-0.2 rounded font-badge-mono text-primary font-semibold">'app-id-7821'</span> 완료</span>
+</p>
+<span class="font-badge-mono text-[9px] text-outline">속도: 45ms/char</span>
+</div>
+</div>
+<span class="font-badge-mono text-[10px] text-outline shrink-0">14:32:05</span>
+</div>
+<!-- Log 3: DOM Warning & Retry -->
+<div class="py-2 flex items-start justify-between gap-2 bg-amber-50/50 -mx-3 px-3">
+<div class="flex items-start gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[15px] text-tertiary shrink-0 mt-0.5">warning</span>
+<div>
+<p class="text-tertiary leading-tight font-medium">
+                  DOM 대기 초과 후 재시도 <span class="font-badge-mono text-tertiary-container font-bold">(1/3)</span>
+</p>
+<span class="font-badge-mono text-[9px] text-outline">element: [aria-label="앱 추가"]</span>
+</div>
+</div>
+<span class="font-badge-mono text-[10px] text-outline shrink-0">14:32:10</span>
+</div>
+<!-- Log 4: Ongoing Action with Animation -->
+<div class="py-2 flex items-start justify-between gap-2">
+<div class="flex items-start gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[15px] text-primary shrink-0 mt-0.5 animate-spin">progress_activity</span>
+<div>
+<p class="text-primary font-medium leading-tight">
+                  🖱 클릭 <strong class="font-semibold">'앱 추가'</strong> 실행 중…
+                </p>
+<span class="font-badge-mono text-[9px] text-outline">waitForSelector: button.create-app</span>
+</div>
+</div>
+<span class="font-badge-mono text-[10px] text-primary shrink-0">14:32:22</span>
+</div>
+<!-- Log 5: Auth Dialog Blocked (Critical) -->
+<div class="py-2 flex items-start justify-between gap-2 bg-error-container/20 -mx-3 px-3">
+<div class="flex items-start gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[15px] text-error shrink-0 mt-0.5">lock</span>
+<div>
+<p class="text-error font-semibold leading-tight">
+                  2단계 인증 대화상자 감지됨 (사용자 개입 필요)
+                </p>
+<span class="font-badge-mono text-[9px] text-on-error-container">challenge_type: TOTP_OR_PUSH</span>
+</div>
+</div>
+<span class="font-badge-mono text-[10px] text-error shrink-0">14:32:25</span>
+</div>
+</div>
+</section>
+</main>
+<!-- 6. Bottom Fixed Chat/Instruction Input Dock (하단 고정 지시 입력창) -->
+<div class="fixed bottom-0 left-0 right-0 z-50 max-w-[480px] mx-auto bg-surface-container-lowest/98 backdrop-blur-md border-t border-outline-variant/60 shadow-[0_-8px_20px_rgba(24,28,35,0.06)] pb-[calc(env(safe-area-inset-bottom,8px)+6px)] pt-2.5 px-margin">
+<!-- Quick Action Macro Chips -->
+<div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-2">
+<button class="shrink-0 h-6 px-2.5 rounded-full border border-outline-variant/70 bg-surface-container-low text-on-surface hover:bg-surface-container font-label-sm text-[11px] font-medium flex items-center gap-1 active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[12px] text-outline">refresh</span>
+          새로고침
+        </button>
+<button class="shrink-0 h-6 px-2.5 rounded-full border border-outline-variant/70 bg-surface-container-low text-on-surface hover:bg-surface-container font-label-sm text-[11px] font-medium flex items-center gap-1 active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[12px] text-secondary">fast_forward</span>
+          로그인 건너뛰기
+        </button>
+<button class="shrink-0 h-6 px-2.5 rounded-full border border-outline-variant/70 bg-surface-container-low text-on-surface hover:bg-surface-container font-label-sm text-[11px] font-medium flex items-center gap-1 active:scale-95 transition-transform" type="button">
+<span class="material-symbols-outlined text-[12px] text-primary">screenshot</span>
+          스크린샷 다시 찍기
+        </button>
+</div>
+<!-- Instruction Input Row -->
+<form class="flex items-center gap-1.5" onsubmit="event.preventDefault();">
+<button aria-label="파일 또는 이미지 첨부" class="w-9 h-9 rounded-lg border border-outline-variant/60 text-outline hover:text-on-surface hover:bg-surface-container-high flex items-center justify-center shrink-0 active:scale-95 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">attach_file</span>
+</button>
+<div class="relative flex-1">
+<input class="w-full h-10 pl-3 pr-8 rounded-lg border border-outline-variant/80 bg-surface-container-lowest text-on-surface placeholder:text-outline-variant text-[13px] font-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-all" placeholder="지시 보내기… (예: 로그인 버튼 다시 눌러줘)" type="text"/>
+<button aria-label="음성 지시" class="absolute right-2 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface p-1 flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[16px]">mic</span>
+</button>
+</div>
+<button aria-label="지시 전송" class="w-10 h-10 rounded-lg bg-primary text-on-primary hover:bg-primary-container flex items-center justify-center shrink-0 active:scale-95 transition-all shadow-xs" type="submit">
+<span class="material-symbols-outlined text-[19px]">send</span>
+</button>
+</form>
+</div>
+</div>
+</body></html>

@@ -55,7 +55,6 @@ async def with_limit_retry(run: Run, label: str, fn):
             fallback = CONFIG["engine"]["limit_retry_minutes"] * 60
             wait = max(60.0, e.reset_at - time.time() + 60) if e.reset_at else fallback
             key = f"limit:{uuid.uuid4().hex[:8]}"
-            await run.emit("status", status="awaiting_user")
             await run.emit("awaiting_user", key=key, kind="limit", label=label, text=str(e),
                            retry_at=time.time() + wait)
             try:
@@ -63,7 +62,6 @@ async def with_limit_retry(run: Run, label: str, fn):
             except asyncio.TimeoutError:
                 run.waiters.pop(key, None)
                 await run.emit("user_reply", key=key, action="auto_retry", text="")
-            await run.emit("status", status="running")
             await run.emit("log", text=f"🔁 {label} 재시도")
 
 
@@ -318,8 +316,10 @@ def situation(run: Run) -> str:
         else:
             acc = "미확인"
         chrome = f"🌐 Chrome 로그인 계정: {acc} · 막힘: {sm['blocked'] or '없음'}\n"
+    sm_run = run.summary(); w = sm_run.get("wait")
+    wait = f" / 대기: {w['kind']} {w['label']}".rstrip() if w else ""
     return (f"프로젝트 폴더: {run.project}\n처음 아이디어: {run.idea[:1500]}\n첨부 파일: {files}\n"
-            f"상태: {run.status} / 진행 단계: {run.checkpoint.get('phase')}\n"
+            f"상태: {sm_run['status']}{wait} / 진행 단계: {run.checkpoint.get('phase')}\n"
             f"🌐 Chrome 사용: {'켜짐' if run.settings.get('browser') else '꺼짐 (웹 콘솔 작업을 요청받으면 켤 수 있음)'}\n"
             + chrome +
             f"작업 명세서 앞부분:\n{run.spec[:3000] or '(아직 없음)'}\n\n최근 진행 기록:\n" + "\n".join(lines))

@@ -461,3 +461,39 @@ def orphan_steps(events, now: float) -> list[dict]:
         return out
     except Exception:
         return []
+
+
+def progress(events) -> dict | None:
+    """기록 목록용 Chrome 진행 한 줄 — 마지막 result 이후 구간. 쓸 내용이 없으면 None. 예외는 None."""
+    try:
+        evs = [e for e in (events or []) if isinstance(e, dict)]
+        last_res = max((i for i, e in enumerate(evs) if e.get("type") == "result"), default=-1)
+        steps, last, shot_ts, blocked, account = 0, None, None, None, None
+        started: dict[str, dict] = {}            # step → 시작 cc (끝나면 제거)
+        for e in evs[last_res + 1:]:
+            t = e.get("type")
+            if t == "cc" and e.get("browser") and e.get("step"):
+                started[e["step"]] = e
+            elif t == "browser":
+                steps += 1
+                started.pop(e.get("step"), None)
+                last = {"text": str(e.get("text") or "")[:120], "status": e.get("status") or "", "ts": e.get("ts")}
+                if e.get("shot"):
+                    shot_ts = e.get("ts")
+                if e.get("status") == "ok" and e.get("write", True):
+                    blocked = None
+            elif t == "browser_account":
+                account = ({"email": e["email"], "ok": bool(e.get("allowed")) or e.get("gate") is False}
+                           if e.get("email") else None)
+            if t == "cc" and e.get("text"):
+                reason = blocked_reason(e["text"])
+                if reason:
+                    blocked = reason
+        cur = list(started.values())[-1] if started else None
+        current = {"text": str(cur.get("tool") or "")[:120], "ts": cur.get("ts")} if cur else None
+        if not (steps or current or account or blocked):
+            return None
+        return {"steps": steps, "current": current, "last": last, "shot_ts": shot_ts,
+                "blocked": blocked, "account": account}
+    except Exception:
+        return None

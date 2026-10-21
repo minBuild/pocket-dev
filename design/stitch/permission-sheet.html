@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - Permission Decision</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary": "#004ac6",
+            "primary-container": "#2563eb",
+            "background": "#f9f9ff",
+            "on-secondary-fixed": "#002114",
+            "surface-container-high": "#e5e8f3",
+            "outline-variant": "#c3c6d7",
+            "on-secondary-container": "#00714e",
+            "error": "#ba1a1a",
+            "surface": "#f9f9ff",
+            "on-secondary": "#ffffff",
+            "inverse-on-surface": "#eef0fc",
+            "surface-container": "#ebedf9",
+            "on-primary": "#ffffff",
+            "on-background": "#181c23",
+            "secondary-fixed": "#85f8c4",
+            "surface-bright": "#f9f9ff",
+            "on-tertiary": "#ffffff",
+            "inverse-primary": "#b4c5ff",
+            "inverse-surface": "#2c3039",
+            "surface-container-lowest": "#ffffff",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#ffdcc3",
+            "on-primary-fixed-variant": "#003ea8",
+            "on-primary-fixed": "#00174b",
+            "surface-container-highest": "#dfe2ed",
+            "on-primary-container": "#eeefff",
+            "surface-variant": "#dfe2ed",
+            "tertiary": "#824500",
+            "on-tertiary-container": "#ffede1",
+            "on-error-container": "#93000a",
+            "surface-tint": "#0053db",
+            "on-error": "#ffffff",
+            "secondary-fixed-dim": "#68dba9",
+            "surface-dim": "#d7dae5",
+            "secondary-container": "#82f5c1",
+            "on-surface": "#181c23",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "on-tertiary-fixed": "#2f1500",
+            "secondary": "#006c4a",
+            "on-secondary-fixed-variant": "#005137",
+            "tertiary-fixed-dim": "#ffb77d",
+            "primary-fixed-dim": "#b4c5ff",
+            "primary-fixed": "#dbe1ff",
+            "outline": "#737686",
+            "tertiary-container": "#a65900",
+            "on-surface-variant": "#434655",
+            "surface-container-low": "#f1f3ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "gutter": "1rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "label-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "badge-mono": ["\"JetBrains Mono, monospace\""],
+            "label-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "code-inline": ["\"JetBrains Mono, monospace\""],
+            "body-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "code-body": ["\"JetBrains Mono, monospace\""]
+          },
+          "fontSize": {
+            "label-md": ["13px", {"lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500"}],
+            "body-sm": ["13px", {"lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400"}],
+            "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400"}],
+            "badge-mono": ["10px", {"lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600"}],
+            "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600"}],
+            "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+            "headline-sm": ["16px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "code-inline": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+            "body-lg": ["15px", {"lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+            "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "code-body": ["12px", {"lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Pulsing status dots */
+    @keyframes pulse-amber {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .status-pulse-amber {
+      animation: pulse-amber 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body-md text-on-surface antialiased select-none flex justify-center min-h-screen">
+<!-- Mobile Viewport Wrapper (Max 480px) -->
+<div class="relative w-full max-w-[480px] min-h-screen bg-background overflow-hidden flex flex-col shadow-2xl">
+<!-- ================================================================= -->
+<!-- 1. DIMMED BACKGROUND: Remote Run Detail Canvas                     -->
+<!-- ================================================================= -->
+<div class="relative flex-1 flex flex-col pointer-events-none select-none filter blur-[1.5px] opacity-75">
+<!-- TopAppBar from Shared Spec -->
+<header class="bg-surface-container-lowest border-b border-outline-variant flat no shadows docked full-width top-0 sticky z-10">
+<div class="flex items-center justify-between px-margin w-full max-w-[480px] mx-auto h-12">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">terminal</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">Pocket-Dev</span>
+</div>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+</div>
+</header>
+<!-- Run Detail Canvas Content -->
+<main class="p-margin space-y-4">
+<!-- Target Task Header Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 shadow-sm">
+<div class="flex items-center justify-between border-b border-surface-container pb-2 mb-3">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="font-badge-mono text-badge-mono text-amber-700 font-semibold tracking-wide uppercase">PAUSED_WAITING_AUTH</span>
+</div>
+<span class="font-code-inline text-code-inline text-outline">run_id: #ad-88219</span>
+</div>
+<div class="space-y-1">
+<h1 class="font-headline-sm text-headline-sm text-on-surface font-bold">광고 단위 생성 /apps/admob/create</h1>
+<p class="font-code-inline text-code-inline text-outline">branch: feat/admob-sdk-v2 • commit 7b8da40</p>
+</div>
+<!-- Workflow Stepper -->
+<div class="grid grid-cols-4 gap-1.5 mt-4 pt-3 border-t border-surface-container-high text-center">
+<div class="flex flex-col items-center">
+<span class="font-badge-mono text-[9px] text-secondary font-bold">DONE</span>
+<span class="font-label-sm text-label-sm text-on-surface font-medium">기획</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-badge-mono text-[9px] text-secondary font-bold">DONE</span>
+<span class="font-label-sm text-label-sm text-on-surface font-medium">구현</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-badge-mono text-[9px] text-amber-600 font-bold">REVIEW</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold border-b-2 border-amber-500 pb-0.5">리뷰</span>
+</div>
+<div class="flex flex-col items-center opacity-40">
+<span class="font-badge-mono text-[9px] text-outline font-medium">PENDING</span>
+<span class="font-label-sm text-label-sm text-outline font-medium">커밋</span>
+</div>
+</div>
+</div>
+<!-- Automation Terminal Log Preview -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3.5 space-y-2">
+<div class="flex items-center justify-between text-on-surface-variant border-b border-surface-container pb-2">
+<span class="font-badge-mono text-badge-mono font-semibold">AUTOMATION_LOG (CDP Session)</span>
+<span class="font-code-inline text-code-inline">headless_chrome_v122</span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-3 font-code-body text-code-body space-y-1 text-on-surface-variant overflow-hidden">
+<p><span class="text-outline">14:32:15</span> [NAV] Goto https://apps.admob.com/v2/home</p>
+<p><span class="text-outline">14:32:18</span> [DOM] Attached to iframe#admob-canvas</p>
+<p class="text-amber-700 bg-amber-50 rounded px-1 -mx-1"><span class="text-outline">14:32:20</span> [INTERCEPT] Click target requires user elevation</p>
+</div>
+</div>
+<!-- Mini Snapshot in background -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-3">
+<div class="h-28 bg-surface-container rounded-lg flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-3xl">desktop_windows</span>
+</div>
+</div>
+</main>
+</div>
+<!-- ================================================================= -->
+<!-- DARK BACKDROP OVERLAY                                            -->
+<!-- ================================================================= -->
+<div class="absolute inset-0 bg-on-background/60 backdrop-blur-[2px] z-30 transition-opacity"></div>
+<!-- ================================================================= -->
+<!-- 2. INTERACTIVE PERMISSION DECISION BOTTOM SHEET                   -->
+<!-- ================================================================= -->
+<section aria-labelledby="modal-sheet-title" aria-modal="true" class="absolute bottom-0 left-0 right-0 z-40 bg-surface-container-lowest rounded-t-2xl border-t border-outline-variant/60 shadow-[0_-8px_30px_rgba(24,28,35,0.2)] max-w-[480px] mx-auto flex flex-col max-h-[813px] overflow-hidden" role="dialog">
+<!-- Drag Handle -->
+<div class="w-full flex justify-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing">
+<div class="w-10 h-1 bg-outline-variant rounded-full"></div>
+</div>
+<!-- Sheet Scrollable Area -->
+<div class="px-margin overflow-y-auto pt-1 pb-4 space-y-3.5 divide-y divide-surface-container">
+<!-- Header Row -->
+<div class="flex items-center justify-between pb-1">
+<div class="flex items-center gap-2">
+<div class="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 text-amber-800 border border-amber-200">
+<span class="material-symbols-outlined text-[18px]">lock_open</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight" id="modal-sheet-title">권한 결정 필요</h2>
+</div>
+</div>
+<button aria-label="닫기" class="w-7 h-7 rounded-lg flex items-center justify-center text-outline hover:bg-surface-container-high active:bg-surface-container-highest transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Target Action Card & Snapshot Thumbnail -->
+<div class="pt-3 space-y-2.5">
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-xl p-3">
+<div class="flex items-start justify-between gap-3">
+<div class="space-y-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]">touch_app</span>
+<span class="font-headline-sm text-[14px] font-bold text-on-surface">클릭 '앱 추가'</span>
+<span class="font-badge-mono text-[9px] bg-surface-container-highest text-on-surface-variant px-1.5 py-0.5 rounded font-semibold">HIGH_IMPACT</span>
+</div>
+<div class="flex items-center gap-1 font-code-inline text-[11px] text-outline">
+<span class="font-medium text-on-surface-variant">selector:</span>
+<code class="bg-surface-container-lowest px-1.5 py-0.5 rounded border border-outline-variant/50 font-badge-mono text-primary font-medium">button.create-app-cta</code>
+</div>
+</div>
+</div>
+<!-- Chrome Snapshot Card -->
+<div class="mt-2.5 border border-outline-variant/70 rounded-lg p-2 bg-surface-container-lowest flex items-center gap-2.5">
+<div class="relative w-16 h-12 bg-surface-container rounded-md overflow-hidden flex-shrink-0 border border-outline-variant/50 group">
+<img class="w-full h-full object-cover" data-alt="Clear modern technical UI screenshot of the Google AdMob dashboard interface showing an active 'Add App' primary button in a clean light mode layout with crisp typography and subtle developer telemetry overlays." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-iAUAq4EdYN3HphUWBzGjr1WDDiVyHzQXBLNNgQ2aZHs286U3VOmt4qJGSrc5fKSrxKw6IK4WYm-v4frB7TjDU_ckAIoTcJJkEDimOYtqtlliBfc_-VIuQ5eTqkSKnIkWK8prnXNxJ_17G-EFdTUvB9DKjO39CcWA_RB6oZf2G1GvN-p80LaZlFZsKrki24senR5Ct9ihT_mijaZ8Y1PhEZ7QzKh845HCr68p8P3rtxJwVPw-0PNdBxpn1rICNQAcLXa2152coiBR"/>
+<div class="absolute inset-0 bg-on-background/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-surface text-[14px]">zoom_in</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold truncate">AdMob 대시보드 스냅샷</span>
+<span class="font-badge-mono text-[10px] text-outline">14:32:20</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant truncate">앱 추가 버튼 및 네비게이션 트리거 감지됨</p>
+<div class="flex items-center gap-1 mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-code-inline text-[10px] text-secondary font-medium">Element verified: visible &amp; interactive</span>
+</div>
+</div>
+<button aria-label="스냅샷 확대" class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">open_in_full</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Multi AI Reviewer Split Votes Section -->
+<div class="pt-3 space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-tertiary-container text-[16px]">call_split</span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface">리뷰어 투표 분열 (Reviewer Split)</span>
+</div>
+<span class="font-badge-mono text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-semibold">2 APPROVE / 1 DENY</span>
+</div>
+<p class="font-body-sm text-[12px] text-on-surface-variant leading-snug">
+            AI 에이전트 간 의견이 분열되어 워크플로우 안전을 위해 수동 승인이 필요합니다.
+          </p>
+<!-- Reviewer Cards List -->
+<div class="space-y-1.5">
+<!-- Claude Vote Card -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-md bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center flex-shrink-0 font-badge-mono text-[10px] font-bold">
+                CL
+              </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-[12px] font-bold text-on-surface">Claude 3.7 Sonnet</span>
+<span class="font-badge-mono text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded-full">허용 (권장)</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">
+                  "기획 명세에 부합하는 통상적인 AdMob 앱 등록 플로우로 판별됨."
+                </p>
+</div>
+</div>
+<!-- Gemini Vote Card -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-md bg-blue-100 border border-blue-200 text-primary-container flex items-center justify-center flex-shrink-0 font-badge-mono text-[10px] font-bold">
+                GM
+              </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-[12px] font-bold text-on-surface">Gemini 2.5 Flash</span>
+<span class="font-badge-mono text-[10px] font-bold bg-error-container text-on-error-container border border-red-200 px-1.5 py-0.2 rounded-full">거부</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">
+                  "기존 허가 범위를 벗어난 추가 결제 프로필/권한 설정 접근 가능성 경고."
+                </p>
+</div>
+</div>
+<!-- Codex Vote Card -->
+<div class="bg-surface-container-low border border-outline-variant/60 rounded-lg p-2.5 flex items-start gap-2.5">
+<div class="w-6 h-6 rounded-md bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0 font-badge-mono text-[10px] font-bold">
+                CX
+              </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-[12px] font-bold text-on-surface">OpenAI Codex</span>
+<span class="font-badge-mono text-[10px] font-bold bg-emerald-50 text-secondary border border-emerald-200 px-1.5 py-0.2 rounded-full">허용</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mt-0.5 leading-tight">
+                  "자동화 스크립트 실행 제약 내 정상적인 상위 DOM 인터랙션 트리거."
+                </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Timeout Countdown Warning -->
+<div class="pt-3">
+<div class="bg-amber-50/70 border border-amber-200/80 rounded-lg p-2.5 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-amber-700 text-[18px]">schedule</span>
+<div>
+<span class="font-label-sm text-[11px] text-amber-900 font-semibold block">14:40까지 무응답 시 자동 거부</span>
+<span class="font-badge-mono text-[10px] text-amber-800">지연 방지를 위해 파이프라인이 자동 격리됩니다</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 bg-surface-container-lowest px-2 py-1 rounded border border-amber-200 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 status-pulse-amber"></span>
+<span class="font-badge-mono text-badge-mono text-amber-900 font-bold" id="timer-display">07:35</span>
+</div>
+</div>
+<!-- Subtle Progress bar -->
+<div class="w-full bg-surface-container-high h-1 rounded-full mt-1.5 overflow-hidden">
+<div class="bg-amber-500 h-full rounded-full transition-all duration-1000" style="width: 64%;"></div>
+</div>
+</div>
+<!-- Remember Decision Checkbox -->
+<div class="pt-3 flex items-center gap-2.5 cursor-pointer select-none">
+<input class="w-4 h-4 rounded text-primary focus:ring-primary border-outline-variant cursor-pointer" id="remember-decision" type="checkbox"/>
+<label class="font-body-sm text-[12px] text-on-surface font-medium cursor-pointer flex-1" for="remember-decision">
+            이 결정 기억하기 <span class="font-code-inline text-[10px] text-outline">(이 워크플로우 내 동일 셀렉터 액션 자동 적용)</span>
+</label>
+</div>
+</div>
+<!-- Bottom Action Dock (Dual Buttons) -->
+<footer class="p-margin pt-2 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-surface-container-lowest border-t border-surface-container-high flex items-center gap-2.5">
+<!-- Reject Button -->
+<button class="flex-1 h-11 px-4 rounded-lg bg-surface-container-lowest border border-error/50 text-error font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 active:bg-error-container/20 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">block</span>
+<span>거부</span>
+</button>
+<!-- Approve Button -->
+<button class="flex-1 h-11 px-4 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold flex items-center justify-center gap-1.5 active:bg-primary-container shadow-sm hover:brightness-105 transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>허용</span>
+</button>
+</footer>
+</section>
+</div>
+<script>
+    // Lightweight countdown micro-interaction
+    (function initTimer() {
+      let secondsRemaining = 7 * 60 + 35;
+      const display = document.getElementById('timer-display');
+      if (!display) return;
+      
+      setInterval(() => {
+        if (secondsRemaining <= 0) return;
+        secondsRemaining--;
+        const m = Math.floor(secondsRemaining / 60);
+        const s = secondsRemaining % 60;
+        display.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    })();
+  </script>
+</body></html>

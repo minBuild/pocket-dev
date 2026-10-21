@@ -2,6 +2,7 @@
 import asyncio
 import json
 import re
+import time
 import uuid
 from pathlib import Path
 
@@ -129,14 +130,16 @@ async def decide(run: Run, tool_name: str, tool_input: dict, tool_use_id: str | 
 
     # 의견이 갈림 → 사람에게
     key = f"perm:{req_id}"
+    timeout = ex.get("human_timeout_sec", 600)
     await run.emit("awaiting_user", key=key, kind="permission", tool=tool_name, input=tool_input,
-                   votes=votes, label=label)
+                   votes=votes, label=label, expires_at=time.time() + timeout)
     try:
-        answer = await asyncio.wait_for(run.wait_for(key), ex.get("human_timeout_sec", 600))
+        answer = await asyncio.wait_for(run.wait_for(key), timeout)
     except asyncio.TimeoutError:
         run.waiters.pop(key, None)
         return done(False, "사람 응답 시간 초과", "timeout", remember=False)
-    return done(bool(answer.get("allow")), answer.get("text") or "사용자 결정", "사용자")
+    return done(bool(answer.get("allow")), answer.get("text") or "사용자 결정",
+                answer.get("by", "사용자"), remember=answer.get("remember", True))
 
 
 async def report_account(run: Run, email: str) -> str:

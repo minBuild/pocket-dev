@@ -112,6 +112,20 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .run-item { display: block; flex: 1; min-width: 0; text-align: left; padding: 12px; }
 .run-del { flex: none; padding: 0 12px; }
 .run-del:not(:disabled):hover { color: var(--danger); border-color: var(--danger); }
+.run-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-item .status { display: inline-block; margin-bottom: 4px; }
+.run-chrome { font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-chrome.blocked { color: var(--danger); }
+.run-edit { flex: none; padding: 0 12px; }
+.runs-meta { font-size: 12px; margin-bottom: 8px; }
+.chat-action.done { font-weight: 600; }
+/* 대화명 바꾸기 (design/stitch/rename-dialog) */
+.rename-dialog { width: calc(100% - 32px); max-width: 420px; padding: 16px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card); color: var(--text); box-shadow: 0 -8px 24px rgba(29,33,41,.08); }
+.rename-dialog::backdrop { background: rgba(0,0,0,.4); }
+.rename-dialog label { display: block; margin-bottom: 4px; }
+.rename-dialog .rename-hint { margin: 6px 0 0; font-size: 12px; }
+.rename-dialog .actions { margin: 16px 0 0; }
 .older-bar { display: block; width: 100%; margin-bottom: 10px; font-size: 13px; color: var(--muted); background: transparent; border-style: dashed; }
 
 .engine-fix { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
@@ -134,7 +148,8 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .term-toggle.active { background: var(--text); color: var(--bg); border-color: var(--text); }
 #composerText.mono { font: 13px/1.4 ui-monospace, Consolas, monospace; }
 .status { font-size: 12px; padding: 1px 8px; border-radius: 99px; border: 1px solid var(--line); margin-right: 6px; }
-.status.awaiting_user { color: var(--claude); border-color: var(--claude); }
+.status.working { color: var(--accent); border-color: var(--accent); }
+.status.waiting { color: var(--claude); border-color: var(--claude); font-weight: 600; }
 .status.done { color: var(--ok); border-color: var(--ok); }
 .status.error, .status.cancelled { color: var(--danger); border-color: var(--danger); }
 

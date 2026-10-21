@@ -10,6 +10,50 @@ from typing import Any, Optional
 from . import browser
 from .config import RUNS_DIR
 
+FINAL = ("done", "error", "cancelled")
+MAX_OPEN_CHATS = 20
+FEEDBACK_DONE = "✏️ 기획안을 다시 썼어요 — 아래에서 승인/수정해 주세요"
+
+
+def display_status(status: str, waiter_keys) -> str:
+    """목록·snapshot 에 보일 상태 — 사람 결정 대기(plan·권한)면 waiting."""
+    if status in FINAL:
+        return status
+    return "waiting" if any(k == "plan" or str(k).startswith("perm:") for k in waiter_keys) else "working"
+
+
+def wait_info(pending: list[dict]) -> dict | None:
+    """대기 중 요청 → {kind: perm|plan|limit, label, until(epoch|None)}. 권한 > 기획안 > 한도 순."""
+    by = {}
+    for e in pending or []:
+        by[e.get("kind")] = e
+    if e := by.get("permission"):
+        return {"kind": "perm", "label": str(e.get("label") or e.get("tool") or "")[:120], "until": e.get("expires_at")}
+    if "plan" in by:
+        return {"kind": "plan", "label": "", "until": None}
+    if e := by.get("limit"):
+        return {"kind": "limit", "label": str(e.get("label") or "")[:120], "until": e.get("retry_at")}
+    return None
+
+
+def count_stat_files(diff: str) -> int:
+    """staged_diff 앞부분 --stat 의 파일 줄 수."""
+    return len(re.findall(r"^ (\S+)\s+\|", diff or "", re.M))
+
+
+def done_line(subject: str, files: int, title: str | None, push_failed: bool, chrome_ok: int) -> str:
+    """채팅 묶음 아래 완료 요약 1줄 (AI 없이, 결과 카드와 같은 사실만)."""
+    subject = (subject or "").strip()[:90]
+    if not subject:
+        s = "ℹ️ 코드 변경 없이 마쳤어요" + (f" · 🌐 Chrome 성공 {chrome_ok}단계" if chrome_ok else "")
+    elif title and title.startswith("⚠️"):
+        s = f"{title} — {subject} (자세히는 위 결과 카드)"
+    else:
+        s = f"✅ 완료 — {subject} · 파일 {files}개"
+    if subject and push_failed:
+        s += " · push 안 됨"
+    return s[:160]
+
 
 class Run:
     def __init__(self, project: str, idea: str, settings: dict, run_id: Optional[str] = None):
@@ -17,7 +61,9 @@ class Run:
         self.project = project
         self.idea = idea
         self.settings = settings
-        self.status = "running"      # running | awaiting_user | done | error | cancelled
+        self.status = "working"      # working | done | error | cancelled (waiting 은 summary 에서 계산)
+        self.title: str = ""         # 사용자가 바꾼 대화명 (비면 idea 로 표시)
+        self.open_chats: list[dict] = []  # 완료 요약을 붙일 채팅 {id, kind, quote, state: queued|taken}
         self.stage = "init"
         self.created = time.time()
         self.events: list[dict] = []          # delta 를 제외한 이벤트 기록
@@ -114,6 +160,7 @@ class Run:
     # ── 사람 응답 대기 ──
     def wait_for(self, key: str) -> asyncio.Future:
         fut = asyncio.get_running_loop().create_future()
+        fut.add_done_callback(lambda f, k=key: self.waiters.get(k) is f and self.waiters.pop(k, None))
         self.waiters[key] = fut
         return fut
 
@@ -124,17 +171,35 @@ class Run:
             return True
         return False
 
+    # ── 채팅 완료 요약 추적 (디스크에는 다음 emit/save 가 씀) ──
+    def track_chat(self, chat_id, kind: str, text: str, taken: bool) -> None:
+        if not chat_id:
+            return
+        self.open_chats = [c for c in self.open_chats if c["id"] != chat_id]
+        self.open_chats.append({"id": chat_id, "kind": kind, "quote": " ".join(str(text or "").split())[:60],
+                                "state": "taken" if taken else "queued"})
+        self.open_chats = self.open_chats[-MAX_OPEN_CHATS:]
+
+    def mark_chats_taken(self) -> None:
+        for c in self.open_chats:
+            c["state"] = "taken"
+
+    def pop_taken_chats(self, kinds: tuple[str, ...] | None = None) -> list[dict]:
+        out = [c for c in self.open_chats if c["state"] == "taken" and (kinds is None or c["kind"] in kinds)]
+        self.open_chats = [c for c in self.open_chats if c not in out]
+        return out
+
     # ── 저장 ──
     def summary(self) -> dict:
-        return {"id": self.id, "project": self.project, "idea": self.idea,
-                "status": self.status, "stage": self.stage, "created": self.created,
+        return {"id": self.id, "project": self.project, "idea": self.idea, "title": self.title,
+                "status": display_status(self.status, self.waiters), "stage": self.stage, "created": self.created,
                 "pending": list(self.waiters.keys()), "alive": self.alive,
-                "phase": self.checkpoint.get("phase")}
+                "phase": self.checkpoint.get("phase"), "wait": wait_info(self.pending_events())}
 
     def save(self) -> None:
-        data = {**self.summary(), "settings": self.settings, "events": self.events, "spec": self.spec,
-                "history": self.history, "checkpoint": self.checkpoint, "notes": self.notes,
-                "attachments": self.attachments}
+        data = {**self.summary(), "status": self.status, "settings": self.settings, "events": self.events,
+                "spec": self.spec, "history": self.history, "checkpoint": self.checkpoint, "notes": self.notes,
+                "attachments": self.attachments, "open_chats": self.open_chats}
         (RUNS_DIR / f"{self.id}.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
 
 
@@ -216,6 +281,7 @@ def load_saved_runs() -> None:
         r = Run(d["project"], d["idea"], d.get("settings", {}), run_id=d["id"])
         r.events, r.stage, r.created, r.spec = d["events"], d["stage"], d["created"], d.get("spec", "")
         r.history, r.notes, r.attachments = d.get("history", []), d.get("notes", []), d.get("attachments", [])
+        r.title, r.open_chats = str(d.get("title") or ""), d.get("open_chats") or []
         orphans = browser.orphan_steps(r.events, time.time())  # 끝 이벤트 없이 끊긴 Chrome 단계 → ⏹
         if orphans:
             r.events.extend(orphans)

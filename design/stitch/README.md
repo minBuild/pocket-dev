@@ -103,3 +103,67 @@ Stitch 결과물에는 명세에 없는 장식이 섞여 있다(예: "실시간 
   - `.msg.result`는 투명 바탕 + 점선 테두리.
   - `.thread`는 왼쪽 2px `--line`, 안쪽 여백 8px, 아래 간격 10px.
   - `.chat-action`, `.bstep.account`는 글자색 `--text`.
+
+
+---
+
+# 추가 시안 — Chrome 진행 기록 목록 · waiting/working · 대화명 · 채팅 완료 요약 (TASK_SPEC.md 이번 명세)
+
+- Stitch 프로젝트: **pocket-dev** (`projects/12386522897964061406`)
+- 디자인 시스템: **Pocket-Dev Console** (`assets/5bcbb4428fc94ac683533e0a435d151c`)
+- 기기: MOBILE (모바일 웹, 한국어 UI)
+- 대상 명세: `TASK_SPEC.md` (Chrome 진행 표시 · 기록 화면 waiting/working · 대화명 · 새로고침 · 채팅 완료 요약)
+
+## 화면 목록
+
+| slug | 화면 | 역할 |
+|---|---|---|
+| `run-history` | 기록 목록 | 상태 pill(working/waiting/done/error), 대기 라벨(🔐 권한·📋 기획안), 🌐 Chrome 한 줄, ✏️/🗑, "마지막 갱신" 메타 |
+| `run-detail-chrome` | 작업 화면 (Chrome 진행) | 단계 스테퍼, 🌐 Chrome 칩(단계 수·동작·계정·🔒 막힘), 스크린샷 스트립, 단계 로그, 지시 입력 도크 |
+| `permission-sheet` | 권한 결정 바텀시트 | 클릭 대상 라벨, 최근 화면 첨부, 심사 의견 분열, 자동 거부 시각, 허용/거부 |
+| `chat-summary` | 채팅 완료 요약 | 「quote」 → ✅ 완료 줄, ✏️ 기획안 재작성 안내, ⚠️ 결과 카드 |
+| `chrome-screenshot-viewer` | Chrome 스크린샷 오버레이 (전체 화면 뷰어) | 다크 전체 화면 뷰어, 캡션, 썸네일 스트립, "텍스트로만" 대체 안내 |
+| `rename-dialog` | 대화명 바꾸기 | 입력 모달, "비우면 처음 아이디어로 표시돼요", 목록 새로고침 실패 ⚠️ 줄 |
+
+참고: Stitch가 일부 화면에 명세에 없는 장식 요소(하단 내비게이션, 빠른 응답 칩, 음성/첨부 아이콘, 글자 수 카운터 등)를 넣었다. 구현할 때는 TASK_SPEC.md와 기존 앱 구조를 우선한다.
+
+## 디자인 토큰
+
+기존 `web/style.css`의 변수와 같은 값을 쓴다.
+
+### 색 (라이트)
+| 토큰 | 값 | 용도 |
+|---|---|---|
+| bg | `#f6f7f9` | 앱 배경 |
+| card | `#ffffff` | 카드·시트 |
+| text | `#1d2129` | 본문 |
+| muted | `#6b7280` | 보조 글 |
+| line | `#e5e7eb` | 1px 테두리 |
+| accent | `#2563eb` | 링크·주 버튼·`working` |
+| danger | `#dc2626` | 오류·거부·🔒 막힘 (tint `#fef2f2`, border `#fecaca`) |
+| ok | `#059669` | 완료 (tint `#ecfdf5`) |
+| claude / waiting | `#d97706` | `waiting` 굵은 테두리 (tint `#fffbeb`) |
+
+다크 모드: bg `#0f1115`, card `#181b21`, text `#e6e8eb`, muted `#9aa1ab`, line `#2a2f37`, accent `#60a5fa`, danger `#f87171`, ok `#34d399`, claude `#f59e0b`.
+
+### 글꼴
+- 본문: Inter, Pretendard, -apple-system, sans-serif — 14px/20px (body-md), 보조 13px/18px
+- 제목: 16px/600 (headline-sm), 화면 제목 20px/600
+- 배지·코드·시각: JetBrains Mono — 10–12px, weight 500–600
+- 기록 행 제목·Chrome 줄은 한 줄 말줄임 (`text-overflow: ellipsis`), Chrome 줄 12px
+
+### 간격·모양
+- 8px 기준 격자, 화면 가장자리 16px, 카드 내부 16px, 요소 사이 8px
+- 최대 폭 480px, 가운데 정렬
+- 카드 12px 반경 · 버튼/입력 8px · 배지/칩 9999px
+- 탭 최소 40px (아이콘 버튼 36px)
+- 깊이: 카드는 테두리만, 바텀시트/모달은 `0 -8px 24px rgba(29,33,41,.08)`
+
+### 상태 pill
+| 상태 | 스타일 |
+|---|---|
+| working | 파랑 테두리·글자 (`#2563eb`) |
+| waiting | 앰버 굵은 테두리·글자 (`#d97706`), weight 600 |
+| done | 초록 (`#059669`) |
+| error | 빨강 (`#dc2626`) |
+| cancelled | 회색 (muted) |

@@ -428,15 +428,33 @@ async def start_run(req: StartReq):
     return run.summary()
 
 
+def _row(r: Run) -> dict:
+    """기록 목록 한 줄 — Chrome 진행은 목록에서만 계산."""
+    return {**r.summary(), "chrome": browser.progress(r.events) if browser.enabled(r.settings) else None}
+
+
 @app.get("/api/runs")
 async def list_runs():
-    return sorted((r.summary() for r in RUNS.values()), key=lambda r: -r["created"])
+    return sorted((_row(r) for r in RUNS.values()), key=lambda r: -r["created"])
 
 
 def _run(run_id: str) -> Run:
     if run_id not in RUNS:
         raise HTTPException(404, "run not found")
     return RUNS[run_id]
+
+
+class TitleReq(BaseModel):
+    title: str = ""
+
+
+@app.patch("/api/runs/{run_id}")
+async def rename_run(run_id: str, req: TitleReq):
+    """기록 대화명 변경 — 빈 값이면 처음 아이디어로 표시."""
+    run = _run(run_id)
+    run.title = re.sub(r"\s+", " ", req.title or "").strip()[:100]
+    run.save()
+    return _row(run)
 
 
 PAGE_EVENTS = 200  # 대화창에 한 번에 보내는 이벤트 수 (나머지는 위로 스크롤할 때)
@@ -495,11 +513,14 @@ class ReplyReq(BaseModel):
 async def reply(run_id: str, req: ReplyReq):
     run = _run(run_id)
     value = {"action": req.action, "text": req.text, "allow": req.action in ("allow", "approve")}
+    if req.key not in run.waiters:
+        raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
+    chat_id = uuid.uuid4().hex[:10] if req.key == "plan" and req.text.strip() else None
+    if chat_id and req.action in ("approve", "feedback"):
+        run.track_chat(chat_id, req.action, req.text, True)
     if not run.resolve(req.key, value):
         raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
-    chat_id = None
-    if req.key == "plan" and req.text.strip():
-        chat_id = uuid.uuid4().hex[:10]
+    if chat_id:
         await run.emit("user", text=req.text.strip(), chat_id=chat_id)
     await run.emit("user_reply", key=req.key, action=req.action, text=req.text)
     if req.key == "plan" and req.action in _PLAN_ACTIONS:
@@ -529,7 +550,7 @@ def _models_view(run: Run) -> dict:
     return {"participants": [pick(p) for p in s["participants"]], "synthesizer": pick(s["synthesizer"]),
             "reviewers": [pick(r) for r in s["reviewers"]],
             "permission_reviewers": [pick(r) for r in s["permission_reviewers"]],
-            "executor_model": s["executor_model"], "browser": bool(s.get("browser")), "status": run.status}
+            "executor_model": s["executor_model"], "browser": bool(s.get("browser")), "status": run.summary()["status"]}
 
 
 @app.get("/api/runs/{run_id}/models")
@@ -591,7 +612,7 @@ async def set_models(run_id: str, req: ModelsReq):
     if req.browser is not None and req.browser != bool(s.get("browser")):
         changes.append("🌐 Chrome 사용 " + ("켬" if req.browser else "끔"))
         s["browser"] = req.browser
-    restart = bool(changes) and req.apply_now and run.status == "running"
+    restart = bool(changes) and req.apply_now and run.summary()["status"] == "working"
     if changes:
         await run.emit("log", text="⚙️ 모델 변경 — " + " · ".join(changes)
                        + (" (지금 단계부터 새 모델로 다시 시작)" if restart else " (다음 AI 호출부터 적용)"))
@@ -644,6 +665,7 @@ async def run_message(run_id: str, req: MessageReq):
             await run.emit("chat_action", **_rt(chat_id), action="resume",
                            text="ℹ️ 이미 끝난 작업이에요 — 추가로 바꿀 내용을 적어 주세요")
             raise HTTPException(400, "이미 끝난 작업이에요. 추가로 바꿀 내용을 적어 주세요")
+        run.track_chat(chat_id, "resume", req.text, True)
         await run.emit("chat_action", **_rt(chat_id), action="resume", text="▶ 멈춘 단계부터 이어서 진행해요")
         pipeline.start(run, PORT)
         return {"mode": "resumed"}

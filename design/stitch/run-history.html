@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - 기록</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-container": "#a65900",
+            "error": "#ba1a1a",
+            "on-tertiary-fixed": "#2f1500",
+            "tertiary": "#824500",
+            "surface-container-high": "#e5e8f3",
+            "inverse-primary": "#b4c5ff",
+            "on-surface": "#181c23",
+            "on-background": "#181c23",
+            "secondary-fixed-dim": "#68dba9",
+            "inverse-on-surface": "#eef0fc",
+            "secondary-container": "#82f5c1",
+            "tertiary-fixed-dim": "#ffb77d",
+            "inverse-surface": "#2c3039",
+            "on-primary-fixed-variant": "#003ea8",
+            "surface-dim": "#d7dae5",
+            "on-secondary-fixed-variant": "#005137",
+            "surface-bright": "#f9f9ff",
+            "background": "#f9f9ff",
+            "primary-fixed": "#dbe1ff",
+            "surface-container-highest": "#dfe2ed",
+            "outline": "#737686",
+            "outline-variant": "#c3c6d7",
+            "surface": "#f9f9ff",
+            "on-primary-fixed": "#00174b",
+            "on-primary-container": "#eeefff",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "surface-container": "#ebedf9",
+            "primary": "#004ac6",
+            "on-error": "#ffffff",
+            "on-tertiary-container": "#ffede1",
+            "on-secondary-container": "#00714e",
+            "secondary": "#006c4a",
+            "on-secondary-fixed": "#002114",
+            "on-tertiary": "#ffffff",
+            "primary-container": "#2563eb",
+            "error-container": "#ffdad6",
+            "on-surface-variant": "#434655",
+            "on-error-container": "#93000a",
+            "surface-tint": "#0053db",
+            "on-secondary": "#ffffff",
+            "surface-variant": "#dfe2ed",
+            "tertiary-fixed": "#ffdcc3",
+            "on-primary": "#ffffff",
+            "primary-fixed-dim": "#b4c5ff",
+            "surface-container-low": "#f1f3ff",
+            "surface-container-lowest": "#ffffff",
+            "secondary-fixed": "#85f8c4"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "code-inline": ["\"JetBrains Mono, monospace\""],
+            "label-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "code-body": ["\"JetBrains Mono, monospace\""],
+            "headline-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "label-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-md": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "headline-sm": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "body-lg": ["\"Inter, Pretendard, -apple-system, sans-serif\""],
+            "badge-mono": ["\"JetBrains Mono, monospace\""]
+          },
+          "fontSize": {
+            "code-inline": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "code-body": ["12px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "badge-mono": ["10px", { "lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #f6f7f9;
+      color: #181c23;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .material-symbols-outlined {
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+<!-- Main Viewport Enclosure (Strict 480px Max Mobile Canvas) -->
+<div class="w-full max-w-[480px] mx-auto min-h-screen bg-[#f6f7f9] flex flex-col relative shadow-[0_0_30px_rgba(0,0,0,0.03)] pb-20">
+<!-- Top Bar Component (docked full-width top-0 sticky) -->
+<header class="bg-surface-container-lowest sticky top-0 z-40">
+<div class="flex items-center justify-between px-margin w-full max-w-[480px] mx-auto h-12">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">Pocket-Dev</span>
+<span class="font-badge-mono text-badge-mono px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-container font-semibold">v1.4</span>
+</div>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-colors active:scale-95" id="reload-btn" title="새로고침">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+</div>
+<!-- Top Tab Navigation Segment -->
+<nav class="flex px-margin gap-6">
+<button class="py-2.5 text-on-surface-variant font-label-md text-label-md font-medium transition-colors hover:text-primary">
+          새 작업
+        </button>
+<button class="py-2.5 text-primary border-b-2 border-primary font-label-md text-label-md font-semibold flex items-center gap-1">
+<span>기록</span>
+<span class="material-symbols-outlined text-[15px]" data-icon="refresh">refresh</span>
+</button>
+<button class="py-2.5 text-on-surface-variant font-label-md text-label-md font-medium transition-colors hover:text-primary">
+          설정
+        </button>
+</nav>
+<!-- Sub-header Meta Status Line -->
+<div class="px-margin py-2 bg-[#f8fafc] flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-[#059669]"></span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">원격 데몬 연결됨</span>
+</div>
+<div class="flex items-center gap-1 font-badge-mono text-badge-mono text-[#6b7280]">
+<span class="material-symbols-outlined text-[12px]" data-icon="schedule">schedule</span>
+<span>마지막 갱신 14:32</span>
+</div>
+</div>
+</header>
+<!-- Run Cards Content Canvas -->
+<main class="flex-1 px-margin pt-4 pb-6 space-y-3">
+<!-- Card 1: Working State (로그인 필요 막힘) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-all">
+<!-- Top Row: Status pill & Actions -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#eff6ff] text-[#2563eb]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#2563eb] animate-pulse"></span>
+<span class="font-badge-mono text-badge-mono font-semibold">실행 중</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#181c23] hover:bg-[#f1f3f5] transition-colors" title="수정">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors" title="삭제">
+<span class="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Title -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-[#1d2129] truncate mb-1">
+          OAuth2 구글 로그인 연동 및 세션 콜백 핸들러 구현
+        </h2>
+<!-- Meta Line -->
+<div class="flex items-center gap-1.5 font-code-inline text-code-inline text-[#6b7280] mb-3">
+<span>오늘 14:30</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">/src/auth</span>
+<span>·</span>
+<span class="text-primary-container font-semibold">12/18단계</span>
+</div>
+<!-- Red Alert Sub-box: Blocked State -->
+<div class="bg-[#fef2f2] rounded-lg p-2.5 flex flex-col gap-2">
+<div class="flex items-center justify-between text-[#dc2626]">
+<div class="flex items-center gap-1.5 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px]" data-icon="language">language</span>
+<span class="font-code-body text-code-body font-semibold">Chrome 12단계</span>
+<span class="text-[#fca5a5]">·</span>
+<span class="flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]" data-icon="lock">lock</span>
+<span class="font-semibold">막힘: 로그인 필요</span>
+</span>
+</div>
+<span class="font-badge-mono text-badge-mono opacity-80">📷 2분 전</span>
+</div>
+<div class="flex items-center justify-end gap-2 pt-1">
+<button class="px-2.5 py-1 text-xs font-medium text-[#dc2626] bg-white rounded-md transition-colors hover:bg-red-50 flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="visibility">visibility</span>
+              스냅샷 보기
+            </button>
+<button class="px-3 py-1 text-xs font-semibold text-white bg-[#dc2626] rounded-md transition-colors hover:bg-[#b91c1c] active:scale-95 shadow-sm">
+              해결하기
+            </button>
+</div>
+</div>
+</div>
+<!-- Card 2: Waiting State (권한 결정 카운트다운) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-all">
+<!-- Top Row -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#fffbeb] text-[#d97706]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#d97706]"></span>
+<span class="font-badge-mono text-badge-mono font-semibold">대기 중</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#181c23] hover:bg-[#f1f3f5] transition-colors" title="수정">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors" title="삭제">
+<span class="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Title -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-[#1d2129] truncate mb-1">
+          Github App 웹훅 이벤트 핸들러 추가 및 배포 스크립트 작성
+        </h2>
+<!-- Meta Line -->
+<div class="flex items-center gap-1.5 font-code-inline text-code-inline text-[#6b7280] mb-3">
+<span>오늘 14:15</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">/infra/ci-cd</span>
+<span>·</span>
+<span class="text-[#d97706] font-semibold">5/8단계</span>
+</div>
+<!-- Amber Attention Line & Browser indicator -->
+<div class="space-y-1.5">
+<div class="bg-[#fffbeb] rounded-lg p-2.5 text-[#b45309] text-xs">
+<div class="flex items-center gap-1.5 mb-1 font-semibold">
+<span class="material-symbols-outlined text-[14px]" data-icon="vpn_key">vpn_key</span>
+<span>권한 결정 필요 · 🖱 클릭 '앱 추가'</span>
+</div>
+<div class="flex items-center justify-between text-[#d97706] pt-0.5">
+<span class="font-badge-mono text-badge-mono flex items-center gap-1 text-[#b45309]">
+<span class="material-symbols-outlined text-[12px] animate-spin" data-icon="timer">timer</span>
+                14:40까지 (지나면 자동 거부)
+              </span>
+<button class="px-2.5 py-0.5 bg-[#d97706] text-white font-medium rounded text-[11px] hover:bg-[#b45309]">
+                승인
+              </button>
+</div>
+</div>
+<div class="px-2.5 py-1.5 bg-[#f8fafc] rounded-md flex items-center justify-between text-xs text-[#6b7280]">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[13px]" data-icon="language">language</span>
+<span class="font-code-body text-code-body">Chrome 5단계</span>
+</div>
+<div class="flex items-center gap-1 font-code-inline text-code-inline text-[#434655]">
+<span class="material-symbols-outlined text-[13px] text-[#d97706]" data-icon="hourglass_top">hourglass_top</span>
+<span>🖱 클릭 대기</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Card 3: Waiting State (기획안 승인 대기) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-all">
+<!-- Top Row -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#fffbeb] text-[#d97706]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#d97706]"></span>
+<span class="font-badge-mono text-badge-mono font-semibold">대기 중</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#181c23] hover:bg-[#f1f3f5] transition-colors" title="수정">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors" title="삭제">
+<span class="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Title -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-[#1d2129] truncate mb-1">
+          결제 모듈 신규 PG사(토스페이먼츠) 연동 API 스펙 정의
+        </h2>
+<!-- Meta Line -->
+<div class="flex items-center gap-1.5 font-code-inline text-code-inline text-[#6b7280] mb-2.5">
+<span>오늘 13:50</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">/docs/billing</span>
+<span>·</span>
+<span class="text-[#d97706] font-semibold">2/4단계</span>
+</div>
+<!-- Waiting Sub-line Badge -->
+<div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#f8fafc] rounded-md text-xs text-[#434655]">
+<span class="material-symbols-outlined text-[14px] text-[#6b7280]" data-icon="description">description</span>
+<span class="font-medium">📋 기획안 승인 대기</span>
+<span class="font-badge-mono text-badge-mono text-[#6b7280] ml-auto">PO 리뷰 중</span>
+</div>
+</div>
+<!-- Card 4: Done State (성공적 완료) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-all">
+<!-- Top Row -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ecfdf5] text-[#059669]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#059669]"></span>
+<span class="font-badge-mono text-badge-mono font-semibold">완료</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#181c23] hover:bg-[#f1f3f5] transition-colors" title="수정">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors" title="삭제">
+<span class="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Title -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-[#1d2129] truncate mb-1">
+          마이페이지 프로필 이미지 업로드 S3 Presigned URL 캐싱 버그 수정
+        </h2>
+<!-- Meta Line -->
+<div class="flex items-center justify-between font-code-inline text-code-inline text-[#6b7280]">
+<div class="flex items-center gap-1.5">
+<span>오늘 12:40</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">/api/users</span>
+</div>
+<span class="text-[#059669] font-semibold bg-[#ecfdf5] px-2 py-0.5 rounded">완료 (4/4단계)</span>
+</div>
+</div>
+<!-- Card 5: Error State (마이그레이션 실패) -->
+<div class="bg-surface-container-lowest rounded-xl p-4 transition-all">
+<!-- Top Row -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#fef2f2] text-[#dc2626]">
+<span class="w-1.5 h-1.5 rounded-full bg-[#dc2626]"></span>
+<span class="font-badge-mono text-badge-mono font-semibold">오류</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#181c23] hover:bg-[#f1f3f5] transition-colors" title="수정">
+<span class="material-symbols-outlined text-[16px]" data-icon="edit">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-[#6b7280] hover:text-[#dc2626] hover:bg-[#fef2f2] transition-colors" title="삭제">
+<span class="material-symbols-outlined text-[16px]" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<!-- Title -->
+<h2 class="font-headline-sm text-headline-sm font-semibold text-[#1d2129] truncate mb-1">
+          데이터베이스 마이그레이션 v2.4 실행 및 외래키 제약조건 동기화
+        </h2>
+<!-- Meta Line -->
+<div class="flex items-center gap-1.5 font-code-inline text-code-inline text-[#6b7280] mb-2.5">
+<span>어제 18:20</span>
+<span>·</span>
+<span class="text-on-surface-variant font-medium">/prisma/migrations</span>
+<span>·</span>
+<span class="text-[#dc2626] font-semibold">실패 (3/6단계)</span>
+</div>
+<!-- Error Trace Hint Sub-box -->
+<div class="bg-[#fef2f2] rounded-lg p-2.5 text-xs text-[#b91c1c] font-code-body flex items-start gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-[#dc2626] mt-0.5 shrink-0" data-icon="error">error</span>
+<div class="truncate leading-tight">
+<span class="font-bold">오류: ForeignKeyConstraintError</span>
+<p class="text-[11px] text-[#dc2626] truncate mt-0.5">(테이블 'users' 참조 무결성 위배)</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar (Docked Mobile Shell) -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center h-14 max-w-[480px] mx-auto px-margin pb-[env(safe-area-inset-bottom)] bg-surface-container-lowest">
+<!-- 새 작업 Tab -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
+<span class="font-label-sm text-label-sm mt-0.5 font-normal">새 작업</span>
+</button>
+<!-- 기록 Tab (ACTIVE) -->
+<button class="flex flex-col items-center justify-center text-primary py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="history" data-weight="fill" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="font-label-sm text-label-sm mt-0.5 font-bold">기록</span>
+</button>
+<!-- 설정 Tab -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant py-1 px-3 hover:text-primary transition-colors duration-150 active:scale-95">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm mt-0.5 font-normal">설정</span>
+</button>
+</nav>
+</div>
+<!-- Interactive feedback script -->
+<script>
+    document.getElementById('reload-btn')?.addEventListener('click', function() {
+      const icon = this.querySelector('.material-symbols-outlined');
+      if (icon) {
+        icon.classList.add('animate-spin');
+        setTimeout(() => {
+          icon.classList.remove('animate-spin');
+        }, 600);
+      }
+    });
+  </script>
+</body></html>
