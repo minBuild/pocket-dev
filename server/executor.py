@@ -195,6 +195,8 @@ async def _relay_browser(run: Run, relay: _Relay, step_id: str, info: dict, bloc
     no_image = info["action"] == "screenshot" and status == "ok" and not images
     fields = {"step": step_id, "text": info["text"], "tool": browser.short(info["name"]), "status": status,
               "write": bool(info.get("write", True))}
+    if info.get("note"):
+        fields["note"] = info["note"]
     if shot_url:
         fields["shot"] = shot_url
     if no_image:
@@ -281,10 +283,11 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
                     relay.warned = True
                     await run.emit("log", text=f"⚠️ Chrome 화면 중계 오류(구현은 계속): {e!s:.200}")
                 await run.emit("browser", step=step_id, text=info["text"], tool=browser.short(info["name"]),
-                               status="error")
+                               status="error", **({"note": info["note"]} if info.get("note") else {}))
 
     async def read_stdout():
         nonlocal result
+        note = ""  # Chrome 동작 바로 앞 AI 문장 한 줄 → 그 단계의 의도 (다음 tool_use 가 나오면 비움)
         async for raw in proc.stdout:
             line = raw.decode("utf-8", "replace").strip()
             if not line:
@@ -300,18 +303,26 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
                     if block.get("type") == "text" and block.get("text", "").strip():
                         await run.emit("cc", text=block["text"][:4000])
                         run.last_text = block["text"][-300:]  # 권한 심사 참고용 (근거 아님)
+                        if use_chrome:
+                            note = browser.note_of(block["text"])
                     elif block.get("type") == "tool_use":
+                        todo = browser.todo_of(block) if use_chrome else None
                         try:
-                            d = browser.describe(block) if use_chrome else None
+                            d = browser.describe(block) if use_chrome and not todo else None
                         except Exception:
                             d = None
-                        if d and block.get("id"):
+                        if todo:  # cc "TodoWrite" 줄 대신 할 일 진행 줄
+                            await run.emit("todo", **todo)
+                        elif d and block.get("id"):
                             pending[block["id"]] = {**d, "name": block["name"],
                                                     "write": browser.is_write(block["name"], block.get("input")),
-                                                    "scope": run.chrome_scope}  # 이 시점의 범위 (E2a)
-                            await run.emit("cc", tool=d["text"], step=block["id"], browser=True)
+                                                    "scope": run.chrome_scope,  # 이 시점의 범위 (E2a)
+                                                    "note": note}
+                            await run.emit("cc", tool=d["text"], step=block["id"], browser=True,
+                                           **({"note": note} if note else {}))
                         else:
                             await run.emit("cc", tool=tool_summary(block, run.project))
+                        note = ""  # 문장 하나는 단계 하나에만
             elif t == "user" and pending:  # Chrome 도구 결과 → 단계 끝 줄 (+ 스크린샷)
                 try:
                     content = (ev.get("message") or {}).get("content")
@@ -334,7 +345,7 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
         for step_id, info in list(pending.items()):
             with contextlib.suppress(Exception):
                 await run.emit("browser", step=step_id, text=info["text"], tool=browser.short(info["name"]),
-                               status="stopped")
+                               status="stopped", **({"note": info["note"]} if info.get("note") else {}))
         pending.clear()
     stderr =(await stderr_task).decode("utf-8", "replace")
     if not result:

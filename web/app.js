@@ -325,14 +325,23 @@ function handle(ev, mode = "live") {
     case "log": line("log", ev.text); break;
     case "cc": {
       if (ev.step) {   // Chrome 단계 시작 — 끝 이벤트가 먼저 그려졌으면(이전 대화 경계) 건너뜀
-        if (!steps.has(ev.step)) steps.set(ev.step, line("cc tool bstep running", "⏳ " + ev.tool));
-        if (!older) { chrome.current = { step: ev.step, text: ev.tool, ts: ev.ts }; renderChip(); }
+        if (!steps.has(ev.step)) {
+          const el = line("cc tool bstep running", "⏳ " + ev.tool);
+          if (ev.note) { const s = document.createElement("span"); s.className = "muted"; s.textContent = " · 💬 " + ev.note; el.append(s); }
+          steps.set(ev.step, el);
+        }
+        if (!older) { chrome.current = { step: ev.step, text: ev.tool, ts: ev.ts, note: ev.note || "" }; renderChip(); }
       } else line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text);
       const i = (ev.text || "").indexOf(BLOCK_MARK);
       if (i >= 0 && !older) {
         chrome.blocked = ev.text.slice(i + BLOCK_MARK.length).split("\n")[0].trim().slice(0, 200) || "이유 없음";
         renderChip();
       }
+      break;
+    }
+    case "todo": {   // 구현 AI 의 할 일 목록 (TodoWrite) — 이 이벤트만으로 줄을 그릴 수 있음
+      line("cc tool todo", todoText(ev));
+      if (!older) { chrome.todo = ev; renderChip(); if (!$("#browserOverlay").hidden) renderOverlayTodo(); }
       break;
     }
     case "browser": {   // Chrome 단계 끝 — 이 이벤트만으로 줄을 그릴 수 있음
@@ -484,12 +493,16 @@ let shots = [];               // {url, ts, text}
 let chrome = null;
 const BSTAT = { ok: "✅", denied: "⛔", error: "⚠️", stopped: "⏹" };
 const BLOCK_MARK = "[CHROME-BLOCKED]";
+const TODO_ICON = { completed: "✅", in_progress: "▶", pending: "○" };
+const todoText = t => `📋 할 일 ${t.done}/${t.total}` + (t.current ? ` · ▶ ${t.current}` : t.done === t.total ? " · 모두 완료" : "");
 
 function resetChrome() {
   steps.clear(); shots = [];
   chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [],
-             account: null, gate: true, current: null };
+             account: null, gate: true, current: null, todo: null };
   $(".bc-thumb", $("#browserChip"))?.remove();
+  const todoBox = $("#browserOverlay .bo-todo");
+  if (todoBox) { todoBox.textContent = ""; todoBox.hidden = true; }
   $("#browserChip").hidden = true; $("#browserOverlay").hidden = true;
 }
 resetChrome();
@@ -512,6 +525,7 @@ function fillStep(el, ev) {
   el.className = `cc tool bstep ${ev.status || ""}`;
   el.textContent = `${BSTAT[ev.status] || ""} ${ev.text || ""}`;
   const muted = text => { const s = document.createElement("span"); s.className = "muted"; s.textContent = text; el.append(s); };
+  if (ev.note) muted(" · 💬 " + ev.note);
   if (ev.result) muted(" — " + ev.result);
   if (ev.no_image) muted(" (화면 이미지 없음 — 텍스트로만)");
   if (ev.shot) el.append(shotBox(ev.shot));
@@ -520,13 +534,18 @@ function fillStep(el, ev) {
 function renderChip() {
   const chip = $("#browserChip");
   if (!chrome || $("#tab-run").hidden) return;
-  if (chrome.count === 0 && !shots.length && !chrome.account && !chrome.current) { chip.hidden = true; return; }
-  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account, cur = chrome.current;
-  let text = `🌐 Chrome · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
+  if (chrome.count === 0 && !shots.length && !chrome.account && !chrome.current && !chrome.todo) { chip.hidden = true; return; }
+  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account, cur = chrome.current, t = chrome.todo;
+  let text = `🌐 Chrome`;
+  if (t) text += ` · 📋 ${t.done}/${t.total}`;
+  text += ` · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
   if (a) text += ` · 👤 ${a.email}` + (chrome.gate === false ? " · 검사 꺼짐" : "");
   else if (chrome.gate === false) text += " · 👤 계정 검사 꺼짐";
-  if (cur) text += ` · ⏳ ${cur.text} (${ago(cur.ts)} 시작)`;   // 진행 중 동작이 먼저
-  else if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
+  if (cur) text += ` · ⏳ ${cur.text}${cur.note ? " · 💬 " + cur.note : ""} (${ago(cur.ts)} 시작)`;   // 진행 중 동작이 먼저
+  else {
+    if (t?.current) text += ` · ▶ ${t.current}`;
+    if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
+  }
   if (shot) text += ` · 📷 ${ago(shot.ts)}`;
   const waits = [...pending.values()];
   const badge = a && a.verified && a.gate !== false && !a.allowed ? ["blocked", `🔒 계정 불일치: ${a.email}`]
@@ -576,12 +595,29 @@ function renderOverlaySteps(list) {
   rows.forEach(r => { const d = document.createElement("div"); d.className = r.className; d.textContent = r.textContent; list.append(d); });
 }
 
+// 구현 AI 의 할 일 목록 (마지막 todo 기준) — 글자는 전부 textContent, 클래스는 고정값만
+function renderOverlayTodo() {
+  const box = $("#browserOverlay .bo-todo"), t = chrome.todo;
+  box.textContent = "";
+  if (!t) { box.hidden = true; return; }
+  const div = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; box.append(d); };
+  const items = Array.isArray(t.items) ? t.items : [];
+  div("bo-title", `할 일 (${t.done}/${t.total})`);
+  items.forEach(it => {
+    const st = Object.hasOwn(TODO_ICON, it?.status) ? it.status : "pending";
+    div(`todo-item ${st}`, `${TODO_ICON[st]} ${it.text}`);
+  });
+  if (items.length < t.total) div("todo-item muted", `… 외 ${t.total - items.length}개`);
+  box.hidden = false;
+}
+
 function openOverlay() {
   const ov = $("#browserOverlay"), strip = $(".bo-strip", ov), list = $(".bo-steps", ov);
   strip.innerHTML = "";
   if (!shots.length) strip.innerHTML = '<p class="muted">아직 찍은 화면이 없어요 — 텍스트로만 보여요</p>';
   shots.forEach(s => strip.append(shotFigure(s)));
   captionAll(strip);
+  renderOverlayTodo();
   renderOverlaySteps(list);
   ov.hidden = false;
   strip.scrollLeft = strip.scrollWidth;   // 마지막 장부터
@@ -769,6 +805,7 @@ function openRun(run) {
         chrome.blocked = ev.browser.blocked || null;
         renderChip();
       }
+      if ("todo" in ev) { chrome.todo = ev.todo || null; renderChip(); }   // 마지막 할 일 목록도 서버 집계로 (D6)
       pending.clear();
       (ev.pending || []).forEach(p => pending.set(p.key, p));   // 앞부분이 안 불러와져도 대기 중인 요청은 서버 기준으로
       if (ev.stage_label) $("#runStage").textContent = ev.stage_label;
@@ -797,8 +834,9 @@ const WAIT_FMT = w => {
 };
 const CHROME_FMT = c => {
   let s = `🌐 Chrome ${c.steps}단계`;
+  if (c.todo) s += ` · 📋 ${c.todo.done}/${c.todo.total}` + (c.todo.current ? ` ▶ ${c.todo.current}` : "");
   if (c.blocked) s += ` · 🔒 막힘: ${c.blocked}`;
-  if (c.current) s += ` · ⏳ ${c.current.text}`;
+  if (c.current) s += ` · ⏳ ${c.current.text}` + (c.current.note ? ` · 💬 ${c.current.note}` : "");
   else if (c.last) s += ` · ${BSTAT[c.last.status] || ""} ${c.last.text} · ${ago(c.last.ts)}`;
   if (c.shot_ts) s += ` · 📷 ${ago(c.shot_ts)}`;
   if (c.account) s += ` · 👤 ${c.account.email}${c.account.ok ? "" : " ⛔"}`;

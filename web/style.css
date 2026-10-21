@@ -233,6 +233,8 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .bo-shot img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .bo-shot figcaption { font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); margin-top: 4px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bo-steps { margin: 10px 0; }
-.bo-steps .bo-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.bo-steps, .bo-todo { margin: 10px 0; }
+.bo-steps .bo-title, .bo-todo .bo-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.bo-todo .todo-item { font-size: 13px; padding: 2px 0; }
+.bo-todo .todo-item.completed { color: var(--muted); }
 .bo-close { width: 100%; }

@@ -29,6 +29,10 @@ EVIDENCE_TOOLS = {PREFIX + t for t in ("read_page", "get_page_text", "find")}   
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 _SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*:(?!\d)")   # about: chrome: javascript: … (host:port 는 제외)
 _EMAIL_FULL_RE = re.compile(r"^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]+$")
+TODO_TOOL = "TodoWrite"
+TODO_STATUSES = ("pending", "in_progress", "completed")
+TODO_MAX_ITEMS = 20
+_NOTE_LEAD_RE = re.compile(r"^(?:[#\-*>\s]|\d+[.)](?=\s|$))+")   # 제목·목록 장식 (1. - * > #)
 
 PLAN_NOTE = ("\n\n[구현 환경] 이번 작업의 구현 AI 는 이 PC 의 Chrome(사용자가 로그인한 상태)을 조작할 수 있다 "
              "(클릭·입력은 하나하나 권한 심사를 거침). AdMob·Firebase 같은 웹 콘솔에서 앱 등록, 광고 단위 생성, "
@@ -41,6 +45,10 @@ EXEC_NOTE = """
 클릭·입력·이동은 하나하나 권한 심사를 거치니, 각 동작이 무엇을 위한 것인지 분명하게 하고 꼭 필요한 동작만 한다.
 명세서에 있는 웹 콘솔 작업(예: AdMob 앱 추가·광고 단위 생성·앱 ID/광고 단위 ID 확인)만 한다.
 - 시작할 때 tabs_context_mcp 로 연결을 확인하고, 새 탭을 만들어서 작업한다. 사용자가 열어 둔 탭은 건드리지 않는다.
+- 사용자가 폰에서 진행 상황을 본다. Chrome 작업을 시작하기 전에 TodoWrite 로 이번에 할 일 목록을 만든다
+  (예: 로그인 계정 확인 · 앱 추가 · 배너 광고 단위 만들기 · 전면 광고 단위 만들기 · ID 코드 반영). 항목을 시작할 때 in_progress,
+  끝나면 completed 로 바로 갱신한다. 막혀서 못 한 항목은 completed 로 바꾸지 않는다.
+- 클릭·입력·폼 입력 직전에 무엇을 누르거나 넣는지 한 줄로 먼저 말한다 (예: "앱 추가 버튼을 누릅니다"). 좌표만으로는 사용자가 알 수 없다.
 - 만들기 전에 같은 이름의 앱·광고 단위가 이미 있는지 먼저 확인하고, 있으면 새로 만들지 말고 그 ID 를 쓴다 (ID 를 읽기만 할 때도 먼저 계정을 보고한다).
 - 로그인 계정 확인 (필수): Google 계정을 쓰는 콘솔(AdMob·Firebase·Play Console·Google Cloud 등)에 들어가면 클릭·입력이나 ID 읽기 전에
   그 페이지에서 find/read_page/get_page_text 로 화면 오른쪽 위 계정 버튼(aria-label "Google 계정: 이름 (이메일)")의 이메일을 텍스트로 읽고,
@@ -315,6 +323,48 @@ def describe(block) -> dict | None:
         return None
 
 
+def todo_of(block) -> dict | None:
+    """TodoWrite tool_use → {"items": [{"text", "status"}], "done", "total", "current"}. 목록이 아니면 None."""
+    try:
+        if not isinstance(block, dict) or block.get("name") != TODO_TOOL:
+            return None
+        inp = block.get("input")
+        todos = inp.get("todos") if isinstance(inp, dict) else None
+        if not isinstance(todos, list):
+            return None
+        items, current = [], None
+        for it in todos:
+            if not isinstance(it, dict):
+                continue
+            text = _cut(" ".join(str(it.get("content") or "").split()), 80)
+            if not text:
+                continue
+            status = it.get("status") if it.get("status") in TODO_STATUSES else "pending"
+            if status == "in_progress" and current is None:
+                current = _cut(" ".join(str(it.get("activeForm") or "").split()), 80) or text
+            items.append({"text": text, "status": status})
+        if not items:
+            return None
+        return {"items": items[:TODO_MAX_ITEMS], "done": sum(i["status"] == "completed" for i in items),
+                "total": len(items), "current": current}
+    except Exception:
+        return None
+
+
+def note_of(text) -> str:
+    """Chrome 동작 앞 AI 텍스트 → 그 단계의 의도 한 줄 (마지막 의미 있는 줄). 없으면 ""."""
+    try:
+        for ln in reversed(str(text or "").splitlines()):
+            if not ln.strip() or BLOCK_MARK in ln or ACCOUNT_MARK in ln or ln.lstrip().startswith("```"):
+                continue
+            s = " ".join(_NOTE_LEAD_RE.sub("", ln).replace("**", "").replace("`", "").split())
+            if s:
+                return _cut(s, 80)
+    except Exception:
+        pass
+    return ""
+
+
 def _image(b) -> tuple[str, str] | None:
     if isinstance(b, dict) and b.get("type") == "image" and isinstance(b.get("source"), dict):
         src = b["source"]
@@ -490,10 +540,21 @@ def orphan_steps(events, now: float) -> list[dict]:
             if cc.get("type") == "cc" and cc.get("browser") and step and step not in ended and step not in seen:
                 seen.add(step)
                 out.append({"type": "browser", "ts": now, "step": step, "text": cc.get("tool", ""),
-                            "tool": "", "status": "stopped"})
+                            "tool": "", "status": "stopped", **({"note": cc["note"]} if cc.get("note") else {})})
         return out
     except Exception:
         return []
+
+
+def latest_todo(events) -> dict | None:
+    """마지막 result 이후 구간의 마지막 todo 이벤트 → {"items", "done", "total", "current"}. 없으면 None."""
+    try:
+        evs = [e for e in (events or []) if isinstance(e, dict)]
+        last_res = max((i for i, e in enumerate(evs) if e.get("type") == "result"), default=-1)
+        t = next((e for e in reversed(evs[last_res + 1:]) if e.get("type") == "todo"), None)
+        return {k: t.get(k) for k in ("items", "done", "total", "current")} if t else None
+    except Exception:
+        return None
 
 
 def progress(events) -> dict | None:
@@ -524,9 +585,13 @@ def progress(events) -> dict | None:
                     blocked = reason
         cur = list(started.values())[-1] if started else None
         current = {"text": str(cur.get("tool") or "")[:120], "ts": cur.get("ts")} if cur else None
-        if not (steps or current or account or blocked):
+        if current and cur.get("note"):
+            current["note"] = str(cur.get("note"))[:80]
+        t = latest_todo(evs)
+        todo = {"done": t["done"], "total": t["total"], "current": t["current"]} if t else None
+        if not (steps or current or account or blocked or todo):
             return None
         return {"steps": steps, "current": current, "last": last, "shot_ts": shot_ts,
-                "blocked": blocked, "account": account}
+                "blocked": blocked, "account": account, "todo": todo}
     except Exception:
         return None

@@ -434,3 +434,107 @@ def test_exec_note_policy():
     assert "마치기 직전에 1장씩만" in mini and "navigate 한 직후" not in mini
     assert browser.exec_note("key", 5, text_only=True) == mini      # 이미지가 안 오면 최소 정책
     assert "1장씩만 찍고" not in browser.EXEC_NOTE                   # 횟수 문장은 EXEC_NOTE 에서 빠짐
+
+
+# ── 할 일 목록(TodoWrite)·동작 의도(note) ──
+def _todo_block(todos, name="TodoWrite"):
+    return {"type": "tool_use", "id": "t1", "name": name, "input": {"todos": todos}}
+
+
+def test_todo_of_basic():
+    t = browser.todo_of(_todo_block([
+        {"content": "계정 확인", "status": "completed", "activeForm": "계정 확인 중"},
+        {"content": "광고 단위 만들기", "status": "in_progress", "activeForm": "광고 단위 만드는 중"},
+        {"content": "ID 반영", "status": "pending", "activeForm": "ID 반영 중"},
+    ]))
+    assert t["done"] == 1 and t["total"] == 3 and t["current"] == "광고 단위 만드는 중"
+    assert t["items"] == [{"text": "계정 확인", "status": "completed"},
+                          {"text": "광고 단위 만들기", "status": "in_progress"},
+                          {"text": "ID 반영", "status": "pending"}]
+
+
+def test_todo_of_current_fallback_and_none():
+    t = browser.todo_of(_todo_block([{"content": "앱 추가", "status": "in_progress"}]))
+    assert t["current"] == "앱 추가"
+    t = browser.todo_of(_todo_block([{"content": "앱 추가", "status": "pending"}]))
+    assert t["current"] is None
+
+
+def test_todo_of_rejects():
+    assert browser.todo_of(_todo_block([{"content": "a"}], name="Bash")) is None
+    assert browser.todo_of({"type": "tool_use", "name": "TodoWrite"}) is None
+    assert browser.todo_of(_todo_block("a, b")) is None
+    assert browser.todo_of(_todo_block([])) is None
+    assert browser.todo_of(_todo_block([{"content": ""}])) is None
+    assert browser.todo_of(_todo_block([3])) is None
+    assert browser.todo_of("TodoWrite") is None
+    assert browser.todo_of(None) is None
+
+
+def test_todo_of_normalizes():
+    t = browser.todo_of(_todo_block([{"content": "앱\n추가\t하기", "status": "weird"},
+                                     {"content": "가" * 200, "status": "pending"}]))
+    assert t["items"][0] == {"text": "앱 추가 하기", "status": "pending"}
+    assert len(t["items"][1]["text"]) <= 80
+
+
+def test_todo_of_caps_items():
+    t = browser.todo_of(_todo_block([{"content": f"할 일 {i}", "status": "completed"} for i in range(25)]))
+    assert len(t["items"]) == 20 and t["total"] == 25 and t["done"] == 25
+
+
+def test_note_of_last_meaningful_line():
+    assert browser.note_of("분석했어요.\n\n**앱 추가** 버튼을 누릅니다") == "앱 추가 버튼을 누릅니다"
+
+
+def test_note_of_skips_markers_and_code():
+    assert browser.note_of(f"앱 추가 버튼을 누릅니다\n{browser.BLOCK_MARK} 로그인 필요") == "앱 추가 버튼을 누릅니다"
+    assert browser.note_of(f"계정을 봅니다\n{browser.ACCOUNT_MARK} a@b.com") == "계정을 봅니다"
+    assert browser.note_of("코드입니다\n```") == "코드입니다"
+    assert browser.note_of("- 1. ## 제목") == "제목"
+    assert browser.note_of("> `ID` 를 읽습니다") == "ID 를 읽습니다"
+
+
+def test_note_of_empty_and_cut():
+    assert browser.note_of(None) == ""
+    assert browser.note_of("") == ""
+    assert browser.note_of(f"{browser.BLOCK_MARK} x\n\n{browser.ACCOUNT_MARK} y") == ""
+    assert 0 < len(browser.note_of("가" * 200)) <= 80
+
+
+def _todo_ev(name, done=0, total=1):
+    return {"type": "todo", "ts": 0, "items": [{"text": name, "status": "pending"}], "done": done,
+            "total": total, "current": name}
+
+
+def test_latest_todo_segment():
+    a, b, c = _todo_ev("A"), _todo_ev("B"), _todo_ev("C", done=1, total=2)
+    assert browser.latest_todo([a, {"type": "result"}, b, c]) == {k: c[k] for k in ("items", "done", "total", "current")}
+    assert browser.latest_todo([a, {"type": "result"}]) is None
+    assert browser.latest_todo(["x", None, 3, a])["current"] == "A"
+    assert browser.latest_todo(None) is None
+
+
+def test_progress_todo():
+    p = browser.progress([_todo_ev("앱 추가", done=1, total=3)])
+    assert p is not None and p["todo"] == {"done": 1, "total": 3, "current": "앱 추가"}
+    assert browser.progress([_bev("a")])["todo"] is None
+
+
+def test_progress_current_note():
+    p = browser.progress([_cc(browser=True, step="a", tool="🖱 클릭", note="앱 추가")])
+    assert p["current"]["note"] == "앱 추가"
+    p = browser.progress([_cc(browser=True, step="a", tool="🖱 클릭")])
+    assert "note" not in p["current"]
+
+
+def test_orphan_steps_carries_note():
+    out = browser.orphan_steps([_cc(browser=True, step="a", tool="🖱 클릭", note="앱 추가")], now=9)
+    assert out[0]["note"] == "앱 추가"
+    out = browser.orphan_steps([_cc(browser=True, step="a", tool="🖱 클릭")], now=9)
+    assert "note" not in out[0]
+
+
+def test_exec_note_mentions_todo_and_intent():
+    assert "TodoWrite" in browser.EXEC_NOTE
+    assert "한 줄로 먼저 말한다" in browser.EXEC_NOTE

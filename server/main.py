@@ -484,7 +484,8 @@ async def run_events(run_id: str):
     first, events = run.snapshot_events(PAGE_EVENTS)
     snapshot = {"type": "snapshot", "run": run.summary(), "events": events, "first": first,
                 "pending": run.pending_events(), "stage_label": run.stage_label(),
-                "browser": browser.summarize(run.events)}
+                "browser": browser.summarize(run.events),
+                "todo": browser.latest_todo(run.events) if browser.enabled(run.settings) else None}
     run.subscribers.add(queue)
 
     async def gen():
