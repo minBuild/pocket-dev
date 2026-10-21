@@ -299,6 +299,8 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
                                     text_only=keep <= 0 or browser.text_only_seen(run.events))
         args.append("--chrome")
         allowed += [*browser.READ_ONLY, browser.ACCOUNT_TOOL]
+        if note := await browser.ensure_chrome():  # 꺼져 있으면 (PC 재부팅 뒤 등) 켠다
+            await run.emit("log", text=note)
         # 로그인 계정 상태는 실행마다 새로 (그 사이 사용자가 계정을 바꿀 수 있음) — 칩의 옛 ✅ 도 지움
         run.chrome_account = None
         run.chrome_scope = None
