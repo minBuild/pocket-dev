@@ -21,10 +21,11 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
+from . import attachments, auth, engine_setup, executor, github, permissions, pipeline, runs, sessions, stitch, usage
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
+from .sessions import SESSIONS, ChatSession
 
 app = FastAPI(title="Pocket-Dev Orchestrator")
 WEB = ROOT / "web"
@@ -38,6 +39,7 @@ RESTART_EXIT = 3                # start.bat 은 이 종료 코드면 서버를 �
 SERVER: "uvicorn.Server | None" = None
 restart_requested = False
 load_saved_runs()
+sessions.load_saved()
 
 
 def _via(request: Request) -> str:
@@ -160,9 +162,13 @@ async def restart_server(req: RestartReq):
             SERVER.should_exit = True
         return {"ok": True, "boot": BOOT_ID}
     alive = [r for r in RUNS.values() if r.alive]
-    if alive and not req.force:
-        return JSONResponse({"detail": f"진행 중인 작업이 {len(alive)}개 있어요",
-                             "alive": [r.idea[:60] for r in alive]}, status_code=409)
+    talking = [s for s in SESSIONS.values() if s.busy]
+    if (alive or talking) and not req.force:
+        return JSONResponse({"detail": f"진행 중인 작업이 {len(alive) + len(talking)}개 있어요",
+                             "alive": [r.idea[:60] for r in alive] + ["💬 " + s.title[:60] for s in talking]},
+                            status_code=409)
+    for s in talking:
+        await s.stop()
     error = await _check_new_code()
     if error:
         print(f"[restart] 새 코드 오류로 취소:\n{error}", flush=True)
@@ -647,7 +653,136 @@ class PermissionReq(BaseModel):
 
 @app.post("/api/internal/permission")
 async def internal_permission(req: PermissionReq):
+    if req.run_id.startswith("session:"):  # 💬 직접 세션 — 사용자에게 묻는다
+        return await _session(req.run_id.removeprefix("session:")).decide(req.tool_name, req.input)
     return await permissions.decide(_run(req.run_id), req.tool_name, req.input)
+
+
+# ── 💬 Claude 직접 세션 ─────────────────────────────────────────
+def _session(session_id: str) -> ChatSession:
+    if session_id not in SESSIONS:
+        raise HTTPException(404, "session not found")
+    return SESSIONS[session_id]
+
+
+class SessionStartReq(BaseModel):
+    project: str
+    model: str = "claude-sonnet-5-5"
+    effort: str = ""
+    browser: bool = False
+    text: str = ""
+
+
+@app.get("/api/sessions")
+async def list_sessions():
+    return sorted((s.summary() for s in SESSIONS.values()), key=lambda s: -s["updated"])
+
+
+@app.post("/api/sessions")
+async def start_session(req: SessionStartReq):
+    if not MODEL_ID.fullmatch(req.model.strip()) or req.effort not in EFFORTS:
+        raise HTTPException(400, "모델이나 effort 값이 올바르지 않아요")
+    s = ChatSession(_resolve_project(req.project), req.model.strip(), req.effort, req.browser)
+    SESSIONS[s.id] = s
+    s.save()
+    if req.text.strip():
+        await s.send(req.text.strip(), PORT)
+    return s.summary()
+
+
+@app.get("/api/sessions/{session_id}/events")
+async def session_events(session_id: str):
+    s = _session(session_id)
+    queue: asyncio.Queue = asyncio.Queue()
+    snapshot = {"type": "snapshot", "session": s.summary(), "events": s.snapshot()}
+    s.subscribers.add(queue)
+
+    async def gen():
+        try:
+            yield f"data: {json.dumps(snapshot, ensure_ascii=False)}\n\n"
+            while True:
+                try:
+                    ev = await asyncio.wait_for(queue.get(), 20)
+                    yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+        finally:
+            s.subscribers.discard(queue)
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+class SessionMessageReq(BaseModel):
+    text: str
+
+
+@app.post("/api/sessions/{session_id}/message")
+async def session_message(session_id: str, req: SessionMessageReq):
+    if not req.text.strip():
+        raise HTTPException(400, "메시지를 입력하세요")
+    try:
+        await _session(session_id).send(req.text.strip(), PORT)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return {"ok": True}
+
+
+class SessionPermissionReq(BaseModel):
+    req_id: str
+    action: str   # allow | always | deny
+
+
+@app.post("/api/sessions/{session_id}/permission")
+async def session_permission(session_id: str, req: SessionPermissionReq):
+    if req.action not in ("allow", "always", "deny"):
+        raise HTTPException(400, "action 은 allow · always · deny 중 하나")
+    if not await _session(session_id).answer(req.req_id, req.action):
+        raise HTTPException(409, "이미 처리됐거나 기다리는 요청이 아니에요")
+    return {"ok": True}
+
+
+class SessionSettingsReq(BaseModel):
+    browser: bool | None = None
+    model: str | None = None
+    effort: str | None = None
+
+
+@app.post("/api/sessions/{session_id}/settings")
+async def session_settings(session_id: str, req: SessionSettingsReq):
+    """다음 메시지부터 적용 (지금 답하는 중인 것은 그대로)."""
+    s = _session(session_id)
+    changes = []
+    if req.browser is not None and req.browser != s.browser:
+        s.browser = req.browser
+        changes.append("🌐 Chrome " + ("켬" if req.browser else "끔"))
+    if req.model is not None and req.model.strip() != s.model:
+        if not MODEL_ID.fullmatch(req.model.strip()):
+            raise HTTPException(400, "모델 이름이 올바르지 않아요")
+        s.model = req.model.strip()
+        changes.append(f"모델 {s.model}")
+    if req.effort is not None and req.effort != s.effort:
+        if req.effort not in EFFORTS:
+            raise HTTPException(400, "effort 값이 올바르지 않아요")
+        s.effort = req.effort
+        changes.append(f"effort {req.effort or '기본'}")
+    if changes:
+        await s.emit("log", text="⚙️ " + " · ".join(changes) + " (다음 메시지부터)")
+    return s.summary()
+
+
+@app.post("/api/sessions/{session_id}/stop")
+async def session_stop(session_id: str):
+    await _session(session_id).stop()
+    return {"ok": True}
+
+
+@app.delete("/api/sessions/{session_id}")
+async def session_delete(session_id: str):
+    if _session(session_id).busy:
+        raise HTTPException(409, "답하는 중이에요. ⏹ 중지한 뒤 삭제하세요")
+    sessions.delete(session_id)
+    return {"ok": True}
 
 
 # ── 실행 ─────────────────────────────────────────────────────

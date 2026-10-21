@@ -4,6 +4,11 @@
 읽기 전용 도구(탭 목록·페이지 읽기·찾기)만 묻지 않고 허용하고, 클릭·입력·이동·스크립트·업로드 같은
 실제로 무언가를 하는 도구는 다른 도구와 똑같이 권한 심사(리뷰어 AI → 의견이 갈리면 폰으로 질문)를 거친다.
 """
+import asyncio
+import os
+import shutil
+import subprocess
+from pathlib import Path
 
 READ_ONLY = [f"mcp__claude-in-chrome__{t}" for t in (
     "tabs_context_mcp", "read_page", "find", "get_page_text", "list_connected_browsers")]
@@ -27,6 +32,34 @@ EXEC_NOTE = """
   단 프로젝트 규칙(CLAUDE.md·명세서)이 실제 ID 를 저장소에 넣지 말라고 하면 그 방식(--dart-define 등)을 따르고, ID 는 결과 정리에만 남긴다.
   (AdMob 앱 ID 는 ca-app-pub-…~…, 광고 단위 ID 는 ca-app-pub-…/… 형식. 테스트 빌드에 테스트 광고 ID 를 쓰는 구조면 그대로 지킨다.)
 - Chrome 연결이 안 되면 브라우저 작업은 건너뛰고 코드 작업만 끝낸 뒤, 연결이 안 됐다고 남긴다."""
+
+
+def _chrome_exe() -> str | None:
+    for base in (os.environ.get("ProgramFiles", r"C:\Program Files"), os.environ.get("ProgramFiles(x86)", ""),
+                 os.environ.get("LOCALAPPDATA", "")):
+        exe = Path(base) / "Google" / "Chrome" / "Application" / "chrome.exe"
+        if base and exe.is_file():
+            return str(exe)
+    return shutil.which("chrome")
+
+
+def _chrome_running() -> bool:
+    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH"], capture_output=True,
+                         creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+    return b"chrome.exe" in out
+
+
+async def ensure_chrome() -> str:
+    """Claude in Chrome 은 Chrome 이 켜져 있어야 연결된다 — 꺼져 있으면 (PC 재부팅 뒤 등) 켜고 확장이 붙을 때까지 잠깐 기다린다.
+    화면에 남길 안내를 돌려준다 (이미 켜져 있으면 빈 문자열)."""
+    if await asyncio.to_thread(_chrome_running):
+        return ""
+    exe = _chrome_exe()
+    if not exe:
+        return "⚠️ Chrome 을 찾지 못했어요 — 집 PC 에 Chrome 을 설치하고 Claude 확장에 로그인해 주세요"
+    subprocess.Popen([exe], close_fds=True)
+    await asyncio.sleep(8)
+    return "🌐 꺼져 있던 Chrome 을 켰어요 (Claude 확장이 연결될 때까지 잠깐 기다렸어요)"
 
 
 def enabled(settings: dict) -> bool:

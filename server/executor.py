@@ -161,6 +161,8 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     if browser.enabled(run.settings):  # Claude in Chrome — 읽기 도구만 바로 허용, 나머지는 권한 심사
         args.append("--chrome")
         allowed += browser.READ_ONLY
+        if note := await browser.ensure_chrome():
+            await run.emit("log", text=note)
     if allowed:
         args += ["--allowedTools", *allowed]
 

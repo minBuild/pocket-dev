@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 </head>
@@ -43,6 +43,7 @@
   <nav>
     <button data-tab="new" class="active">새 작업</button>
     <button data-tab="runs">기록</button>
+    <button data-tab="chat">💬 Claude</button>
     <button id="restartBtn" title="서버 재시작 — Pocket-Dev 코드를 고친 뒤 반영">🔄</button>
     <button id="logoutBtn" title="로그아웃">⏻</button>
   </nav>
@@ -115,6 +116,30 @@
     <div id="runList"></div>
   </section>
 
+  <!-- 💬 Claude 직접 세션 목록 -->
+  <section id="tab-chat" hidden>
+    <div class="card">
+      <h2>💬 Claude 와 바로 대화 <small>토론·명세서 없이 · 위에서 고른 프로젝트 폴더에서</small></h2>
+      <textarea id="sessText" rows="3" placeholder="예) Chrome 으로 AdMob 에 이 앱을 추가하고 광고 단위 ID 를 받아서 앱에 넣어줘"></textarea>
+      <div class="member-row model-pick" id="sessModelPick"></div>
+      <label class="row"><input type="checkbox" id="sessBrowser"> 🌐 Chrome 사용
+        <span class="muted">(집 PC Chrome — 로그인된 상태 그대로 · 클릭·입력은 폰으로 물어봐요)</span></label>
+      <button id="sessStart" class="primary">💬 대화 시작</button>
+    </div>
+    <div id="sessList"></div>
+  </section>
+
+  <!-- 💬 Claude 직접 세션 -->
+  <section id="tab-session" hidden>
+    <div class="run-head">
+      <button id="sessBack">←</button>
+      <div><div id="sessTitle"></div><div id="sessInfo" class="muted"></div></div>
+      <label class="sess-browser" title="다음 메시지부터 적용"><input type="checkbox" id="sessBrowserNow"> 🌐</label>
+      <button id="sessStop" class="danger">⏹ 중지</button>
+    </div>
+    <div id="sessStream"></div>
+  </section>
+
   <!-- 실행 화면 -->
   <section id="tab-run" hidden>
     <div class="run-head">
@@ -143,6 +168,13 @@
 </div>
 </div>
 
+<div id="sessComposer" class="composer" hidden>
+  <div class="composer-row">
+    <textarea id="sessInput" rows="2" placeholder="Claude 에게 보낼 말 (Ctrl+Enter)"></textarea>
+    <button id="sessSend" class="primary">보내기</button>
+  </div>
+</div>
+
 <template id="participantTpl">
   <div class="member">
     <div class="member-row">
@@ -156,6 +188,6 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=15"></script>
+<script src="/static/app.js?v=16"></script>
 </body>
 </html>
