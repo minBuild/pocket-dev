@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pocket-Dev - 대화명 변경</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary-container": "#e2e0d7",
+            "error-container": "#ffdad6",
+            "tertiary-fixed": "#7df7e3",
+            "on-background": "#1c1c1a",
+            "on-surface-variant": "#55433d",
+            "background": "#fcf9f6",
+            "outline": "#88726c",
+            "on-tertiary-fixed-variant": "#005047",
+            "on-primary-fixed": "#390b00",
+            "surface-dim": "#dcd9d7",
+            "on-tertiary-fixed": "#00201c",
+            "on-primary-fixed-variant": "#7a2f15",
+            "on-primary": "#ffffff",
+            "primary-fixed": "#ffdbd0",
+            "on-tertiary": "#ffffff",
+            "surface-container-low": "#f6f3f1",
+            "secondary-fixed-dim": "#c9c6be",
+            "on-secondary-fixed-variant": "#474741",
+            "surface-container-highest": "#e5e2e0",
+            "secondary-fixed": "#e5e2da",
+            "on-secondary-fixed": "#1c1c17",
+            "on-secondary": "#ffffff",
+            "on-error": "#ffffff",
+            "surface-container": "#f0edeb",
+            "surface": "#fcf9f6",
+            "secondary": "#5f5f58",
+            "primary": "#99462a",
+            "surface-container-high": "#ebe8e5",
+            "surface-bright": "#fcf9f6",
+            "on-primary-container": "#541400",
+            "surface-tint": "#99462a",
+            "surface-variant": "#e5e2e0",
+            "inverse-on-surface": "#f3f0ee",
+            "primary-container": "#d97757",
+            "inverse-surface": "#31302f",
+            "error": "#ba1a1a",
+            "tertiary-fixed-dim": "#5edac7",
+            "tertiary-container": "#09a493",
+            "primary-fixed-dim": "#ffb59e",
+            "outline-variant": "#dbc1b9",
+            "on-surface": "#1c1c1a",
+            "on-secondary-container": "#64635c",
+            "on-error-container": "#93000a",
+            "surface-container-lowest": "#ffffff",
+            "on-tertiary-container": "#00312b",
+            "inverse-primary": "#ffb59e",
+            "tertiary": "#006b5f"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-md": "0.75rem",
+            "gutter": "0.75rem",
+            "space-lg": "1rem",
+            "margin": "1rem",
+            "space-xl": "1.5rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "body-lg": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+            "label-md": ["Inter", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "body-md": ["Inter", "sans-serif"],
+            "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "label-sm": ["Inter", "sans-serif"],
+            "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "code-sm": ["JetBrains Mono", "monospace"]
+          },
+          "fontSize": {
+            "body-lg": ["15px", { "lineHeight": "22px", "fontWeight": "400" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "code-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+    }
+    input:focus {
+      outline: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased min-h-screen relative flex flex-col justify-between selection:bg-primary-container/20">
+<!-- ========================================== -->
+<!-- BACKGROUND SIMULATED APP: "기록" (HISTORY) VIEW -->
+<!-- ========================================== -->
+<div aria-hidden="true" class="w-full max-w-[540px] mx-auto min-h-screen flex flex-col bg-surface relative">
+<!-- TopAppBar (from Shared Components JSON) -->
+<header class="sticky top-0 z-10 flex items-center justify-between w-full h-12 px-4 max-w-[540px] mx-auto bg-surface border-b border-surface-variant shadow-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">terminal</span>
+<span class="text-headline-sm font-headline-sm font-bold text-on-surface tracking-tight">Pocket-Dev</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container text-secondary border border-surface-variant">v0.9.4</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          agent-live
+        </span>
+<button class="text-secondary hover:text-on-surface p-1 transition-all duration-150" type="button">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</header>
+<!-- Sub-header Repo Breadcrumbs Bar -->
+<section class="px-4 py-2 bg-surface border-b border-surface-variant flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="font-code-sm text-code-sm font-medium text-on-surface">acme-corp/web-app</span>
+<span class="font-code-sm text-code-sm text-secondary">/</span>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container text-secondary font-code-sm text-code-sm">
+<span class="material-symbols-outlined text-[13px]">call_split</span>
+          feat/auth-v2
+        </span>
+</div>
+<span class="font-code-sm text-code-sm text-secondary">총 14개 작업</span>
+</section>
+<!-- Content Canvas: Work History Items (Simulated Underlayer) -->
+<main class="flex-1 px-4 py-3 space-y-2.5 overflow-hidden">
+<!-- Item 1 (Target of Dialog) -->
+<article class="p-3 bg-surface-container-lowest border-2 border-primary-container/40 rounded-xl shadow-sm relative">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface line-clamp-1">로그인 화면 UI 개선 및 반응형 리팩토링</h3>
+</div>
+<span class="font-code-sm text-code-sm text-secondary shrink-0">방금 전</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mb-2">
+          Tailwind grid를 flex-col로 교체하고 카카오 로그인 버튼 터치 영역을 48px로 상향 조정 완료.
+        </p>
+<div class="flex items-center justify-between pt-2 border-t border-surface-container">
+<div class="flex items-center gap-2">
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 bg-surface-container rounded text-on-surface-variant font-medium">3 files changed</span>
+<span class="font-code-sm text-code-sm text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">+48</span>
+<span class="font-code-sm text-code-sm text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">-12</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-[18px]">more_horiz</span>
+</div>
+</article>
+<!-- Item 2 -->
+<article class="p-3 bg-surface-container-lowest border border-surface-variant rounded-xl shadow-sm">
+<div class="flex items-start justify-between gap-2 mb-1.5">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface line-clamp-1">Redis 세션 TTL 만료 정책 패치</h3>
+</div>
+<span class="font-code-sm text-code-sm text-secondary shrink-0">1시간 전</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-1 mb-2">
+          src/auth/session.ts 토큰 만료 로직 유닛 테스트 통과
+        </p>
+<div class="flex items-center justify-between pt-2 border-t border-surface-container">
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 bg-surface-container rounded text-on-surface-variant">1 file changed</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">more_horiz</span>
+</div>
+</article>
+<!-- Item 3 -->
+<article class="p-3 bg-surface-container-lowest border border-surface-variant rounded-xl shadow-sm opacity-60">
+<div class="flex items-start justify-between gap-2 mb-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface line-clamp-1">Docker Compose 로컬 환경 변수 분리</h3>
+</div>
+<span class="font-code-sm text-code-sm text-secondary shrink-0">어제</span>
+</div>
+</article>
+</main>
+<!-- BottomNavBar (from Shared Components JSON: Active on '기록') -->
+<nav class="sticky bottom-0 left-0 right-0 z-10 flex justify-around items-center h-16 px-4 max-w-[540px] mx-auto bg-surface border-t border-surface-variant">
+<!-- Tab 1: 새 작업 -->
+<div class="flex flex-col items-center justify-center text-secondary px-3 py-1.5">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="text-label-sm font-label-sm mt-0.5">새 작업</span>
+</div>
+<!-- Tab 2: 작업 -->
+<div class="flex flex-col items-center justify-center text-secondary px-3 py-1.5">
+<span class="material-symbols-outlined">play_circle</span>
+<span class="text-label-sm font-label-sm mt-0.5">작업</span>
+</div>
+<!-- Tab 3: 기록 (ACTIVE) -->
+<div class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-3 py-1.5">
+<span class="material-symbols-outlined">history</span>
+<span class="text-label-sm font-label-sm font-bold mt-0.5">기록</span>
+</div>
+</nav>
+</div>
+<!-- ========================================== -->
+<!-- MODAL OVERLAY & DIALOG CARD               -->
+<!-- ========================================== -->
+<div class="fixed inset-0 z-50 flex items-center justify-center px-4 bg-stone-900/40 backdrop-blur-[2px] transition-opacity duration-200">
+<!-- Modal Card (Max width 360px optimized for hand-held viewports) -->
+<section aria-labelledby="modal-title" aria-modal="true" class="w-full max-w-[348px] bg-surface-container-lowest rounded-2xl border border-secondary-container p-5 shadow-2xl relative transform transition-all" role="dialog">
+<!-- 1. Modal Header -->
+<header class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="material-symbols-outlined text-primary-container text-[20px]" data-weight="fill">edit</span>
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface" id="modal-title">대화명 변경</h2>
+</div>
+<!-- Close Button -->
+<button aria-label="닫기" class="w-7 h-7 flex items-center justify-center rounded-lg text-secondary hover:text-on-surface hover:bg-surface-container transition-all active:scale-95" onclick="this.closest('section').style.opacity='0.5'" type="button">
+<span class="material-symbols-outlined text-[19px]">close</span>
+</button>
+</header>
+<!-- 2. Sub-guidance message -->
+<p class="font-body-sm text-body-sm text-secondary mb-4 leading-snug">
+        작업 목록 및 세션 히스토리에 표시될 대화명을 수정합니다.
+      </p>
+<!-- 3. Input Field Area -->
+<form class="space-y-1" onsubmit="event.preventDefault();">
+<div class="flex items-center justify-between mb-1.5">
+<label class="font-label-sm text-label-sm font-semibold text-on-surface-variant" for="conversation-name-input">
+            새 대화명
+          </label>
+<span class="font-code-sm text-code-sm text-secondary" id="char-counter">22 / 50</span>
+</div>
+<div class="relative">
+<input autofocus="" class="w-full h-11 px-3.5 pr-8 rounded-xl bg-surface-container-low border border-secondary-container text-body-md font-body-md text-on-surface placeholder:text-secondary focus:bg-surface-container-lowest focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all duration-150" id="conversation-name-input" maxlength="50" placeholder="로그인 화면을 더 보기 좋게 바꿔줘…" type="text" value="로그인 화면 UI 개선 및 반응형 리팩토링"/>
+<button aria-label="입력 지우기" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-secondary hover:text-on-surface p-0.5" onclick="document.getElementById('conversation-name-input').value=''; document.getElementById('char-counter').innerText='0 / 50';" type="button">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+</button>
+</div>
+<!-- Inline Caption / Character Constraint Info -->
+<div class="flex items-center gap-1 pt-1.5 text-secondary">
+<span class="material-symbols-outlined text-[14px]">info</span>
+<span class="font-label-sm text-label-sm">대화명은 2자 이상 50자 이하로 입력해주세요.</span>
+</div>
+<!-- 4. Keyboard Shortcut / Interaction Hint -->
+<div class="py-2.5 my-1 text-center border-y border-surface-container-low">
+<p class="font-code-sm text-code-sm text-secondary flex items-center justify-center gap-1">
+<span class="px-1.5 py-0.5 rounded bg-surface-container border border-surface-variant font-code-sm text-[10px]">Enter ↵</span>
+<span>키를 누르면 바로 저장됩니다</span>
+</p>
+</div>
+<!-- 5. Button Actions Row -->
+<footer class="flex items-center gap-2 pt-1">
+<!-- Cancel Button -->
+<button class="flex-1 h-10 rounded-lg border border-secondary-container bg-surface-container-lowest text-on-surface font-label-md text-label-md font-medium hover:bg-surface-container active:scale-95 transition-all text-center" type="button">
+            취소
+          </button>
+<!-- Submit / Save Button -->
+<button class="flex-1 h-10 rounded-lg bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md font-semibold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-1" type="submit">
+<span class="material-symbols-outlined text-[16px]">check</span>
+<span>저장</span>
+</button>
+</footer>
+</form>
+</section>
+</div>
+<script>
+    // Character Counter Micro-interaction
+    const input = document.getElementById('conversation-name-input');
+    const counter = document.getElementById('char-counter');
+    if (input && counter) {
+      const updateCount = () => {
+        counter.textContent = `${input.value.length} / 50`;
+      };
+      input.addEventListener('input', updateCount);
+      updateCount();
+    }
+  </script>
+</body></html>

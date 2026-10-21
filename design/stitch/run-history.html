@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - 기록</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed": "#ffdf9f",
+            "primary-fixed": "#e1e0ff",
+            "primary-container": "#8083ff",
+            "on-tertiary-fixed": "#261a00",
+            "on-primary": "#1000a9",
+            "surface-container-lowest": "#0c0e12",
+            "surface-container-low": "#1a1c20",
+            "on-tertiary-fixed-variant": "#5c4300",
+            "inverse-primary": "#494bd6",
+            "background": "#111317",
+            "on-background": "#e2e2e8",
+            "on-surface-variant": "#c7c4d7",
+            "secondary-fixed-dim": "#45dfa4",
+            "on-secondary-fixed-variant": "#005137",
+            "on-surface": "#e2e2e8",
+            "on-error-container": "#ffdad6",
+            "error-container": "#93000a",
+            "tertiary-container": "#b88900",
+            "surface-bright": "#37393e",
+            "on-primary-fixed": "#07006c",
+            "surface-tint": "#c0c1ff",
+            "surface-container-highest": "#333539",
+            "surface-variant": "#333539",
+            "on-error": "#690005",
+            "surface-container-high": "#282a2e",
+            "on-secondary-container": "#00452e",
+            "on-secondary": "#003825",
+            "primary": "#c0c1ff",
+            "secondary": "#45dfa4",
+            "outline-variant": "#464554",
+            "primary-fixed-dim": "#c0c1ff",
+            "secondary-container": "#00bd85",
+            "on-tertiary-container": "#372700",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "outline": "#908fa0",
+            "on-secondary-fixed": "#002114",
+            "on-tertiary": "#402d00",
+            "on-primary-container": "#0d0096",
+            "secondary-fixed": "#68fcbf",
+            "tertiary": "#f9bd22",
+            "surface-dim": "#111317",
+            "inverse-on-surface": "#2f3035",
+            "error": "#ffb4ab",
+            "tertiary-fixed-dim": "#f9bd22",
+            "surface": "#111317",
+            "surface-container": "#1e2024",
+            "inverse-surface": "#e2e2e8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "gutter": "0.5rem",
+            "space-xl": "1.5rem",
+            "space-md": "0.75rem",
+            "space-lg": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "code-md": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "body-sm": ["Inter"],
+            "label-sm": ["JetBrains Mono"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "headline-md": ["Inter"],
+            "code-lg": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "code-md": ["12px", {"lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400"}],
+            "headline-lg": ["22px", {"lineHeight": "28px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+            "body-sm": ["13px", {"lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400"}],
+            "label-sm": ["10px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "500"}],
+            "body-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400"}],
+            "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "headline-sm": ["16px", {"lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "headline-md": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.015em", "fontWeight": "600"}],
+            "code-lg": ["13px", {"lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "500"}],
+            "code-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+            "body-lg": ["15px", {"lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    @keyframes subtle-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.92); }
+    }
+    .animate-live-pulse {
+      animation: subtle-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased font-body-md min-h-screen pb-24 selection:bg-primary-container selection:text-on-primary-container">
+<!-- TOP APP BAR -->
+<header class="fixed top-0 left-0 w-full z-10 flex justify-between items-center px-margin h-14 bg-surface-container border-b border-outline-variant">
+<div class="flex items-center space-x-2.5">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight font-bold">기록</h1>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant/60 font-code-sm text-code-sm text-primary">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-live-pulse"></span>
+<span>4 ACTIVE TASKS</span>
+</div>
+</div>
+<div class="flex items-center space-x-1">
+<button aria-label="새로고침" class="w-9 h-9 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+<button aria-label="검색" class="w-9 h-9 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+</div>
+</header>
+<!-- MAIN SCROLLABLE CONTENT (NO FILTER TABS) -->
+<main class="pt-16 px-margin max-w-md mx-auto w-full space-y-3">
+<!-- SECTION LABEL: 오늘 -->
+<div class="flex items-center justify-between pt-2 pb-0.5 px-0.5">
+<div class="flex items-center space-x-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[15px]">calendar_today</span>
+<span class="font-code-sm text-code-sm tracking-wider uppercase font-semibold">오늘 · 2025.05.21</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">실행 기록 4건</span>
+</div>
+<!-- CARD 1: IN-PROGRESS -->
+<article class="rounded-xl bg-surface-container-low border border-primary/50 p-space-md transition-all active:bg-surface-container duration-150 relative overflow-hidden shadow-sm">
+<!-- Glow Accent Line -->
+<div class="absolute top-0 left-0 right-0 h-[2px] bg-primary"></div>
+<!-- Card Header -->
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="font-code-sm text-code-sm text-primary font-medium tracking-tight">RUN-8921</span>
+<span class="text-outline text-code-sm">·</span>
+<span class="font-code-sm text-code-sm text-outline">방금 전 (14:02:26)</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">AdMob 광고 단위 만들기</h2>
+</div>
+<!-- Status Badge: Running -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary-container/20 border border-primary/30 text-primary font-label-sm text-label-sm font-semibold shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-live-pulse"></span>
+          진행 중
+        </span>
+</div>
+<!-- Execution Telemetry Line -->
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/40 mb-2.5">
+<p class="font-code-sm text-code-sm text-on-surface-variant leading-relaxed break-all">
+<span class="text-on-surface">🌐 Chrome 12단계</span>
+<span class="text-outline mx-1">·</span>
+<span class="text-primary font-medium">📋 3/6 ▶ 전면 광고 단위 만드는 중</span>
+<br/>
+<span class="text-tertiary">⏳ 🖱 클릭</span>
+<span class="text-outline mx-1">·</span>
+<span class="text-on-surface-variant">💬 앱 추가 버튼을 누릅니다</span>
+</p>
+</div>
+<!-- Progress Track -->
+<div class="space-y-1">
+<div class="flex justify-between items-center font-code-sm text-code-sm">
+<span class="text-outline">진행률 (50%)</span>
+<span class="text-primary font-medium">Step 3 of 6</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full transition-all duration-300" style="width: 50%;"></div>
+</div>
+</div>
+</article>
+<!-- CARD 2: WAITING FOR USER INPUT -->
+<article class="rounded-xl bg-surface-container-low border border-outline-variant p-space-md transition-all active:bg-surface-container duration-150">
+<!-- Card Header -->
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="font-code-sm text-code-sm text-outline font-medium tracking-tight">RUN-8919</span>
+<span class="text-outline text-code-sm">·</span>
+<span class="font-code-sm text-code-sm text-outline">13:45:10 · 18분 전</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">로그인 화면 수정</h2>
+</div>
+<!-- Status Badge: Input Waiting -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-tertiary/15 border border-tertiary/40 text-tertiary font-label-sm text-label-sm font-semibold shrink-0">
+<span class="material-symbols-outlined text-[13px] leading-none text-tertiary">warning</span>
+          입력 대기
+        </span>
+</div>
+<!-- Detail Box -->
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/40 flex items-center justify-between">
+<p class="font-code-sm text-code-sm text-on-surface-variant">
+<span class="text-on-surface">🌐 Chrome 5단계</span>
+<span class="text-outline mx-1.5">·</span>
+<span class="text-tertiary font-medium">⚠️ 계정 확인 필요</span>
+</p>
+<button class="px-2 py-0.5 rounded bg-surface-container border border-outline-variant hover:border-tertiary text-on-surface font-code-sm text-code-sm flex items-center gap-1">
+<span>확인</span>
+<span class="material-symbols-outlined text-[13px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- CARD 3: COMPLETED (REFACTOR) -->
+<article class="rounded-xl bg-surface-container-low border border-outline-variant p-space-md transition-all active:bg-surface-container duration-150">
+<!-- Card Header -->
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="font-code-sm text-code-sm text-outline font-medium tracking-tight">RUN-8914</span>
+<span class="text-outline text-code-sm">·</span>
+<span class="font-code-sm text-code-sm text-outline">12:20:04 · 2시간 전</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">설정 화면 리팩터</h2>
+</div>
+<!-- Status Badge: Completed -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/15 border border-secondary/40 text-secondary font-label-sm text-label-sm font-semibold shrink-0">
+<span class="material-symbols-outlined text-[13px] leading-none text-secondary">check</span>
+          완료
+        </span>
+</div>
+<!-- Execution Stats -->
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-between font-code-sm text-code-sm">
+<div class="flex items-center space-x-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-outline">timer</span>
+<span>3분 12초 소요</span>
+<span class="text-outline">·</span>
+<span class="text-secondary font-medium">커밋 2개</span>
+</div>
+<span class="text-outline font-code-sm text-code-sm">1.8k tokens</span>
+</div>
+</article>
+<!-- CARD 4: COMPLETED (INTEGRATION) -->
+<article class="rounded-xl bg-surface-container-low border border-outline-variant p-space-md transition-all active:bg-surface-container duration-150">
+<!-- Card Header -->
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="font-code-sm text-code-sm text-outline font-medium tracking-tight">RUN-8908</span>
+<span class="text-outline text-code-sm">·</span>
+<span class="font-code-sm text-code-sm text-outline">11:05:42 · 오늘 오전</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">배너 광고 연동</h2>
+</div>
+<!-- Status Badge: Completed -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/15 border border-secondary/40 text-secondary font-label-sm text-label-sm font-semibold shrink-0">
+<span class="material-symbols-outlined text-[13px] leading-none text-secondary">check</span>
+          완료
+        </span>
+</div>
+<!-- Detail Box -->
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/30 font-code-sm text-code-sm text-on-surface-variant flex items-center justify-between">
+<div>
+<span class="text-on-surface">🌐 Chrome 21단계</span>
+<span class="text-outline mx-1.5">·</span>
+<span class="text-secondary font-medium">📋 6/6 완료됨</span>
+</div>
+<span class="text-outline">6분 40초</span>
+</div>
+</article>
+<!-- SECTION LABEL: 어제 -->
+<div class="flex items-center justify-between pt-3 pb-0.5 px-0.5">
+<div class="flex items-center space-x-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[15px]">history</span>
+<span class="font-code-sm text-code-sm tracking-wider uppercase font-semibold">어제 · 2025.05.20</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">1건</span>
+</div>
+<!-- CARD 5: PAST RUN (TEST AUTOMATION) -->
+<article class="rounded-xl bg-surface-container-low border border-outline-variant p-space-md opacity-85 transition-all active:bg-surface-container duration-150">
+<div class="flex items-start justify-between gap-2 mb-2">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="font-code-sm text-code-sm text-outline font-medium tracking-tight">RUN-8894</span>
+<span class="text-outline text-code-sm">·</span>
+<span class="font-code-sm text-code-sm text-outline">19:14:02 · 어제</span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate font-semibold">회원가입 엔드투엔드 테스트 구축</h2>
+</div>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-secondary/15 border border-secondary/40 text-secondary font-label-sm text-label-sm font-semibold shrink-0">
+<span class="material-symbols-outlined text-[13px] leading-none text-secondary">check</span>
+          완료
+        </span>
+</div>
+<div class="p-2 rounded bg-surface-container-lowest border border-outline-variant/30 font-code-sm text-code-sm text-on-surface-variant flex items-center justify-between">
+<span class="text-on-surface-variant">테스트 스위트 14건 통과</span>
+<span class="text-outline">4분 50초 소요</span>
+</div>
+</article>
+</main>
+<!-- BOTTOM NAVIGATION BAR (Anchored Blueprint) -->
+<!-- 4 Destinations: Agents, Logs (Active: 기록), Diffs, Console -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-margin pb-safe h-16 bg-surface-container border-t border-outline-variant">
+<!-- Tab 1: Agents -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-sm text-label-sm py-1 hover:bg-surface-container-high active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[22px] mb-0.5" data-icon="smart_toy">smart_toy</span>
+<span>Agents</span>
+</a>
+<!-- Tab 2: Logs (ACTIVE) -> Corresponds to 기록 screen -->
+<a class="flex flex-col items-center justify-center text-primary font-label-sm text-label-sm py-1 hover:bg-surface-container-high active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[22px] mb-0.5 font-bold" data-icon="terminal" data-weight="fill" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<span class="font-bold">Logs</span>
+</a>
+<!-- Tab 3: Diffs -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-sm text-label-sm py-1 hover:bg-surface-container-high active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[22px] mb-0.5" data-icon="difference">difference</span>
+<span>Diffs</span>
+</a>
+<!-- Tab 4: Console -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant font-label-sm text-label-sm py-1 hover:bg-surface-container-high active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[22px] mb-0.5" data-icon="tune">tune</span>
+<span>Console</span>
+</a>
+</nav>
+</body></html>

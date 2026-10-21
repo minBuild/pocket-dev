@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev — Task Session</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-surface": "#181c23",
+            "tertiary-container": "#a65900",
+            "surface-container-lowest": "#ffffff",
+            "tertiary-fixed-dim": "#ffb77d",
+            "secondary-container": "#82f5c1",
+            "on-error-container": "#93000a",
+            "on-tertiary-fixed": "#2f1500",
+            "primary-fixed-dim": "#b4c5ff",
+            "on-primary-fixed": "#00174b",
+            "secondary": "#006c4a",
+            "on-primary-fixed-variant": "#003ea8",
+            "error-container": "#ffdad6",
+            "surface": "#f9f9ff",
+            "on-primary-container": "#eeefff",
+            "on-primary": "#ffffff",
+            "surface-tint": "#0053db",
+            "primary-fixed": "#dbe1ff",
+            "surface-bright": "#f9f9ff",
+            "tertiary-fixed": "#ffdcc3",
+            "on-secondary-fixed": "#002114",
+            "background": "#f9f9ff",
+            "surface-dim": "#d7dae5",
+            "surface-container-highest": "#dfe2ed",
+            "secondary-fixed-dim": "#68dba9",
+            "error": "#ba1a1a",
+            "on-secondary": "#ffffff",
+            "on-tertiary-container": "#ffede1",
+            "on-surface-variant": "#434655",
+            "inverse-surface": "#2c3039",
+            "on-secondary-fixed-variant": "#005137",
+            "inverse-on-surface": "#eef0fc",
+            "secondary-fixed": "#85f8c4",
+            "on-secondary-container": "#00714e",
+            "surface-container-low": "#f1f3ff",
+            "outline-variant": "#c3c6d7",
+            "on-error": "#ffffff",
+            "surface-variant": "#dfe2ed",
+            "surface-container-high": "#e5e8f3",
+            "on-background": "#181c23",
+            "inverse-primary": "#b4c5ff",
+            "primary-container": "#2563eb",
+            "tertiary": "#824500",
+            "surface-container": "#ebedf9",
+            "on-tertiary": "#ffffff",
+            "primary": "#004ac6",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "outline": "#737686"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "space-lg": "1.5rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "badge-mono": ["JetBrains Mono", "monospace"],
+            "body-lg": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "label-md": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "code-inline": ["JetBrains Mono", "monospace"],
+            "code-body": ["JetBrains Mono", "monospace"],
+            "body-md": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "headline-lg": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "headline-sm": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "body-sm": ["Inter", "Pretendard", "-apple-system", "sans-serif"],
+            "label-sm": ["Inter", "Pretendard", "-apple-system", "sans-serif"]
+          },
+          "fontSize": {
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "badge-mono": ["10px", { "lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "code-inline": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "code-body": ["12px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #f6f7f9;
+      -webkit-font-smoothing: antialiased;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .fill-icon {
+      font-variation-settings: 'FILL' 1;
+    }
+    /* Smooth mobile scrolling container */
+    .chat-scroll-area::-webkit-scrollbar {
+      display: none;
+    }
+    .chat-scroll-area {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#f6f7f9] text-on-surface antialiased flex justify-center min-h-screen">
+<!-- Mobile Viewport Wrapper (Max 480px locked) -->
+<div class="w-full max-w-[480px] min-h-screen flex flex-col bg-[#f6f7f9] shadow-sm relative pb-36">
+<!-- Top Sticky Header -->
+<header class="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline-variant/40 pt-[env(safe-area-inset-top)]">
+<div class="flex items-center justify-between px-3 h-12">
+<!-- Back and Context -->
+<div class="flex items-center gap-2 min-w-0">
+<button aria-label="뒤로가기" class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<div class="min-w-0 flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-[14px] font-bold text-on-surface truncate">로그인 플로우 UI 개선</span>
+<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-badge-mono text-[9px] font-semibold tracking-wider">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                리뷰 대기
+              </span>
+</div>
+<div class="flex items-center gap-1 text-[11px] font-code-inline text-on-surface-variant/80">
+<span class="material-symbols-outlined text-[12px]" data-icon="folder_open">folder_open</span>
+<span class="truncate">/src/components/auth</span>
+<span class="text-outline-variant">•</span>
+<span class="text-primary font-medium">feat/auth-ui</span>
+</div>
+</div>
+</div>
+<!-- Trailing Utility Actions -->
+<div class="flex items-center gap-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="터미널 콘솔 로그">
+<span class="material-symbols-outlined text-[18px]" data-icon="terminal">terminal</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" title="세션 옵션 더보기">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Task Flow Stepper -->
+<div class="px-3 pb-2 pt-1 border-t border-slate-100 bg-surface-container-lowest">
+<div class="grid grid-cols-4 gap-1.5 text-center">
+<!-- Step 1 -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-full h-1 rounded-full bg-secondary"></div>
+<div class="flex items-center gap-0.5 font-label-sm text-[10px] text-secondary font-semibold">
+<span class="material-symbols-outlined text-[12px] fill-icon" data-icon="check_circle" data-weight="fill">check_circle</span>
+<span>기획</span>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-full h-1 rounded-full bg-secondary"></div>
+<div class="flex items-center gap-0.5 font-label-sm text-[10px] text-secondary font-semibold">
+<span class="material-symbols-outlined text-[12px] fill-icon" data-icon="check_circle" data-weight="fill">check_circle</span>
+<span>구현</span>
+</div>
+</div>
+<!-- Step 3 (Active) -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-full h-1 rounded-full bg-primary-container"></div>
+<div class="flex items-center gap-0.5 font-label-sm text-[10px] text-primary font-semibold">
+<span class="material-symbols-outlined text-[12px]" data-icon="radio_button_checked">radio_button_checked</span>
+<span>리뷰</span>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-full h-1 rounded-full bg-surface-variant"></div>
+<div class="flex items-center gap-0.5 font-label-sm text-[10px] text-on-surface-variant/60 font-medium">
+<span class="material-symbols-outlined text-[12px]" data-icon="schedule">schedule</span>
+<span>커밋</span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Chat Canvas -->
+<main class="flex-1 px-3 py-3 space-y-4 chat-scroll-area">
+<!-- Timestamp Divider -->
+<div class="flex items-center justify-center my-1">
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container-high/60 text-on-surface-variant font-badge-mono text-[10px] tracking-wide">
+          오늘 14:28
+        </span>
+</div>
+<!-- ================= GROUP 1: User Request & Git Completion Summary ================= -->
+<section class="space-y-2">
+<!-- User Message Bubble (Right Aligned) -->
+<div class="flex justify-end items-end gap-1.5 pl-10">
+<span class="font-badge-mono text-[9px] text-outline mb-0.5">14:28</span>
+<div class="bg-primary-container text-white px-3.5 py-2 rounded-2xl rounded-tr-sm shadow-sm max-w-[85%] font-body-md text-[14px]">
+            로그인 버튼 색 바꿔줘
+          </div>
+</div>
+<!-- Muted Action Summary Line -->
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.03)] space-y-2">
+<div class="flex items-start gap-1.5 text-on-surface text-[12px] font-body-sm leading-snug">
+<span class="material-symbols-outlined text-secondary text-[16px] shrink-0 mt-0.5" data-icon="check_circle">check_circle</span>
+<div class="min-w-0">
+<span class="text-on-surface-variant font-mono">「로그인 버튼 색 바꿔줘」</span>
+<span class="text-outline-variant mx-1">→</span>
+<strong class="text-secondary font-semibold">완료</strong>
+<span class="text-outline-variant mx-1">—</span>
+<span class="font-code-inline text-[11px] bg-surface-container-low px-1 py-0.5 rounded text-on-surface">feat: 로그인 버튼 색상 변경</span>
+<span class="text-on-surface-variant text-[11px] ml-1">· 파일 3개</span>
+</div>
+</div>
+<!-- Changed File Tags -->
+<div class="flex flex-wrap gap-1.5 pt-1 border-t border-slate-100">
+<span class="inline-flex items-center gap-1 font-badge-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[11px] text-primary" data-icon="description">description</span>
+              LoginButton.tsx
+              <span class="text-secondary font-semibold">+9</span>
+</span>
+<span class="inline-flex items-center gap-1 font-badge-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[11px] text-primary" data-icon="code">code</span>
+              tailwind.config.js
+              <span class="text-secondary font-semibold">+3</span>
+<span class="text-error font-semibold">-1</span>
+</span>
+<span class="inline-flex items-center gap-1 font-badge-mono text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[11px] text-primary" data-icon="palette">palette</span>
+              theme.css
+              <span class="text-secondary font-semibold">+2</span>
+<span class="text-error font-semibold">-2</span>
+</span>
+</div>
+<!-- Commit/Diff Mini Card -->
+<div class="bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-2 text-[11px] font-code-body flex items-center justify-between">
+<div class="flex items-center gap-2 overflow-hidden">
+<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-badge-mono text-[9px] font-semibold">git 78a1bc4</span>
+<span class="truncate text-slate-600">Apply brand guideline #1a73e8 token</span>
+</div>
+<div class="flex items-center gap-1 shrink-0 font-badge-mono text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-2xs">
+<span class="text-secondary font-bold">+14</span>
+<span class="text-error font-bold">-3</span>
+<span class="material-symbols-outlined text-[12px] text-slate-400" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= GROUP 2: Assistant Planning & Approval Card ================= -->
+<section class="space-y-2">
+<!-- Assistant Message Bubble -->
+<div class="flex items-start gap-2 max-w-[92%]">
+<div class="w-7 h-7 rounded-lg bg-primary-container text-white flex items-center justify-center shrink-0 shadow-sm text-[14px]">
+<span class="material-symbols-outlined text-[16px]" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="space-y-2 min-w-0">
+<div class="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl rounded-tl-sm p-3 shadow-[0_1px_3px_rgba(0,0,0,0.03)] text-on-surface font-body-md text-[13.5px] leading-relaxed">
+              ✏️ <span class="font-semibold text-on-surface">기획안을 다시 썼어요</span> — 아래에서 승인/수정해 주세요
+            </div>
+<!-- Nested Plan Preview Card -->
+<div class="bg-surface-container-lowest border border-outline-variant/50 rounded-xl p-3 shadow-xs space-y-2.5">
+<div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+<span class="font-headline-sm text-[12px] font-bold text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="assignment">assignment</span>
+                  기획 검토안 v2 (수정됨)
+                </span>
+<span class="font-badge-mono text-[9px] text-outline uppercase">Draft Mode</span>
+</div>
+<!-- Summary Bullet Points -->
+<ul class="space-y-1.5 text-[12px] font-body-sm text-on-surface-variant">
+<li class="flex items-start gap-1.5">
+<span class="text-primary font-bold mt-0.5 text-[10px]">•</span>
+<span><strong>1. 구글 브랜드 가이드라인 준수</strong>: 버튼 컬러 <code class="font-code-inline text-[11px] bg-slate-100 px-1 py-0.2 rounded text-blue-700">#1a73e8</code> 적용 및 눌림 상태 컬러 <code class="font-code-inline text-[11px] bg-slate-100 px-1 py-0.2 rounded text-blue-800">#174ea6</code> 매핑</span>
+</li>
+<li class="flex items-start gap-1.5">
+<span class="text-primary font-bold mt-0.5 text-[10px]">•</span>
+<span><strong>2. 다크모드 대응 고대비 변수 지정</strong>: <code class="font-code-inline text-[11px] bg-slate-100 px-1 py-0.2 rounded">var(--btn-auth-primary)</code> 신설로 WCAG AA 대비비(4.8:1) 보장</span>
+</li>
+</ul>
+<!-- Inline Action CTAs -->
+<div class="grid grid-cols-2 gap-2 pt-1">
+<button class="h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-on-surface font-label-md text-[12px] font-medium flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="visibility">visibility</span>
+                  기획안 보기
+                </button>
+<button class="h-8 rounded-lg bg-primary text-white hover:bg-[#1d4ed8] font-label-md text-[12px] font-semibold flex items-center justify-center gap-1 shadow-2xs transition-colors">
+<span class="material-symbols-outlined text-[14px]" data-icon="done_all">done_all</span>
+                  바로 승인
+                </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- ================= GROUP 3: Execution / Result Card with Amber Alert ================= -->
+<section class="space-y-2">
+<div class="flex items-start gap-2 max-w-[96%]">
+<div class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
+</div>
+<!-- Alert Result Card -->
+<div class="bg-surface-container-lowest border-2 border-amber-200 rounded-xl p-3 shadow-sm w-full space-y-2.5">
+<!-- Header Badge -->
+<div class="flex items-center justify-between flex-wrap gap-1">
+<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 font-label-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-[14px] text-amber-600 fill-icon" data-icon="warning" data-weight="fill">warning</span>
+                코드는 완료 · Chrome 작업 미완료
+              </div>
+<span class="font-badge-mono text-[9px] text-slate-400">Agent: Web-Driver-02</span>
+</div>
+<!-- Metadata Line -->
+<div class="text-[12px] font-body-sm text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-200/70 flex items-center gap-1.5 flex-wrap">
+<span class="material-symbols-outlined text-blue-600 text-[16px]" data-icon="language">language</span>
+<span class="font-semibold text-slate-800">Chrome 8단계</span>
+<span class="text-slate-400">(성공 6 · 거부 1 · 오류 1)</span>
+<span class="text-slate-300">•</span>
+<span class="font-code-inline text-[11px] text-slate-700 font-medium">📷 스냅샷 2장 보관</span>
+</div>
+<!-- Inspection Details / Step Breakdown -->
+<div class="space-y-1.5 font-code-body text-[11.5px] bg-[#f8fafc] border border-slate-200 rounded-lg p-2.5">
+<div class="flex items-center justify-between text-slate-600 pb-1 border-b border-slate-200/60">
+<span class="font-badge-mono text-[10px] text-slate-500 uppercase">Execution Trace</span>
+<span class="text-secondary font-badge-mono text-[10px]">Steps 1..6 Passed</span>
+</div>
+<div class="flex items-start gap-1.5 text-slate-700 pt-0.5">
+<span class="material-symbols-outlined text-secondary text-[14px] shrink-0 mt-0.5" data-icon="check_small">check_small</span>
+<span>Step 7: 자동 캡처 완료 <span class="text-slate-400 font-badge-mono">(snapshot_07.png)</span></span>
+</div>
+<div class="flex items-start gap-1.5 text-amber-800 bg-amber-50/80 p-1.5 rounded border border-amber-200/80">
+<span class="material-symbols-outlined text-amber-600 text-[14px] shrink-0 mt-0.5" data-icon="pause_circle">pause_circle</span>
+<div class="min-w-0">
+<span class="font-semibold">Step 8: reCAPTCHA 검증 대기로 멈춤</span>
+<p class="text-[10.5px] text-amber-700 mt-0.5 font-sans leading-tight">자동 해결 불가능 토큰 감지. 사용자의 수동 캡차 클릭이 필요합니다.</p>
+</div>
+</div>
+</div>
+<!-- Snapshot Thumbnails Strip -->
+<div class="grid grid-cols-2 gap-2 pt-0.5">
+<div class="relative rounded-lg border border-slate-200 overflow-hidden bg-slate-100 group">
+<img class="w-full h-16 object-cover opacity-90 group-hover:opacity-100 transition-opacity" data-alt="A clean mobile app UI showing the newly rendered login screen with a blue Google sign-in button in minimalist technical interface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDniSPH2RInk5BvaHH1UMDojlX1w-4jkhXtnnediF5_PL1ejHEegjv0LN_r3T4RvSzZzhR_f5L9te8ZDpAJ102h9y36dXufmywk2PFyI13dmyi38YQynqkAJvoEnpHFila4EITWj6VeebbGxdklFrJR1kHb5S5kVNDaJNlTDoVchuFgLq5uCUzHB8dQSMlg3vc53vaK6r4LnMaeCnZ-z0o_j2O1tr4Sq5hqxzq71Gn4pwlNrvr3fR3M7ttIwm_C0QdJIAmZFz6gpLy7"/>
+<span class="absolute bottom-1 left-1 font-badge-mono text-[8px] bg-black/60 text-white px-1 py-0.2 rounded backdrop-blur-xs">
+                  #1 Login Screen
+                </span>
+</div>
+<div class="relative rounded-lg border border-amber-300 overflow-hidden bg-slate-100 group">
+<img class="w-full h-16 object-cover opacity-90 group-hover:opacity-100 transition-opacity" data-alt="Screenshot of an active reCAPTCHA modal puzzle challenge appearing above a software engineering web dashboard" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoxaRr2LU94wZBth_9fdJuyTgga11R1wF18-eM-WGcoPax15b4TXZ6mKSJlPxjRd-j6r00_RShV4oJJ0vHEN-zUY6VMZ67XQr4Rm9vuDtz4poU9t2FnmyV5Ux49T152U8hidLL7w1ljK1mzod8Uzgrm0ugvwfV4ETOKAkWetFDeypqc9iZOYji9RfqQuDwakR4teuBC4b92MZn2nn1EXOOmQRKuYzA2c7Crnj43es6_bcill7IPT9HtjxincX---y2GK9W8wJHdhaq"/>
+<span class="absolute bottom-1 left-1 font-badge-mono text-[8px] bg-amber-900/80 text-white px-1 py-0.2 rounded backdrop-blur-xs">
+                  #2 reCAPTCHA Lock
+                </span>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+</div>
+</div>
+<!-- Quick Action Buttons -->
+<div class="space-y-1.5 pt-1">
+<button class="w-full h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-label-md text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors">
+<span class="material-symbols-outlined text-[15px]" data-icon="open_in_new">open_in_new</span>
+                Chrome에서 직접 이어하기
+              </button>
+<div class="grid grid-cols-2 gap-1.5">
+<button class="h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-label-sm text-[11px] font-medium flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[13px] text-slate-500" data-icon="photo_library">photo_library</span>
+                  스냅샷 2장 확인
+                </button>
+<button class="h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-label-sm text-[11px] font-medium flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[13px] text-slate-500" data-icon="refresh">refresh</span>
+                  오류 재시도
+                </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Spacer to prevent prompt dock overlap -->
+<div class="h-4"></div>
+</main>
+<!-- ================= FIXED BOTTOM PROMPT DOCK ================= -->
+<div class="fixed bottom-0 left-0 right-0 z-50 max-w-[480px] mx-auto bg-surface-container-lowest/98 backdrop-blur-md border-t border-outline-variant/50 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+8px)] shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+<!-- Quick Macro Suggestion Chips -->
+<div class="flex items-center gap-1.5 overflow-x-auto pb-2 -mx-1 px-1 chat-scroll-area">
+<button class="shrink-0 h-6 px-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-label-sm text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[12px] text-slate-500" data-icon="refresh">refresh</span>
+          새로고침
+        </button>
+<button class="shrink-0 h-6 px-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-label-sm text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[12px] text-slate-500" data-icon="screenshot">screenshot</span>
+          스냅샷 다시 찍기
+        </button>
+<button class="shrink-0 h-6 px-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-label-sm text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[12px] text-slate-500" data-icon="fast_forward">fast_forward</span>
+          로그인 건너뛰기
+        </button>
+<button class="shrink-0 h-6 px-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-label-sm text-[11px] font-medium border border-slate-200/80 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[12px] text-slate-500" data-icon="terminal">terminal</span>
+          /test
+        </button>
+</div>
+<!-- Input Bar Container -->
+<div class="flex items-center gap-1.5 bg-[#f8fafc] border border-outline-variant/60 rounded-xl px-2 py-1.5 focus-within:border-primary-container focus-within:ring-1 focus-within:ring-primary-container transition-all">
+<!-- Paperclip / Attachment -->
+<button aria-label="파일 첨부" class="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="attach_file">attach_file</span>
+</button>
+<!-- Input Field -->
+<input class="flex-1 bg-transparent border-0 p-0 text-[13px] font-body-md text-on-surface placeholder:text-outline focus:ring-0 focus:outline-none" placeholder="지시 보내기... (예: reCAPTCHA 수동 통과함)" type="text"/>
+<!-- Mic Utility -->
+<button aria-label="음성 지시" class="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="mic">mic</span>
+</button>
+<!-- Send Button -->
+<button aria-label="지시 전송" class="w-8 h-8 rounded-lg bg-primary-container hover:bg-primary text-white flex items-center justify-center shadow-2xs active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

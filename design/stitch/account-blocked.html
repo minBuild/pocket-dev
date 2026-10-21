@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pocket-Dev Chrome 계정 불일치 차단 상태</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-container": "#5b8cff",
+            "on-primary-container": "#002665",
+            "on-tertiary-fixed-variant": "#5c4300",
+            "on-background": "#dbe3f4",
+            "surface-bright": "#323a47",
+            "on-surface-variant": "#c3c6d6",
+            "on-error": "#690005",
+            "primary-fixed-dim": "#b2c5ff",
+            "secondary-container": "#00bd85",
+            "tertiary-fixed": "#ffdf9f",
+            "on-error-container": "#ffdad6",
+            "inverse-primary": "#1857c8",
+            "error-container": "#93000a",
+            "primary-fixed": "#dae2ff",
+            "on-surface": "#dbe3f4",
+            "error": "#ffb4ab",
+            "on-tertiary-fixed": "#261a00",
+            "surface-tint": "#b2c5ff",
+            "surface-container": "#18202c",
+            "surface-dim": "#0b1420",
+            "on-secondary-fixed-variant": "#005137",
+            "on-primary-fixed-variant": "#0040a0",
+            "tertiary": "#f9bd22",
+            "outline-variant": "#434653",
+            "tertiary-fixed-dim": "#f9bd22",
+            "secondary": "#45dfa4",
+            "on-tertiary": "#402d00",
+            "on-secondary-container": "#00452e",
+            "background": "#0b1420",
+            "secondary-fixed-dim": "#45dfa4",
+            "on-secondary": "#003825",
+            "on-secondary-fixed": "#002114",
+            "surface-container-lowest": "#060e1a",
+            "on-tertiary-container": "#372700",
+            "surface-container-low": "#141c28",
+            "surface-container-highest": "#2d3542",
+            "on-primary-fixed": "#001847",
+            "surface": "#0b1420",
+            "inverse-on-surface": "#29313e",
+            "outline": "#8d909f",
+            "secondary-fixed": "#68fcbf",
+            "primary": "#b2c5ff",
+            "surface-container-high": "#222a37",
+            "inverse-surface": "#dbe3f4",
+            "surface-variant": "#2d3542",
+            "on-primary": "#002c72",
+            "tertiary-container": "#b88900"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "space-sm": "0.5rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "space-md": "1rem",
+            "margin-compact": "0.75rem",
+            "space-xl": "2rem",
+            "margin": "1rem",
+            "gutter-sm": "0.5rem"
+          },
+          fontFamily: {
+            "label-md": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "headline-md": ["Inter"],
+            "body-md": ["Inter"],
+            "label-sm": ["JetBrains Mono"],
+            "code-block": ["JetBrains Mono"],
+            "body-sm": ["Inter"],
+            "headline-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "code-inline": ["JetBrains Mono"],
+            "label-lg": ["JetBrains Mono"]
+          },
+          fontSize: {
+            "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "500" }],
+            "headline-lg": ["28px", { lineHeight: "34px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "headline-md": ["22px", { lineHeight: "28px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "body-md": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+            "label-sm": ["11px", { lineHeight: "14px", letterSpacing: "0.04em", fontWeight: "500" }],
+            "code-block": ["12px", { lineHeight: "18px", fontWeight: "400" }],
+            "body-sm": ["12px", { lineHeight: "16px", fontWeight: "400" }],
+            "headline-sm": ["18px", { lineHeight: "24px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "body-lg": ["16px", { lineHeight: "24px", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "code-inline": ["13px", { lineHeight: "18px", fontWeight: "400" }],
+            "label-lg": ["14px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-fill {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    /* Hardware console scanning line texture */
+    .scanline {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.04),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.04)
+      );
+      background-size: 100% 2px, 3px 100%;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased flex justify-center min-h-screen selection:bg-error-container selection:text-on-error-container">
+<!-- Mobile Constraint Container (approx 390px - 412px viewport) -->
+<div class="w-full max-w-[412px] bg-background min-h-screen flex flex-col pb-24 relative shadow-2xl">
+<!-- TopAppBar (Shared Component Implementation) -->
+<header class="bg-surface-container docked full-width top-0 z-40 sticky border-b border-outline-variant/30 flex justify-between items-center w-full px-margin h-14">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="terminal">terminal</span>
+<span class="font-headline-sm text-headline-sm font-semibold text-primary tracking-tight">Pocket-Dev</span>
+</div>
+<div class="flex items-center space-x-2">
+<!-- Execution status badge -->
+<div class="flex items-center px-2 py-0.5 rounded bg-error-container/70 border border-error/30 text-error">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse mr-1.5"></span>
+<span class="font-label-sm text-label-sm font-medium">⛔ 실행 차단됨</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface p-1 active:scale-[0.98] transition-transform duration-150">
+<span class="material-symbols-outlined text-error" data-icon="stop_circle">stop_circle</span>
+</button>
+</div>
+</header>
+<!-- Sub-header Security Banner Strip -->
+<div class="px-margin pt-3 pb-1">
+<div class="flex items-center justify-between p-2.5 rounded-lg bg-error-container/20 border border-error/30">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-error text-[18px]">lock</span>
+<span class="font-label-sm text-label-sm font-semibold text-error tracking-tight">
+            🔒 계정 불일치: other@x.com
+          </span>
+</div>
+<span class="font-label-sm text-label-sm text-error bg-error-container/40 px-1.5 py-0.5 rounded uppercase">CRITICAL</span>
+</div>
+</div>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-margin space-y-gutter mt-2">
+<!-- Environment & Connection Info Header Card -->
+<section class="bg-surface-container rounded-xl border border-outline-variant/40 p-4 relative overflow-hidden">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-2.5 mb-3">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[18px]">cloud_sync</span>
+<span class="font-headline-sm text-headline-sm text-on-surface text-sm font-medium">실행 세션 텔레메트리</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">PID 41928</span>
+</div>
+<div class="space-y-2.5 font-label-md text-label-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-outline">Target Host</span>
+<div class="flex items-center space-x-1.5 mt-0.5">
+<span class="text-primary font-mono text-[13px]">console.firebase.google.com</span>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface-variant px-1.5 py-0.2 rounded">Headless Chrome</span>
+</div>
+</div>
+<div class="grid grid-cols-1 gap-2 pt-1">
+<div class="bg-surface-container-low p-2.5 rounded border border-outline-variant/30">
+<span class="font-label-sm text-label-sm text-outline block">Detected Active Session</span>
+<div class="flex items-center justify-between mt-1">
+<span class="text-error font-semibold font-mono text-[13px]">other@x.com</span>
+<span class="font-label-sm text-label-sm text-error bg-error-container/30 px-1.5 py-0.5 rounded">미등록 / 불일치</span>
+</div>
+</div>
+<div class="bg-surface-container-low p-2.5 rounded border border-outline-variant/30 flex items-center justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-outline block">Security Policy</span>
+<span class="font-body-sm text-body-sm text-on-surface font-medium">엄격 모드 활성화</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container/10 px-2 py-0.5 rounded border border-secondary/20">자동화 차단 발효</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Chrome Execution Step Log Section -->
+<section class="space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-1.5">
+<span class="material-symbols-outlined text-outline-variant text-[18px]">terminal</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface text-sm font-semibold">자동화 실행 로그 (Chrome Steps)</h2>
+</div>
+<span class="font-label-sm text-label-sm bg-error-container/40 text-error border border-error/30 px-2 py-0.5 rounded font-mono font-bold">
+            3 / 8 중단됨
+          </span>
+</div>
+<!-- Log List Items -->
+<div class="space-y-2 font-mono">
+<!-- Step 1 -->
+<div class="bg-surface-container rounded-lg border border-error/40 p-3 bg-gradient-to-r from-error-container/10 to-transparent">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center space-x-1.5">
+<span class="font-label-sm text-label-sm font-bold text-error bg-error-container/40 px-1.5 py-0.5 rounded">STEP 1</span>
+<span class="font-label-sm text-label-sm text-error font-semibold">[BLOCKED]</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">14:22:12</span>
+</div>
+<p class="font-code-block text-code-block text-on-surface mt-1.5 leading-relaxed">
+              👤 로그인 계정: <span class="text-error font-semibold">other@x.com</span> · console.firebase.google.com ⛔ 허용 목록에 없음 — 쓰기 작업 안 함
+            </p>
+<div class="mt-2 pt-2 border-t border-outline-variant/30 text-[11px] text-outline font-label-sm space-y-0.5">
+<div>기대된 계정: <span class="text-secondary font-mono">hayaeseong@gmail.com</span></div>
+<div>감지된 계정: <span class="text-error font-mono">other@x.com</span></div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="bg-surface-container rounded-lg border border-error/30 p-3">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center space-x-1.5">
+<span class="font-label-sm text-label-sm font-bold text-outline bg-surface-container-high px-1.5 py-0.5 rounded">STEP 2</span>
+<span class="font-label-sm text-label-sm text-error font-semibold">[DENIED]</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">14:22:14</span>
+</div>
+<p class="font-code-block text-code-block text-on-surface mt-1.5">
+              click ✗ <span class="text-error font-medium">[계정 확인] 허용 목록에 없어요</span>
+</p>
+<div class="mt-2 text-[11px] bg-surface-container-lowest p-2 rounded border border-outline-variant/20 text-on-surface-variant font-label-sm">
+<span class="text-outline">Selector:</span> <code class="text-primary-fixed">button#confirm-project-deploy</code>
+<p class="text-error/80 mt-1">Action aborted for safety protection.</p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="bg-surface-container rounded-lg border border-error/50 p-3 bg-error-container/10">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center space-x-1.5">
+<span class="font-label-sm text-label-sm font-bold text-error bg-error-container/50 px-1.5 py-0.5 rounded">STEP 3</span>
+<span class="font-label-sm text-label-sm text-error font-semibold">[SYSTEM HALT]</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">14:22:15</span>
+</div>
+<p class="font-code-block text-code-block text-error font-medium mt-1">
+              [CHROME-BLOCKED] 계정 불일치: other@x.com
+            </p>
+<div class="flex items-center justify-between mt-2 pt-1.5 border-t border-outline-variant/20 font-label-sm text-label-sm">
+<span class="text-outline">Code: <span class="text-on-surface">ERR_ACCOUNT_MISMATCH_PROTECTION</span></span>
+<span class="text-error font-bold">쓰기 권한 차단됨</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Live Relay / Screenshot Preview Frame (Blocked State) -->
+<section class="bg-surface-container rounded-xl border border-outline-variant/40 overflow-hidden">
+<!-- Mock Browser Frame Bar -->
+<div class="bg-surface-container-high px-3 py-2 flex items-center justify-between border-b border-outline-variant/30">
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-error/70"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-tertiary/70"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-secondary/70"></span>
+<span class="font-label-sm text-label-sm text-outline ml-2">Console View (Live Relay)</span>
+</div>
+<span class="font-label-sm text-label-sm text-error font-mono flex items-center">
+<span class="w-1.5 h-1.5 rounded-full bg-error mr-1"></span> DOM 동결됨
+          </span>
+</div>
+<!-- Simulated Frozen View Canvas -->
+<div class="relative bg-surface-container-lowest h-44 w-full flex flex-col justify-center items-center p-4 scanline overflow-hidden">
+<!-- Background Wireframe Elements simulating Firebase console -->
+<div class="absolute inset-0 opacity-15 flex flex-col p-3 space-y-2 pointer-events-none">
+<div class="h-4 bg-outline-variant/50 w-1/3 rounded"></div>
+<div class="h-8 bg-outline-variant/30 w-full rounded"></div>
+<div class="grid grid-cols-2 gap-2 h-16">
+<div class="bg-outline-variant/20 rounded"></div>
+<div class="bg-outline-variant/20 rounded"></div>
+</div>
+</div>
+<!-- Red Alert Modal Overlay -->
+<div class="relative z-10 w-full max-w-[280px] bg-surface-container/95 border border-error/60 rounded-lg p-3 text-center shadow-xl backdrop-blur-sm">
+<div class="w-8 h-8 rounded-full bg-error-container/40 border border-error/50 flex items-center justify-center mx-auto mb-2 text-error">
+<span class="material-symbols-outlined text-[18px]">gpp_bad</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-xs font-semibold text-error mb-1">
+              보안 경고: 승인되지 않은 계정 세션 감지
+            </h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant font-mono text-[11px]">
+              (other@x.com)
+            </p>
+</div>
+</div>
+<!-- Frame Metadata Footer -->
+<div class="bg-surface-container-low px-3 py-1.5 flex items-center justify-between text-outline font-label-sm text-label-sm border-t border-outline-variant/20">
+<span>해상도 1280x800</span>
+<span>보안 차단 시점 14:22:15 DOM 동결</span>
+</div>
+</section>
+<!-- Bottom Guidance Card & Actions -->
+<section class="bg-surface-container rounded-xl border border-outline-variant/40 p-4 space-y-3">
+<div class="flex items-start space-x-2.5">
+<span class="material-symbols-outlined text-primary text-[20px] mt-0.5">verified_user</span>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-sm font-semibold text-on-surface">계정 전환 및 작업 재개 안내</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+              현재 브라우저에 로그인된 계정이 허용 목록(Whitelist)에 등록된 계정과 일치하지 않아 데이터 보호를 위해 모든 자동 쓰기 작업이 즉시 차단되었습니다. 허용된 계정으로 로그인 후 다시 시도하세요.
+            </p>
+</div>
+</div>
+<div class="pt-2 space-y-2">
+<!-- Primary CTA Button -->
+<button class="w-full bg-primary-container hover:bg-[#4a7ae8] active:scale-[0.98] text-surface-container-lowest font-headline-sm text-headline-sm text-sm font-bold py-3 px-4 rounded-lg flex items-center justify-center space-x-1.5 transition-all shadow-md">
+<span class="material-symbols-outlined text-[18px]">replay</span>
+<span>막힌 Chrome 작업 다시 해줘</span>
+</button>
+<!-- Secondary Actions Flex Row -->
+<div class="flex items-center space-x-2 pt-0.5">
+<button class="flex-1 bg-surface-container-high hover:bg-surface-bright active:scale-[0.98] border border-outline-variant/40 text-on-surface font-body-sm text-body-sm font-medium py-2 px-2.5 rounded-lg flex items-center justify-center space-x-1 transition-all">
+<span class="material-symbols-outlined text-[16px] text-outline">open_in_new</span>
+<span>계정 전환 브라우저 열기</span>
+</button>
+<button class="bg-surface-container-high hover:bg-surface-bright active:scale-[0.98] border border-outline-variant/40 text-on-surface font-body-sm text-body-sm font-medium py-2 px-3 rounded-lg flex items-center justify-center space-x-1 transition-all">
+<span class="material-symbols-outlined text-[16px] text-outline">content_copy</span>
+<span>로그 복사</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Shared Component Implementation) -->
+<!-- Active Destination determined as 'Steps' due to step log inspection & execution halt context -->
+<nav class="bg-surface-container fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-gutter-sm h-16 pb-safe border-t border-outline-variant/30">
+<!-- Nav Item 1: Session -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded px-2 py-1 active:scale-[0.98] transition-transform duration-150" href="#session">
+<span class="material-symbols-outlined text-[20px]" data-icon="smart_toy">smart_toy</span>
+<span class="font-label-sm text-label-sm mt-0.5">Session</span>
+</a>
+<!-- Nav Item 2: Steps (ACTIVE STATE) -->
+<a class="flex flex-col items-center justify-center text-primary font-medium px-2 py-1 relative active:scale-[0.98] transition-transform duration-150" href="#steps">
+<div class="relative">
+<span class="material-symbols-outlined text-[20px]" data-icon="format_list_bulleted">format_list_bulleted</span>
+<!-- Active alert badge on Steps -->
+<span class="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-error ring-2 ring-surface-container"></span>
+</div>
+<span class="font-label-sm text-label-sm mt-0.5">Steps</span>
+</a>
+<!-- Nav Item 3: Relay -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded px-2 py-1 active:scale-[0.98] transition-transform duration-150" href="#relay">
+<span class="material-symbols-outlined text-[20px]" data-icon="screenshot_monitor">screenshot_monitor</span>
+<span class="font-label-sm text-label-sm mt-0.5">Relay</span>
+</a>
+<!-- Nav Item 4: Terminal -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded px-2 py-1 active:scale-[0.98] transition-transform duration-150" href="#terminal">
+<span class="material-symbols-outlined text-[20px]" data-icon="code">code</span>
+<span class="font-label-sm text-label-sm mt-0.5">Terminal</span>
+</a>
+</nav>
+</div>
+</body></html>

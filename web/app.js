@@ -2,6 +2,11 @@
 const $ = (s, el = document) => el.querySelector(s);
 const LS_KEY = "pocketdev.team.v3";  // v3: effort 기본값 medium
 const EFFORTS = ["", "low", "medium", "high", "xhigh", "max"];
+const FINAL = ["done", "error", "cancelled"];   // 이 외(working·waiting)는 진행 중
+// 서버 runs.display_status 와 같은 규칙 — 사람 결정(기획안 승인·권한 결정, Chrome 클릭 포함)을 기다리면 waiting
+const dispStatus = s => FINAL.includes(s) ? s
+  : ([...pending.values()].some(e => e.kind === "plan" || e.kind === "permission") ? "waiting" : "working");
+const paintStatus = s => { const el = $("#runStatus"); if (!el) return; el.className = "status " + s; el.textContent = s; el.hidden = !s; };
 
 let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
@@ -13,6 +18,7 @@ async function api(path, opts = {}) {
   if (res.status === 401 && path !== "/api/login") { showGate("login"); throw new Error("로그인이 필요해요"); }
   if (res.status === 423) { showGate("locked"); throw new Error("잠겨 있어요"); }
   const body = await res.json().catch(() => ({}));
+  if (res.status === 405) throw Object.assign(new Error("서버가 아직 이전 코드예요 — 상단 🔄 로 재시작한 뒤 다시 해 주세요"), { status: 405 });
   if (!res.ok) throw Object.assign(new Error(body.detail || res.statusText), { body, status: res.status });
   return body;
 }
@@ -234,8 +240,10 @@ function md(text) {
   return `<pre>${esc(text)}</pre>`;
 }
 const msgs = new Map();
+const threads = new Map();   // chat_id → .thread (내 채팅 말풍선 + 그에 대한 답·처리 결과 묶음)
 let sink = null;   // 이전 대화를 그릴 때만 임시 상자 (평소엔 #stream)
-const out = el => (sink || $("#stream")).append(el);
+let into = null;   // 지금 이벤트가 붙을 채팅 묶음 (reply_to)
+const out = el => (into || sink || $("#stream")).append(el);
 
 function addMsg(cls, whoHtml, text, id) {
   const el = document.createElement("div");
@@ -256,7 +264,7 @@ function collapsible(el) {
   el.append(b);
 }
 
-const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; out(d); };
+const line = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; out(d); return d; };
 const fmtTokens = u => u && (u.output_tokens != null) ? ` · 출력 ${u.output_tokens.toLocaleString()} 토큰` : "";
 
 let renderTimer = null;
@@ -264,10 +272,32 @@ let renderTimer = null;
 function handle(ev, mode = "live") {
   const nearBottom = innerHeight + scrollY > document.body.scrollHeight - 200;
   const older = mode === "older";
+  into = (ev.reply_to && threads.get(ev.reply_to)) || null;   // 묶음이 화면에 없으면 최상위에 그림
+  try {
   switch (ev.type) {
     case "user": {
+      if (ev.chat_id) {
+        const th = document.createElement("div"); th.className = "thread";
+        out(th); threads.set(ev.chat_id, th); into = th;
+      }
       const el = addMsg("user", "<b>⬜ 나</b>", ev.text);
       if (ev.files?.length) el.insertAdjacentHTML("beforeend", `<div class="file-chips">${ev.files.map(n => `<span class="chip">📎 ${esc(n)}</span>`).join("")}</div>`);
+      break;
+    }
+    case "chat_action": {
+      const cls = ev.action === "done" ? " done" : "";
+      line("log chat-action" + cls, (!into && ev.quote ? `「${ev.quote}」 → ` : "") + ev.text);   // 묶음이 화면 밖이면 인용으로
+      break;
+    }
+    case "browser_account": {   // 구현 AI 의 로그인 계정 보고 (email 이 빈 건 실행 시작 리셋)
+      if (ev.email) {
+        const host = (ev.scope || "").split("#")[0];
+        const state = !ev.verified ? "⚠️ 지금 페이지에서 읽은 내용에 없는 이메일 — 다시 확인 필요"
+          : ev.gate === false ? "✅ (허용 목록 검사 꺼짐)"
+          : ev.allowed ? "✅ 허용 계정" : "⛔ 허용 목록에 없음 — 쓰기 작업 안 함";
+        line("cc tool bstep account", `👤 로그인 계정: ${ev.email}${host ? " · " + host : ""} ${state}`);
+      }
+      if (!older) { chrome.account = ev.email ? ev : null; chrome.gate = ev.gate !== false; renderChip(); }
       break;
     }
     case "stage": line("stage", ev.label); if (!older) $("#runStage").textContent = ev.label; break;
@@ -292,14 +322,63 @@ function handle(ev, mode = "live") {
       if (ev.error) el.classList.add("failed");
       $(".who", el).insertAdjacentHTML("beforeend", `<span class="muted">${fmtTokens(ev.usage)}</span>`);
       if (!el.classList.contains("spec")) collapsible(el);
+      const th = el.closest(".thread");   // 답이 끝나면 묶음을 맨 아래로 (그 사이 쌓인 Chrome 줄보다 아래에 보이게)
+      if (th) th.parentNode?.append(th);
       break;
     }
     case "spec": addMsg("spec", "<b>📄 최종 작업 명세서 (TASK_SPEC.md)</b>", ev.text); break;
     case "log": line("log", ev.text); break;
-    case "cc": line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text); break;
+    case "cc": {
+      if (ev.step) {   // Chrome 단계 시작 — 끝 이벤트가 먼저 그려졌으면(이전 대화 경계) 건너뜀
+        if (!steps.has(ev.step)) {
+          const el = line("cc tool bstep running", "⏳ " + ev.tool);
+          if (ev.note) { const s = document.createElement("span"); s.className = "muted"; s.textContent = " · 💬 " + ev.note; el.append(s); }
+          steps.set(ev.step, el);
+        }
+        if (!older) { chrome.current = { step: ev.step, text: ev.tool, ts: ev.ts, note: ev.note || "" }; renderChip(); }
+      } else line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text);
+      const i = (ev.text || "").indexOf(BLOCK_MARK);
+      if (i >= 0 && !older) {
+        chrome.blocked = ev.text.slice(i + BLOCK_MARK.length).split("\n")[0].trim().slice(0, 200) || "이유 없음";
+        renderChip();
+      }
+      break;
+    }
+    case "todo": {   // 구현 AI 의 할 일 목록 (TodoWrite) — 이 이벤트만으로 줄을 그릴 수 있음
+      line("cc tool todo", todoText(ev));
+      if (!older) { chrome.todo = ev; renderChip(); if (!$("#browserOverlay").hidden) renderOverlayTodo(); }
+      break;
+    }
+    case "browser": {   // Chrome 단계 끝 — 이 이벤트만으로 줄을 그릴 수 있음
+      let el = steps.get(ev.step);
+      if (!el) { el = line("cc tool bstep", ""); if (ev.step) steps.set(ev.step, el); }
+      fillStep(el, ev);
+      if (ev.shot) { shots.push({ url: ev.shot, ts: ev.ts, text: ev.text }); shots.sort((a, b) => a.ts - b.ts); }
+      if (!older) {
+        if (chrome.current?.step === ev.step) chrome.current = null;
+        chrome.count++; chrome.last = ev; chrome.lastTs = ev.ts;
+        chrome.noImage ||= !!ev.no_image;
+        chrome.recent = [...chrome.recent, ev.status].slice(-8);
+        if (ev.status === "ok" && ev.write !== false) { chrome.blocked = null; chrome.suspect = false; }   // 스크린샷·읽기는 막힘을 풀지 않음
+        const last3 = chrome.recent.slice(-3);
+        if ((last3.length === 3 && last3.every(s => s === "denied" || s === "error"))
+            || (ev.tool === "tabs_context_mcp" && ev.status !== "ok")) chrome.suspect = true;
+        renderChip();
+        if (!$("#browserOverlay").hidden) refreshOverlay(ev);
+      }
+      break;
+    }
     case "permission_request": {
       const d = document.createElement("div"); d.className = "perm"; d.id = "perm-" + ev.req_id;
-      d.innerHTML = `🔐 <b>권한 요청: ${esc(ev.tool)}</b><pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre><div class="votes"></div><div class="final muted">심사 중…</div>`;
+      d.innerHTML = `🔐 <b>권한 요청: ${esc(ev.label || ev.tool)}</b><details><summary>입력 보기</summary>` +
+        `<pre>${esc(JSON.stringify(ev.input, null, 1).slice(0, 1500))}</pre></details><div class="votes"></div><div class="final muted">심사 중…</div>`;
+      if (ev.browser) d.dataset.browser = "1";
+      const s = shots[shots.length - 1];
+      if (!older && s) {
+        const box = shotBox(s.url);
+        box.insertAdjacentHTML("beforeend", `<span class="shot-ago">📷 ${esc(ago(s.ts))}</span>`);
+        $(".votes", d).before(box);
+      }
       out(d); break;
     }
     case "permission_votes": {
@@ -311,6 +390,7 @@ function handle(ev, mode = "live") {
     case "permission_decision": {
       const d = permBox(ev.req_id);
       if (d) $(".final", d).innerHTML = `<span class="${ev.allow ? "ok" : "no"}">${ev.allow ? "허용" : "거부"}</span> — ${esc(ev.by)}`;
+      if (d && d.dataset.browser && ev.allow) d.classList.add("compact");   // 허용된 Chrome 카드는 한 줄로
       if (!older) pending.delete("perm:" + ev.req_id);
       break;
     }
@@ -326,7 +406,7 @@ function handle(ev, mode = "live") {
       out(d); break;
     }
     case "result": {
-      const el = addMsg("user", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
+      const el = addMsg("result", `<b>${esc(ev.title || "✅ 완료 — 커밋 요약")}</b>`, "```\n" + ev.text + "\n```");
       const l = ev.links || {};
       if (l.compare || l.branch) {
         const box = document.createElement("div"); box.className = "links";
@@ -343,23 +423,28 @@ function handle(ev, mode = "live") {
     case "status":
       if (older) break;
       if (currentRun) currentRun.status = ev.status;
-      if (["done", "error", "cancelled"].includes(ev.status)) pending.clear();
+      if (FINAL.includes(ev.status)) { pending.clear(); chrome.current = null; }
       if (ev.status === "done") addRollback();
       break;
   }
+  } finally { if (into) into.parentNode?.append(into); into = null; }   // 새 요소가 붙은 묶음은 맨 아래로
   if (mode === "live") { renderComposer(); if (nearBottom) scrollTo(0, document.body.scrollHeight); }
 }
 
 // 이전 대화를 그리는 중이면 임시 상자에서 먼저 찾는다 (아직 화면에 안 붙어 있음)
 const permBox = id => (sink && $("#perm-" + id, sink)) || $("#perm-" + id);
 
+// 권한 결정 자동 거부 시각
+const expiry = ev => ev.expires_at ? ` · ${esc(new Date(ev.expires_at * 1000).toLocaleTimeString())}까지 (지나면 자동 거부)` : "";
+
 // ── 작업 화면 채팅창 (상황에 따라 버튼·안내가 바뀜) ──
 function renderComposer() {
   const box = $("#composer");
   if (!currentRun || $("#tab-run").hidden) { box.hidden = true; return; }
+  paintStatus(dispStatus(currentRun.status));
   box.hidden = false;
   const [key, ev] = [...pending.entries()].pop() || [];
-  const status = currentRun.status, alive = ["running", "awaiting_user"].includes(status);
+  const status = currentRun.status, alive = !FINAL.includes(status);
   const info = $("#composerInfo"), acts = $("#composerActions"), ta = $("#composerText");
   info.innerHTML = ""; acts.innerHTML = "";
   const btn = (label, onClick, cls = "") => {
@@ -377,8 +462,15 @@ function renderComposer() {
     info.innerHTML = `⏳ <b>구독 사용량 한도에 걸렸어요.</b> ${new Date(ev.retry_at * 1000).toLocaleTimeString()}에 자동으로 이어서 진행해요.<div class="muted">${esc(ev.text)}</div>`;
     ta.placeholder = "질문하거나 지시를 남길 수 있어요 (재시도는 버튼)";
     btn("🔁 지금 재시도", () => reply("retry"), "primary");
+  } else if (ev?.label) {   // Chrome 동작
+    const s = shots[shots.length - 1];
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.label)}` +
+      (s ? ` <a href="${esc(s.url)}" target=_blank rel=noopener>📷 최근 화면 (${esc(ago(s.ts))})</a>` : "") + expiry(ev);
+    ta.placeholder = "질문하거나 지시를 남길 수 있어요";
+    btn("✅ 허용", () => reply("allow"), "primary");
+    btn("⛔ 거부", () => reply("deny"), "danger");
   } else if (ev) {
-    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input.command || ev.input.file_path || "").slice(0, 120))}</code>`;
+    info.innerHTML = `🔐 <b>심사자 의견이 갈렸어요:</b> ${esc(ev.tool)} <code>${esc(String(ev.input?.command || ev.input?.file_path || "").slice(0, 120))}</code>` + expiry(ev);
     ta.placeholder = "질문하거나 지시를 남길 수 있어요";
     btn("✅ 허용", () => reply("allow"), "primary");
     btn("⛔ 거부", () => reply("deny"), "danger");
@@ -398,7 +490,158 @@ function renderComposer() {
   ta.classList.toggle("mono", termMode);
   $("#sendBtn").textContent = termMode ? "실행" : "보내기";
   if (termMode) ta.placeholder = `$ 명령 (${currentRun.project.split(/[\\/]/).pop()} 폴더에서 실행 · 예: git status)`;
+  renderChip();   // 결정 대기·한도 대기 배지
 }
+
+// ── 🌐 Chrome 작업 진행 (단계 줄 · 상단 칩 · 스크린샷 오버레이) ──
+const steps = new Map();      // step(tool_use_id) → 줄 요소
+let shots = [];               // {url, ts, text}
+let chrome = null;
+const BSTAT = { ok: "✅", denied: "⛔", error: "⚠️", stopped: "⏹" };
+const BLOCK_MARK = "[CHROME-BLOCKED]";
+const TODO_ICON = { completed: "✅", in_progress: "▶", pending: "○" };
+const todoText = t => `📋 할 일 ${t.done}/${t.total}` + (t.current ? ` · ▶ ${t.current}` : t.done === t.total ? " · 모두 완료" : "");
+
+function resetChrome() {
+  steps.clear(); shots = [];
+  chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [],
+             account: null, gate: true, current: null, todo: null };
+  $(".bc-thumb", $("#browserChip"))?.remove();
+  const todoBox = $("#browserOverlay .bo-todo");
+  if (todoBox) { todoBox.textContent = ""; todoBox.hidden = true; }
+  $("#browserChip").hidden = true; $("#browserOverlay").hidden = true;
+}
+resetChrome();
+
+function ago(ts) {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  return s < 60 ? `${s}초 전` : s < 3600 ? `${Math.floor(s / 60)}분 전` : `${Math.floor(s / 3600)}시간 전`;
+}
+
+function shotBox(url) {
+  const box = document.createElement("div"); box.className = "shot";
+  const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener";
+  const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = url;
+  img.onerror = () => { box.textContent = "🗑 정리된 화면"; box.classList.add("gone"); };
+  a.append(img); box.append(a);
+  return box;
+}
+
+function fillStep(el, ev) {
+  el.className = `cc tool bstep ${ev.status || ""}`;
+  el.textContent = `${BSTAT[ev.status] || ""} ${ev.text || ""}`;
+  const muted = text => { const s = document.createElement("span"); s.className = "muted"; s.textContent = text; el.append(s); };
+  if (ev.note) muted(" · 💬 " + ev.note);
+  if (ev.result) muted(" — " + ev.result);
+  if (ev.no_image) muted(" (화면 이미지 없음 — 텍스트로만)");
+  if (ev.shot) el.append(shotBox(ev.shot));
+}
+
+function renderChip() {
+  const chip = $("#browserChip");
+  if (!chrome || $("#tab-run").hidden) return;
+  if (chrome.count === 0 && !shots.length && !chrome.account && !chrome.current && !chrome.todo) { chip.hidden = true; return; }
+  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account, cur = chrome.current, t = chrome.todo;
+  let text = `🌐 Chrome`;
+  if (t) text += ` · 📋 ${t.done}/${t.total}`;
+  text += ` · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
+  if (a) text += ` · 👤 ${a.email}` + (chrome.gate === false ? " · 검사 꺼짐" : "");
+  else if (chrome.gate === false) text += " · 👤 계정 검사 꺼짐";
+  if (cur) text += ` · ⏳ ${cur.text}${cur.note ? " · 💬 " + cur.note : ""} (${ago(cur.ts)} 시작)`;   // 진행 중 동작이 먼저
+  else {
+    if (t?.current) text += ` · ▶ ${t.current}`;
+    if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
+  }
+  if (shot) text += ` · 📷 ${ago(shot.ts)}`;
+  const waits = [...pending.values()];
+  const badge = a && a.verified && a.gate !== false && !a.allowed ? ["blocked", `🔒 계정 불일치: ${a.email}`]
+    : chrome.blocked ? ["blocked", `🔒 집 PC Chrome 에서 처리 필요: ${chrome.blocked}`]
+    : waits.some(p => p.kind === "permission" && p.label) ? ["decide", "✋ 내 결정 대기"]
+    : waits.some(p => p.kind === "limit") ? ["limit", "⏳ 한도 대기"]
+    : chrome.suspect ? ["suspect", "⚠️ 막힘 의심"]
+    : chrome.noImage ? ["textonly", "텍스트로만"] : null;
+  chip.className = "browser-chip" + (badge ? " " + badge[0] : "");
+  // 썸네일 <img> 는 재사용하고 URL 이 바뀔 때만 src 를 바꿈 (10초마다 다시 그려도 no-store 이미지를 다시 받지 않게)
+  let thumb = $(".bc-thumb", chip);
+  if (shot && !chrome.noImage) {
+    if (!thumb) { thumb = document.createElement("img"); thumb.className = "bc-thumb"; thumb.alt = ""; chip.prepend(thumb); }
+    if (thumb.dataset.src !== shot.url) { thumb.dataset.src = shot.url; thumb.onerror = () => thumb.remove(); thumb.src = shot.url; }
+  } else thumb?.remove();
+  chip.querySelectorAll(".bc-badge, .bc-text").forEach(e => e.remove());
+  const span = (cls, t) => { const s = document.createElement("span"); s.className = cls; s.textContent = t; chip.append(s); };
+  if (badge) span("bc-badge", badge[1]);
+  span("bc-text", text);
+  chip.title = text;
+  chip.hidden = false;
+}
+setInterval(renderChip, 10000);   // "N초 전" 갱신
+
+function shotFigure(s) {
+  const fig = document.createElement("figure"); fig.className = "bo-shot";
+  fig.dataset.ts = s.ts; fig.dataset.text = s.text || "";
+  const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+  const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = s.url;
+  img.onerror = () => { a.textContent = "🗑 정리된 화면"; a.classList.add("gone"); };
+  a.append(img);
+  fig.append(a, document.createElement("figcaption"));
+  return fig;
+}
+
+// 캡션 번호만 다시 씀 (img 는 건드리지 않음)
+function captionAll(strip) {
+  const figs = strip.querySelectorAll("figure.bo-shot");
+  figs.forEach((f, i) => {
+    $("figcaption", f).textContent = `${i + 1}/${figs.length} · ${new Date(f.dataset.ts * 1000).toLocaleTimeString()} · ${f.dataset.text}`;
+  });
+}
+
+function renderOverlaySteps(list) {
+  const rows = [...$("#stream").querySelectorAll(".bstep")].slice(-8);   // 화면 순서(시간순) 기준 마지막 8개
+  list.innerHTML = `<div class="bo-title">최근 단계 (${rows.length})</div>`;
+  rows.forEach(r => { const d = document.createElement("div"); d.className = r.className; d.textContent = r.textContent; list.append(d); });
+}
+
+// 구현 AI 의 할 일 목록 (마지막 todo 기준) — 글자는 전부 textContent, 클래스는 고정값만
+function renderOverlayTodo() {
+  const box = $("#browserOverlay .bo-todo"), t = chrome.todo;
+  box.textContent = "";
+  if (!t) { box.hidden = true; return; }
+  const div = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; box.append(d); };
+  const items = Array.isArray(t.items) ? t.items : [];
+  div("bo-title", `할 일 (${t.done}/${t.total})`);
+  items.forEach(it => {
+    const st = Object.hasOwn(TODO_ICON, it?.status) ? it.status : "pending";
+    div(`todo-item ${st}`, `${TODO_ICON[st]} ${it.text}`);
+  });
+  if (items.length < t.total) div("todo-item muted", `… 외 ${t.total - items.length}개`);
+  box.hidden = false;
+}
+
+function openOverlay() {
+  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov), list = $(".bo-steps", ov);
+  strip.innerHTML = "";
+  if (!shots.length) strip.innerHTML = '<p class="muted">아직 찍은 화면이 없어요 — 텍스트로만 보여요</p>';
+  shots.forEach(s => strip.append(shotFigure(s)));
+  captionAll(strip);
+  renderOverlayTodo();
+  renderOverlaySteps(list);
+  ov.hidden = false;
+  strip.scrollLeft = strip.scrollWidth;   // 마지막 장부터
+}
+
+// 오버레이를 연 채로 새 단계가 오면 새 화면 카드만 덧붙임 (이미 있는 img 는 다시 받지 않음)
+function refreshOverlay(ev) {
+  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov);
+  if (ev.shot && !strip.querySelector(`a[href="${CSS.escape(ev.shot)}"]`)) {
+    const atEnd = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 8;
+    strip.querySelector("p.muted")?.remove();                 // "아직 찍은 화면이 없어요" 안내
+    strip.append(shotFigure(shots.find(s => s.url === ev.shot) || { url: ev.shot, ts: ev.ts, text: ev.text }));
+    captionAll(strip);
+    if (atEnd) strip.scrollLeft = strip.scrollWidth;          // 마지막 장을 보던 중일 때만 따라감
+  }
+  renderOverlaySteps($(".bo-steps", ov));
+}
+const closeOverlay = () => { $("#browserOverlay").hidden = true; };
 
 // ── 터미널 칸 (git·gh 처럼 직접 날려야 하는 명령) ──
 let termMode = false;
@@ -448,7 +691,7 @@ async function sendMessage(text) {
   const r = await post(`/api/runs/${currentRun.id}/message`, { text, attachments });
   chatFiles.length = 0; renderChips($("#chatFileList"), chatFiles);
   $("#composerText").value = "";
-  if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "running"; $("#rollbackBtn")?.remove(); }
+  if (["resumed", "followup"].includes(r.mode)) { currentRun.status = "working"; $("#rollbackBtn")?.remove(); }
   renderComposer();
   return r;
 }
@@ -489,7 +732,7 @@ async function openModels() {
   bl.innerHTML = '<input type="checkbox"> 🌐 Chrome 사용 <span class="muted">(웹 콘솔 작업 · 다음 구현 실행부터 · 클릭마다 권한 심사)</span>';
   const browserOn = $("input", bl); browserOn.checked = !!cur.browser; box.append(bl);
   let now = null;
-  if (cur.status === "running") {
+  if (cur.status === "working") {
     const lab = document.createElement("label"); lab.className = "row";
     lab.innerHTML = '<input type="checkbox"> 지금 진행 중인 단계도 새 모델로 다시 시작 <span class="muted">(하던 발언·구현은 처음부터 다시 해요)</span>';
     box.append(lab); now = $("input", lab);
@@ -546,8 +789,9 @@ const fillScreen = () => { if (firstIndex && (scrollY < 400 || document.body.scr
 addEventListener("scroll", () => { if (scrollY < 400) loadOlder(); }, { passive: true });
 
 function openRun(run) {
-  currentRun = run; pending.clear(); msgs.clear(); $("#modelsPanel").hidden = true;
-  $("#stream").innerHTML = ""; $("#runTitle").textContent = run.idea; $("#runStage").textContent = "";
+  currentRun = run; pending.clear(); msgs.clear(); threads.clear(); resetChrome(); $("#modelsPanel").hidden = true;
+  $("#stream").innerHTML = ""; $("#runTitle").textContent = run.title || run.idea; $("#runStage").textContent = "";
+  paintStatus(FINAL.includes(run.status) || run.status === "waiting" ? run.status : "working");
   firstIndex = 0; streamGen++;
   show("run");
   if (es) es.close();
@@ -556,10 +800,19 @@ function openRun(run) {
     const ev = JSON.parse(m.data);
     if (ev.type === "snapshot") {
       streamGen++; firstIndex = ev.first || 0;
-      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear();
+      $("#stream").innerHTML = '<button id="olderBar" class="older-bar" hidden></button>'; msgs.clear(); threads.clear(); resetChrome();
       $("#olderBar").onclick = loadOlder;
       currentRun = ev.run;
+      $("#runTitle").textContent = ev.run.title || ev.run.idea;
       ev.events.forEach(e => handle(e, "snapshot"));
+      if (ev.browser) {   // 계정 보고·막힘은 이벤트 창 밖에 있을 수 있어 서버 집계로 덮어씀
+        const acc = ev.browser.account;
+        chrome.account = acc?.email ? acc : null;
+        chrome.gate = (acc || ev.browser.report || {}).gate !== false;
+        chrome.blocked = ev.browser.blocked || null;
+        renderChip();
+      }
+      if ("todo" in ev) { chrome.todo = ev.todo || null; renderChip(); }   // 마지막 할 일 목록도 서버 집계로 (D6)
       pending.clear();
       (ev.pending || []).forEach(p => pending.set(p.key, p));   // 앞부분이 안 불러와져도 대기 중인 요청은 서버 기준으로
       if (ev.stage_label) $("#runStage").textContent = ev.stage_label;
@@ -572,32 +825,87 @@ function openRun(run) {
 
 // ── 탭 ──
 function show(tab) {
+  if (!["new", "runs", "run"].includes(tab)) return;
   ["new", "runs", "run"].forEach(t => $("#tab-" + t).hidden = t !== tab);
   document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
   if (tab === "runs") loadRuns();
 }
 
+// ── 기록 목록 (폴링 없이: 기록 버튼·탭 복귀 때 1회) ──
+let runsGen = 0;
+const WAIT_FMT = w => {
+  const t = w.until ? new Date(w.until * 1000).toLocaleTimeString() : "";
+  if (w.kind === "perm") return `🔐 권한 결정 필요 · ${w.label}${t ? ` · ${t}까지 (지나면 자동 거부)` : ""}`;
+  if (w.kind === "plan") return "📋 기획안 승인 대기";
+  return `⏳ 한도 대기${w.label ? " · " + w.label : ""}${t ? ` · ${t} 자동 재시도` : ""}`;
+};
+const CHROME_FMT = c => {
+  let s = `🌐 Chrome ${c.steps}단계`;
+  if (c.todo) s += ` · 📋 ${c.todo.done}/${c.todo.total}` + (c.todo.current ? ` ▶ ${c.todo.current}` : "");
+  if (c.blocked) s += ` · 🔒 막힘: ${c.blocked}`;
+  if (c.current) s += ` · ⏳ ${c.current.text}` + (c.current.note ? ` · 💬 ${c.current.note}` : "");
+  else if (c.last) s += ` · ${BSTAT[c.last.status] || ""} ${c.last.text} · ${ago(c.last.ts)}`;
+  if (c.shot_ts) s += ` · 📷 ${ago(c.shot_ts)}`;
+  if (c.account) s += ` · 👤 ${c.account.email}${c.account.ok ? "" : " ⛔"}`;
+  return s;
+};
+
 async function loadRuns() {
-  const runs = await api("/api/runs");
+  const gen = ++runsGen, nav = $('.top nav button[data-tab="runs"]'), meta = $("#runsMeta");
+  nav.textContent = "기록 ⟳";
+  let runs;
+  try { runs = await api("/api/runs", { cache: "no-store" }); }
+  catch (e) { if (gen === runsGen) meta.textContent = `⚠️ 목록을 불러오지 못했어요: ${e.message}`; return; }   // 이전 목록은 그대로
+  finally { if (gen === runsGen) nav.textContent = "기록"; }
+  if (gen !== runsGen) return;   // 늦게 온 응답
+  meta.textContent = `마지막 갱신 ${new Date().toLocaleTimeString()}`;
   const box = $("#runList"); box.innerHTML = runs.length ? "" : '<p class="muted">아직 실행 기록이 없어요.</p>';
   runs.forEach(r => {
+    const name = r.title || r.idea;
     const row = document.createElement("div"); row.className = "run-row";
     const b = document.createElement("button"); b.className = "run-item";
-    b.innerHTML = `<span class="status ${r.status}">${r.status}</span><b>${esc(r.idea.slice(0, 80))}</b>
-      <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.stage)}</div>`;
+    b.innerHTML = `<span class="status ${esc(r.status)}">${esc(r.status)}</span><b class="run-title">${esc(name)}</b>
+      <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.wait ? WAIT_FMT(r.wait) : r.stage)}</div>` +
+      (r.chrome ? `<div class="muted run-chrome${r.chrome.blocked ? " blocked" : ""}">${esc(CHROME_FMT(r.chrome))}</div>` : "");
     b.onclick = () => openRun(r);
+    const edit = document.createElement("button"); edit.className = "run-edit"; edit.textContent = "✏️"; edit.title = "대화명 바꾸기";
+    edit.onclick = () => renameRun(r);
     const del = document.createElement("button"); del.className = "run-del"; del.textContent = "🗑";
     del.title = r.alive ? "진행 중인 작업은 먼저 중단해야 삭제할 수 있어요" : "기록 삭제";
     del.disabled = r.alive;
     del.onclick = async () => {
-      if (!confirm(`이 기록을 삭제할까요?\n\n${r.idea.slice(0, 80)}\n\n대화 기록과 첨부 파일이 지워지고 되돌릴 수 없어요. (프로젝트 코드·커밋은 그대로)`)) return;
+      if (!confirm(`이 기록을 삭제할까요?\n\n${name.slice(0, 80)}\n\n대화 기록과 첨부 파일이 지워지고 되돌릴 수 없어요. (프로젝트 코드·커밋은 그대로)`)) return;
       del.disabled = true;
       try { await api(`/api/runs/${r.id}`, { method: "DELETE" }); row.remove(); if (!box.children.length) loadRuns(); }
       catch (e) { alert(e.message); del.disabled = false; }
     };
-    row.append(b, del); box.append(row);
+    row.append(b, edit, del); box.append(row);
   });
+}
+
+// 대화명 바꾸기 — 서버에 저장 (빈 값이면 처음 아이디어로 표시)
+function renameRun(r) {
+  const dlg = $("#renameDialog"), input = $("#renameInput"), err = $("#renameError"), form = $("form", dlg);
+  if (typeof dlg.showModal !== "function") {   // <dialog> 가 없는 옛 WebView
+    const v = prompt("대화명 (비우면 처음 아이디어로 표시)", r.title || "");
+    if (v !== null) api(`/api/runs/${r.id}`, { method: "PATCH", body: JSON.stringify({ title: v }) }).then(loadRuns).catch(e => alert(e.message));
+    return;
+  }
+  input.value = r.title || ""; input.placeholder = (r.idea || "").slice(0, 60); err.hidden = true;
+  $("#renameCancel", dlg).onclick = () => dlg.close();      // Esc 는 dialog 기본 동작
+  form.onsubmit = async e => {
+    e.preventDefault();                                     // Enter·키보드 완료 키·✓ 모두 저장
+    const btn = $("button[type=submit]", form); btn.disabled = true;
+    try {
+      await api(`/api/runs/${r.id}`, { method: "PATCH", body: JSON.stringify({ title: input.value }) });
+      dlg.close(); loadRuns();
+    } catch (ex) {
+      if (ex.status === 404) { dlg.close(); alert("이미 삭제된 기록이에요"); loadRuns(); return; }
+      err.textContent = `⚠️ ${ex.message}`; err.hidden = false;
+    } finally { btn.disabled = false; }
+  };
+  dlg.showModal(); input.select();
 }
 
 // ── 서버 재시작 (Pocket-Dev 자기 코드 수정 반영) ──
@@ -667,6 +975,14 @@ function renderLockBanner() {
   box.hidden = false;
 }
 
+function renderStaleBanner() {
+  const box = $("#staleBanner");
+  if (SESSION.stale === false) { box.hidden = true; return; }   // 옛 서버는 stale 필드가 없어 → 배너가 뜸 (의도)
+  box.textContent = "⚠️ 서버 코드가 바뀌었어요 — 진행 중인 작업이 끝난 뒤 🔄 재시작해야 반영돼요 (Chrome 화면 보기·상태 표시 포함).";
+  const b = document.createElement("button"); b.className = "primary"; b.textContent = "🔄 지금 재시작";
+  b.onclick = restartServer; box.append(b); box.hidden = false;
+}
+
 async function boot() {
   SESSION = await api("/api/session");
   if (SESSION.locked && SESSION.via === "public") return showGate("locked");
@@ -674,6 +990,7 @@ async function boot() {
   $("#tab-login").hidden = $("#tab-locked").hidden = true;
   $("#app").hidden = false;
   renderLockBanner();
+  renderStaleBanner();
   if (!started) { started = true; await startApp(); }
 }
 
@@ -754,16 +1071,25 @@ async function startApp() {
     remote = d.repos.filter(r => !r.local_path);
     fillProjects(); badge();
   }).catch(() => {});
+  document.querySelectorAll(".top nav button[data-tab]").forEach(b => b.onclick = () => show(b.dataset.tab));
   $("#restartBtn").onclick = restartServer;
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
-
-  document.querySelectorAll(".top nav button").forEach(b => b.onclick = () => show(b.dataset.tab));
+  document.addEventListener("visibilitychange", () => {   // 기록 탭을 보던 중 앱으로 돌아오면 1회 새로고침
+    if (document.visibilityState === "visible" && !$("#app").hidden && !$("#tab-runs").hidden) loadRuns();
+  });
   document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { state.participants = PRESETS[b.dataset.preset](); save(); renderTeam(); });
   $("#addParticipant").onclick = () => { state.participants.push({ ...member("p" + Date.now(), "참가자", "claude-sonnet-5-5"), persona: "" }); save(); renderTeam(); };
   $("#addReviewer").onclick = () => { state.reviewers.push({ engine: "claude", model: "claude-sonnet-5-5", effort: "medium" }); save(); renderTeam(); };
   $("#addPermReviewer").onclick = () => { state.permission_reviewers.push({ engine: "claude", model: "claude-haiku-5-5", effort: "" }); save(); renderTeam(); };
   $("#backBtn").onclick = () => show("runs");
   $("#modelsBtn").onclick = () => openModels().catch(e => alert(e.message));
+  $("#browserChip").onclick = () => $("#browserOverlay").hidden ? openOverlay() : closeOverlay();
+  $("#browserOverlay .bo-close").onclick = closeOverlay;
+  document.addEventListener("click", e => {   // 오버레이 바깥을 누르면 닫힘
+    const ov = $("#browserOverlay");
+    if (!ov.hidden && !ov.contains(e.target) && !$("#browserChip").contains(e.target)) closeOverlay();
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
   bindFileInput($("#chatFiles"), chatFiles, $("#chatFileList"));
   bindFileInput($("#ideaFiles"), ideaFiles, $("#ideaFileList"));
   const send = async () => {

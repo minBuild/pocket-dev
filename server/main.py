@@ -21,8 +21,8 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
-from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT
+from . import attachments, auth, browser, engine_setup, executor, github, permissions, pipeline, runs, stitch, usage
+from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT, RUNS_DIR, code_sig
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
 
@@ -34,10 +34,12 @@ PUBLIC_PORT = CONFIG["server"].get("public_port", 8001)
 UPCOMING_ENGINES = {"codex": "ChatGPT (2차 예정)", "gemini": "Gemini (3차 예정)"}
 OPEN_API = {"/api/login", "/api/session"}  # 로그인 없이 부를 수 있는 API
 BOOT_ID = uuid.uuid4().hex[:8]  # 재시작 뒤 화면이 새 서버로 바뀌었는지 알아보는 용도
+BOOT_SIG = code_sig()  # 이 프로세스가 켜질 때의 코드 — 바뀌면 화면에 🔄 안내
 RESTART_EXIT = 3                # start.bat 은 이 종료 코드면 서버를 다시 켠다
 SERVER: "uvicorn.Server | None" = None
 restart_requested = False
 load_saved_runs()
+runs.prune_browser_shots(int((CONFIG.get("browser") or {}).get("retention_days", 14)))
 
 
 def _via(request: Request) -> str:
@@ -66,7 +68,26 @@ async def guard(request: Request, call_next):
     if path.startswith("/api/") and path not in OPEN_API:
         if not auth.valid_session(request.cookies.get(auth.SESSION_COOKIE)):
             return JSONResponse({"detail": "login required"}, status_code=401)
-    return await call_next(request)
+    resp = await call_next(request)
+    if path == "/" or path.startswith("/static/"):   # 화면 파일은 항상 재검증 (?v= 범프를 잊어도 새로고침으로 반영)
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+_SHOT_TYPES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+
+
+@app.get("/api/runs/{run_id}/browser/{name}")
+async def browser_shot(run_id: str, name: str):
+    """구현 AI 가 찍은 Chrome 스크린샷 (로그인·잠금은 guard 가 처리, 캐시에 남지 않게)."""
+    if not re.fullmatch(r"[\w-]+", run_id) or not browser.SHOT_RE.match(name):
+        raise HTTPException(404)
+    _run(run_id)  # 삭제된 기록 → 404
+    path = RUNS_DIR / run_id / "browser" / name
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, media_type=_SHOT_TYPES[name.rsplit(".", 1)[1]],
+                        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 app.mount("/static", StaticFiles(directory=WEB), name="static")
@@ -92,6 +113,8 @@ async def session(request: Request):
     if logged_in:  # 실패 기록은 로그인한 사람에게만
         state = auth.load_state()
         info.update(failures=state.get("failures", 0), log=state.get("log", [])[-5:])
+        cur = code_sig()
+        info["stale"] = bool(BOOT_SIG and cur and cur != BOOT_SIG)
     return info
 
 
@@ -411,15 +434,33 @@ async def start_run(req: StartReq):
     return run.summary()
 
 
+def _row(r: Run) -> dict:
+    """기록 목록 한 줄 — Chrome 진행은 목록에서만 계산."""
+    return {**r.summary(), "chrome": browser.progress(r.events) if browser.enabled(r.settings) else None}
+
+
 @app.get("/api/runs")
 async def list_runs():
-    return sorted((r.summary() for r in RUNS.values()), key=lambda r: -r["created"])
+    return sorted((_row(r) for r in RUNS.values()), key=lambda r: -r["created"])
 
 
 def _run(run_id: str) -> Run:
     if run_id not in RUNS:
         raise HTTPException(404, "run not found")
     return RUNS[run_id]
+
+
+class TitleReq(BaseModel):
+    title: str = ""
+
+
+@app.patch("/api/runs/{run_id}")
+async def rename_run(run_id: str, req: TitleReq):
+    """기록 대화명 변경 — 빈 값이면 처음 아이디어로 표시."""
+    run = _run(run_id)
+    run.title = runs.norm_title(req.title)
+    run.save()
+    return _row(run)
 
 
 PAGE_EVENTS = 200  # 대화창에 한 번에 보내는 이벤트 수 (나머지는 위로 스크롤할 때)
@@ -448,7 +489,9 @@ async def run_events(run_id: str):
     queue: asyncio.Queue = asyncio.Queue()
     first, events = run.snapshot_events(PAGE_EVENTS)
     snapshot = {"type": "snapshot", "run": run.summary(), "events": events, "first": first,
-                "pending": run.pending_events(), "stage_label": run.stage_label()}
+                "pending": run.pending_events(), "stage_label": run.stage_label(),
+                "browser": browser.summarize(run.events),
+                "todo": browser.latest_todo(run.events) if browser.enabled(run.settings) else None}
     run.subscribers.add(queue)
 
     async def gen():
@@ -477,12 +520,29 @@ class ReplyReq(BaseModel):
 async def reply(run_id: str, req: ReplyReq):
     run = _run(run_id)
     value = {"action": req.action, "text": req.text, "allow": req.action in ("allow", "approve")}
+    if req.key not in run.waiters:
+        raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
+    chat_id = uuid.uuid4().hex[:10] if req.key == "plan" and req.text.strip() else None
+    if chat_id and req.action in ("approve", "feedback"):
+        run.track_chat(chat_id, req.action, req.text, True)
     if not run.resolve(req.key, value):
         raise HTTPException(409, "이미 처리되었거나 대기 중인 요청이 아닙니다")
-    if req.key == "plan" and req.text.strip():
-        await run.emit("user", text=req.text.strip())
+    if chat_id:
+        await run.emit("user", text=req.text.strip(), chat_id=chat_id)
     await run.emit("user_reply", key=req.key, action=req.action, text=req.text)
+    if req.key == "plan" and req.action in _PLAN_ACTIONS:
+        await run.emit("chat_action", **_rt(chat_id), action=req.action, text=_PLAN_ACTIONS[req.action])
     return {"ok": True}
+
+
+_PLAN_ACTIONS = {"approve": "🚀 승인 — 코멘트를 명세서에 반영하고 진행해요",
+                 "feedback": "✏️ 기획안 수정 요청 → 한 라운드 더 토론해요",
+                 "cancel": "⏹ 작업을 취소했어요"}
+
+
+def _rt(chat_id: str | None) -> dict:
+    """채팅 응답 쪽 이벤트의 묶음 키."""
+    return {"reply_to": chat_id} if chat_id else {}
 
 
 # ── 진행 중인 작업의 역할별 모델 변경 ─────────────────────────────
@@ -497,7 +557,7 @@ def _models_view(run: Run) -> dict:
     return {"participants": [pick(p) for p in s["participants"]], "synthesizer": pick(s["synthesizer"]),
             "reviewers": [pick(r) for r in s["reviewers"]],
             "permission_reviewers": [pick(r) for r in s["permission_reviewers"]],
-            "executor_model": s["executor_model"], "browser": bool(s.get("browser")), "status": run.status}
+            "executor_model": s["executor_model"], "browser": bool(s.get("browser")), "status": run.summary()["status"]}
 
 
 @app.get("/api/runs/{run_id}/models")
@@ -559,7 +619,7 @@ async def set_models(run_id: str, req: ModelsReq):
     if req.browser is not None and req.browser != bool(s.get("browser")):
         changes.append("🌐 Chrome 사용 " + ("켬" if req.browser else "끔"))
         s["browser"] = req.browser
-    restart = bool(changes) and req.apply_now and run.status == "running"
+    restart = bool(changes) and req.apply_now and run.summary()["status"] == "working"
     if changes:
         await run.emit("log", text="⚙️ 모델 변경 — " + " · ".join(changes)
                        + (" (지금 단계부터 새 모델로 다시 시작)" if restart else " (다음 AI 호출부터 적용)"))
@@ -593,22 +653,31 @@ async def run_message(run_id: str, req: MessageReq):
         run.save()
         names = ", ".join(f["name"] for f in files)
         text = f"{text}\n\n[첨부 파일 추가: {names}]" if text else f"첨부 파일을 올렸어요: {names}"
+    chat_id = None
     if req.text.strip() or files:
-        await run.emit("user", text=req.text.strip(), files=[f["name"] for f in files])
+        chat_id = uuid.uuid4().hex[:10]
+        await run.emit("user", text=req.text.strip(), files=[f["name"] for f in files], chat_id=chat_id)
     if _is_resume(text):
         limit_keys = [k for k in list(run.waiters) if k.startswith("limit:")]
         for key in limit_keys:
             run.resolve(key, {"action": "retry"})
             await run.emit("user_reply", key=key, action="retry", text="")
         if limit_keys:
+            await run.emit("chat_action", **_rt(chat_id), action="resume", text="🔁 지금 재시도할게요")
             return {"mode": "retry"}
         if run.alive:
-            return {"mode": "running"}
+            mode, msg = runs.busy_reply(run.summary()["status"])
+            await run.emit("chat_action", **_rt(chat_id), action="resume", text=msg)
+            return {"mode": mode}
         if run.status == "done":
+            await run.emit("chat_action", **_rt(chat_id), action="resume",
+                           text="ℹ️ 이미 끝난 작업이에요 — 추가로 바꿀 내용을 적어 주세요")
             raise HTTPException(400, "이미 끝난 작업이에요. 추가로 바꿀 내용을 적어 주세요")
+        run.track_chat(chat_id, "resume", req.text, True)
+        await run.emit("chat_action", **_rt(chat_id), action="resume", text="▶ 멈춘 단계부터 이어서 진행해요")
         pipeline.start(run, PORT)
         return {"mode": "resumed"}
-    asyncio.create_task(pipeline.handle_chat(run, text, PORT))
+    asyncio.create_task(pipeline.handle_chat(run, text, PORT, reply_to=chat_id))
     return {"mode": "assistant"}
 
 
@@ -643,11 +712,22 @@ class PermissionReq(BaseModel):
     run_id: str
     tool_name: str
     input: dict
+    tool_use_id: str | None = None
 
 
 @app.post("/api/internal/permission")
 async def internal_permission(req: PermissionReq):
-    return await permissions.decide(_run(req.run_id), req.tool_name, req.input)
+    return await permissions.decide(_run(req.run_id), req.tool_name, req.input, req.tool_use_id)
+
+
+class ChromeAccountReq(BaseModel):
+    run_id: str
+    email: str = ""
+
+
+@app.post("/api/internal/chrome_account")
+async def internal_chrome_account(req: ChromeAccountReq):
+    return {"text": await permissions.report_account(_run(req.run_id), req.email[:300])}
 
 
 # ── 실행 ─────────────────────────────────────────────────────

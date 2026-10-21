@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - 작업 중</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container": "#f0edeb",
+            "on-primary-fixed-variant": "#7a2f15",
+            "secondary-fixed-dim": "#c9c6be",
+            "surface-container-highest": "#e5e2e0",
+            "primary-fixed": "#ffdbd0",
+            "surface-container-lowest": "#ffffff",
+            "secondary-fixed": "#e5e2da",
+            "primary-container": "#d97757",
+            "on-tertiary-fixed-variant": "#005047",
+            "surface-tint": "#99462a",
+            "outline": "#88726c",
+            "on-secondary-fixed": "#1c1c17",
+            "error-container": "#ffdad6",
+            "surface-dim": "#dcd9d7",
+            "surface": "#fcf9f6",
+            "tertiary-container": "#09a493",
+            "on-primary": "#ffffff",
+            "on-background": "#1c1c1a",
+            "tertiary-fixed": "#7df7e3",
+            "on-secondary-container": "#64635c",
+            "primary-fixed-dim": "#ffb59e",
+            "tertiary-fixed-dim": "#5edac7",
+            "on-secondary-fixed-variant": "#474741",
+            "inverse-surface": "#31302f",
+            "on-error": "#ffffff",
+            "surface-bright": "#fcf9f6",
+            "inverse-on-surface": "#f3f0ee",
+            "tertiary": "#006b5f",
+            "on-tertiary": "#ffffff",
+            "surface-container-low": "#f6f3f1",
+            "surface-variant": "#e5e2e0",
+            "on-primary-container": "#541400",
+            "primary": "#99462a",
+            "inverse-primary": "#ffb59e",
+            "secondary": "#5f5f58",
+            "outline-variant": "#dbc1b9",
+            "secondary-container": "#e2e0d7",
+            "on-surface": "#1c1c1a",
+            "on-surface-variant": "#55433d",
+            "on-primary-fixed": "#390b00",
+            "surface-container-high": "#ebe8e5",
+            "on-error-container": "#93000a",
+            "error": "#ba1a1a",
+            "background": "#fcf9f6",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed": "#00201c",
+            "on-tertiary-container": "#00312b"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "space-sm": "0.5rem",
+            "margin": "1rem",
+            "gutter": "0.75rem",
+            "space-md": "0.75rem",
+            "space-lg": "1rem",
+            "space-xl": "1.5rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono", "monospace"],
+            "headline-lg": ["Plus Jakarta Sans", "Pretendard", "sans-serif"],
+            "label-sm": ["Inter", "Pretendard", "sans-serif"],
+            "code-md": ["JetBrains Mono", "monospace"],
+            "headline-sm": ["Plus Jakarta Sans", "Pretendard", "sans-serif"],
+            "headline-md": ["Plus Jakarta Sans", "Pretendard", "sans-serif"],
+            "label-md": ["Inter", "Pretendard", "sans-serif"],
+            "body-sm": ["Inter", "Pretendard", "sans-serif"],
+            "body-md": ["Inter", "Pretendard", "sans-serif"],
+            "body-lg": ["Inter", "Pretendard", "sans-serif"]
+          },
+          "fontSize": {
+            "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+            "code-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+    }
+    /* Hide scrollbars for screenshot carousel */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface h-full flex justify-center antialiased select-none overflow-x-hidden font-body-md">
+<!-- Mobile Frame Container (Max 540px centered) -->
+<div class="relative w-full max-w-[540px] h-full min-h-screen bg-surface flex flex-col shadow-sm border-x border-surface-variant overflow-hidden">
+<!-- 1. Top Command Bar (Shared Component TopAppBar Anchor) -->
+<header class="sticky top-0 z-40 bg-surface flex items-center justify-between w-full h-12 px-4 border-b border-surface-variant">
+<!-- Left brand & terminal icon -->
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="terminal">terminal</span>
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">Pocket-Dev</span>
+</div>
+<!-- Right Action Icons: Refresh, Power -->
+<div class="flex items-center gap-1">
+<button class="p-1.5 rounded-lg text-secondary hover:bg-surface-container active:scale-95 transition-all text-on-surface flex items-center justify-center" type="button">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+<button class="p-1.5 rounded-lg text-secondary hover:bg-surface-container active:scale-95 transition-all text-on-surface flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-error text-[18px]" data-icon="power_settings_new">power_settings_new</span>
+</button>
+</div>
+</header>
+<!-- Sub-navigation Tabs directly below TopBar -->
+<nav class="w-full bg-surface px-4 border-b border-surface-variant flex items-center justify-start gap-6 text-body-sm font-label-md">
+<button class="py-2.5 text-secondary hover:text-on-surface transition-colors flex items-center gap-1.5">
+<span>새 작업</span>
+</button>
+<button class="py-2.5 text-secondary hover:text-on-surface transition-colors flex items-center gap-1.5">
+<span>기록</span>
+</button>
+<button class="py-2.5 font-bold text-on-surface relative flex items-center gap-1.5">
+<span>작업</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container inline-block"></span>
+<div class="absolute bottom-0 left-0 right-0 h-[2px] bg-primary"></div>
+</button>
+</nav>
+<!-- Main Scrollable Thread Canvas (Layer behind bottom sheet) -->
+<main class="flex-1 overflow-y-auto px-4 pt-3 pb-32 flex flex-col gap-3">
+<!-- 2. Task Header Section -->
+<section class="bg-surface-container-lowest rounded-xl p-3.5 border border-surface-variant shadow-sm flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<button class="p-1 -ml-1 text-secondary hover:text-on-surface rounded-lg" type="button">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface">로그인 화면 개선</h1>
+</div>
+<button class="px-2.5 py-1 text-label-sm font-label-sm font-medium bg-error-container/40 text-error border border-error/20 rounded-lg hover:bg-error-container active:scale-95 transition-all" type="button">
+            중단
+          </button>
+</div>
+<div class="flex items-center justify-between pt-1 border-t border-surface-variant/60">
+<div class="flex items-center gap-2">
+<!-- Green Working Pill Badge -->
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-label-sm font-code-sm font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              working
+            </span>
+<span class="text-secondary text-label-sm font-label-sm">구현 중</span>
+</div>
+<!-- Model Tag -->
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary text-code-sm font-code-sm border border-secondary-fixed-dim/40">
+<span class="material-symbols-outlined text-[13px] text-secondary" data-icon="settings">settings</span>
+            Sonnet
+          </span>
+</div>
+</section>
+<!-- 3. Chrome Session Viewport Chip & Card Preview -->
+<section class="bg-surface-container-lowest rounded-xl p-3 border border-surface-variant shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]" data-icon="language">language</span>
+<span class="font-label-md text-label-md font-semibold text-on-surface">Chrome 세션 뷰포트</span>
+</div>
+<span class="font-code-sm text-code-sm text-secondary bg-surface-container px-2 py-0.5 rounded border border-surface-variant">
+            📋 4/6 · 8단계
+          </span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-2 border border-surface-variant flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-2 min-w-0">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-code-sm text-code-sm text-on-surface truncate">example.com/auth/v2/login</span>
+</div>
+<span class="text-label-sm text-secondary shrink-0">1280x800</span>
+</div>
+<!-- Mini thumbnail viewport mockup -->
+<div class="relative w-full h-24 bg-surface-container rounded border border-surface-variant overflow-hidden flex flex-col justify-center items-center">
+<div class="w-44 bg-surface-container-lowest p-2 rounded shadow-xs border border-surface-variant/80 flex flex-col gap-1.5 scale-90 opacity-90">
+<div class="h-2 w-16 bg-surface-variant rounded"></div>
+<div class="h-4 w-full bg-surface-container-low border border-surface-variant rounded"></div>
+<div class="h-4 w-full bg-surface-container-low border border-surface-variant rounded"></div>
+<div class="h-4 w-12 bg-primary-container rounded self-end"></div>
+</div>
+<div class="absolute bottom-1 right-2 bg-inverse-surface/80 text-inverse-on-surface px-1.5 py-0.5 rounded text-[10px] font-code-sm">
+            Step 4 Active
+          </div>
+</div>
+</section>
+<!-- Execution Stream (실행 스트림) -->
+<section class="bg-surface-container-lowest rounded-xl p-3 border border-surface-variant shadow-sm">
+<div class="flex items-center justify-between mb-2 pb-1.5 border-b border-surface-variant/70">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-secondary" data-icon="terminal">terminal</span>
+<span class="font-label-md text-label-md font-semibold text-on-surface">실행 스트림</span>
+</div>
+<span class="font-code-sm text-code-sm text-secondary">PID: 40921</span>
+</div>
+<div class="flex flex-col gap-1.5 font-code-sm text-code-sm">
+<div class="flex items-start justify-between py-1 px-1.5 rounded bg-surface-container-low/50">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="text-tertiary">✓</span>
+<span class="text-secondary">🖱</span>
+<span>클릭 (120, 340)</span>
+</div>
+<span class="text-secondary text-[10px]">14:02:15</span>
+</div>
+<div class="flex items-start justify-between py-1 px-1.5 rounded bg-surface-container-low/50">
+<div class="flex items-center gap-1.5 text-on-surface">
+<span class="text-tertiary">✓</span>
+<span class="text-secondary">🌐</span>
+<span>로그인 화면 확인 <span class="text-secondary text-[10px]">(버튼 동작 확인)</span></span>
+</div>
+<span class="text-secondary text-[10px]">14:02:18</span>
+</div>
+<div class="flex items-center justify-between py-1 px-1.5 rounded bg-primary-fixed/30 border border-primary-fixed-dim/40">
+<div class="flex items-center gap-1.5 text-on-primary-fixed-variant font-medium">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container animate-ping"></span>
+<span>⌨️ 입력 진행 중...</span>
+</div>
+<span class="text-primary text-[10px] font-code-sm">실행 중</span>
+</div>
+</div>
+</section>
+</main>
+<!-- 4. Expanded Bottom Sheet Overlay (Chrome Session Details & Todo Checklist) -->
+<div class="absolute inset-x-0 bottom-0 top-20 z-50 flex flex-col justify-end pointer-events-none">
+<!-- Semi-transparent backdrop tinting the upper half -->
+<div class="absolute inset-0 bg-inverse-surface/30 pointer-events-auto backdrop-blur-[1px] transition-opacity"></div>
+<!-- Sheet Container -->
+<div class="relative w-full max-h-[751px] bg-surface-container-lowest rounded-t-2xl shadow-2xl border-t border-surface-variant flex flex-col pointer-events-auto z-10 animate-in slide-in-from-bottom duration-200">
+<!-- Draggable Handle Bar -->
+<div class="w-full flex justify-center pt-2.5 pb-1">
+<div class="w-10 h-1 bg-secondary-fixed-dim rounded-full"></div>
+</div>
+<!-- Sheet Header -->
+<div class="px-4 py-2 border-b border-surface-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="open_in_browser">open_in_browser</span>
+<h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">Chrome 세션 상세</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-label-sm font-label-sm font-semibold">
+              4/6 단계 완료
+            </span>
+</div>
+<button class="p-1 rounded-lg text-secondary hover:bg-surface-container text-on-surface" type="button">
+<span class="material-symbols-outlined" data-icon="keyboard_arrow_down">keyboard_arrow_down</span>
+</button>
+</div>
+<!-- Scrollable Sheet Content -->
+<div class="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-4 no-scrollbar">
+<!-- Screenshot Strip Carousel -->
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-md font-label-md font-semibold text-secondary">단계별 화면 스크린샷</span>
+<span class="text-code-sm text-secondary font-code-sm">Step 1 - 4</span>
+</div>
+<div class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+<!-- Thumb 1 -->
+<div class="flex-shrink-0 w-28 bg-surface-container-low rounded-lg border border-surface-variant p-1.5 flex flex-col gap-1">
+<div class="w-full h-16 bg-surface-container rounded overflow-hidden flex flex-col justify-center items-center border border-surface-variant/60">
+<span class="text-[9px] font-code-sm text-secondary">auth.init</span>
+<div class="w-12 h-1 bg-surface-variant rounded mt-1"></div>
+</div>
+<div class="flex items-center justify-between px-0.5">
+<span class="text-code-sm font-code-sm text-secondary">Step 1</span>
+<span class="text-tertiary text-[11px]">✓</span>
+</div>
+</div>
+<!-- Thumb 2 -->
+<div class="flex-shrink-0 w-28 bg-surface-container-low rounded-lg border border-surface-variant p-1.5 flex flex-col gap-1">
+<div class="w-full h-16 bg-surface-container rounded overflow-hidden flex flex-col justify-center items-center border border-surface-variant/60">
+<span class="text-[9px] font-code-sm text-secondary">input.focus</span>
+<div class="w-14 h-1.5 bg-surface-variant rounded mt-1"></div>
+</div>
+<div class="flex items-center justify-between px-0.5">
+<span class="text-code-sm font-code-sm text-secondary">Step 2</span>
+<span class="text-tertiary text-[11px]">✓</span>
+</div>
+</div>
+<!-- Thumb 3 -->
+<div class="flex-shrink-0 w-28 bg-surface-container-low rounded-lg border border-surface-variant p-1.5 flex flex-col gap-1">
+<div class="w-full h-16 bg-surface-container rounded overflow-hidden flex flex-col justify-center items-center border border-surface-variant/60">
+<span class="text-[9px] font-code-sm text-secondary">auth.fill</span>
+<div class="w-16 h-2 bg-secondary-fixed rounded mt-1"></div>
+</div>
+<div class="flex items-center justify-between px-0.5">
+<span class="text-code-sm font-code-sm text-secondary">Step 3</span>
+<span class="text-tertiary text-[11px]">✓</span>
+</div>
+</div>
+<!-- Thumb 4 (Active Step with Orange/Terracotta Border) -->
+<div class="flex-shrink-0 w-28 bg-surface-container-lowest rounded-lg border-2 border-primary-container p-1.5 flex flex-col gap-1 shadow-sm">
+<div class="w-full h-16 bg-primary-fixed/20 rounded overflow-hidden flex flex-col justify-center items-center relative">
+<span class="text-[9px] font-code-sm text-primary font-medium">btn.submit</span>
+<div class="w-10 h-2 bg-primary-container rounded mt-1"></div>
+<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary-container"></span>
+</div>
+<div class="flex items-center justify-between px-0.5">
+<span class="text-code-sm font-code-sm font-bold text-primary">Step 4</span>
+<span class="text-primary-container text-[11px] font-bold">진행</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Todo Checklist Section -->
+<div class="bg-surface-container-low rounded-xl p-3 border border-surface-variant flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<span class="text-label-md font-label-md font-semibold text-on-surface">할 일 목록 (4/6 완료)</span>
+<span class="text-code-sm font-code-sm text-primary font-bold">66%</span>
+</div>
+<!-- Progress Bar -->
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 66%;"></div>
+</div>
+<!-- Task Items List -->
+<div class="flex flex-col gap-1.5 pt-1 text-body-sm font-body-sm">
+<!-- Item 1 Done -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest border border-surface-variant/70">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-tertiary text-[17px] filled" data-icon="check_circle">check_circle</span>
+<span class="line-through text-secondary">로그인 페이지 접속</span>
+</div>
+<span class="text-label-sm font-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">완료</span>
+</div>
+<!-- Item 2 Done -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest border border-surface-variant/70">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-tertiary text-[17px] filled" data-icon="check_circle">check_circle</span>
+<span class="line-through text-secondary">입력 필드 검사 및 포커스</span>
+</div>
+<span class="text-label-sm font-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">완료</span>
+</div>
+<!-- Item 3 Done -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest border border-surface-variant/70">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-tertiary text-[17px] filled" data-icon="check_circle">check_circle</span>
+<span class="line-through text-secondary">테스트 자격증명 자동 입력</span>
+</div>
+<span class="text-label-sm font-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">완료</span>
+</div>
+<!-- Item 4 Done -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest border border-surface-variant/70">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-tertiary text-[17px] filled" data-icon="check_circle">check_circle</span>
+<span class="line-through text-secondary">로그인 버튼 클릭 승인</span>
+</div>
+<span class="text-label-sm font-label-sm text-tertiary bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">완료</span>
+</div>
+<!-- Item 5 In-Progress -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-primary-fixed/20 border border-primary-container/40">
+<div class="flex items-center gap-2 text-on-surface font-medium">
+<span class="w-4 h-4 rounded-full border-2 border-primary-container flex items-center justify-center">
+<span class="w-1.5 h-1.5 bg-primary-container rounded-full"></span>
+</span>
+<span class="text-on-surface">대시보드 리다이렉트 응답 검증</span>
+</div>
+<span class="text-label-sm font-label-sm text-primary font-bold bg-primary-fixed px-1.5 py-0.2 rounded">진행 중</span>
+</div>
+<!-- Item 6 Pending -->
+<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest border border-surface-variant/60 opacity-60">
+<div class="flex items-center gap-2 text-secondary">
+<span class="w-4 h-4 rounded-full border border-secondary-fixed-dim"></span>
+<span>세션 토큰 스토리지 저장 확인</span>
+</div>
+<span class="text-label-sm font-label-sm text-secondary bg-surface-container px-1.5 py-0.2 rounded">대기</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 5. Bottom Input Command Bar (Docked at bottom of sheet) -->
+<div class="p-3 bg-surface-container-lowest border-t border-surface-variant flex items-center gap-2">
+<div class="relative flex-1 flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-secondary text-[18px]" data-icon="edit_note">edit_note</span>
+<input class="w-full h-10 pl-9 pr-3 rounded-lg bg-surface border border-surface-variant focus:border-primary-container focus:ring-0 text-[15px] font-body-md text-on-surface placeholder:text-secondary focus:outline-none" placeholder="에이전트에게 추가 지시 입력..." type="text"/>
+</div>
+<button aria-label="Send instruction" class="w-10 h-10 flex-shrink-0 bg-primary-container text-on-primary rounded-lg flex items-center justify-center active:scale-95 transition-transform shadow-xs" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_upward">arrow_upward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</body></html>

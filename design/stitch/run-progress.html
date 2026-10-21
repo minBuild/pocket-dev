@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev · 원격 에이전트 제어</title>
+<!-- Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary": "#1000a9",
+            "on-secondary-container": "#00452e",
+            "on-error": "#690005",
+            "on-tertiary-fixed": "#261a00",
+            "on-background": "#e2e2e8",
+            "outline": "#908fa0",
+            "background": "#111317",
+            "surface-container-low": "#1a1c20",
+            "on-primary-container": "#0d0096",
+            "on-tertiary-fixed-variant": "#5c4300",
+            "error-container": "#93000a",
+            "surface-bright": "#37393e",
+            "secondary-container": "#00bd85",
+            "error": "#ffb4ab",
+            "on-surface": "#e2e2e8",
+            "outline-variant": "#464554",
+            "surface-variant": "#333539",
+            "secondary-fixed": "#68fcbf",
+            "on-secondary": "#003825",
+            "surface-container-highest": "#333539",
+            "primary-container": "#8083ff",
+            "surface": "#111317",
+            "tertiary-fixed": "#ffdf9f",
+            "primary-fixed-dim": "#c0c1ff",
+            "inverse-on-surface": "#2f3035",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "secondary": "#45dfa4",
+            "on-secondary-fixed-variant": "#005137",
+            "inverse-primary": "#494bd6",
+            "inverse-surface": "#e2e2e8",
+            "secondary-fixed-dim": "#45dfa4",
+            "surface-container": "#1e2024",
+            "tertiary-container": "#b88900",
+            "on-secondary-fixed": "#002114",
+            "on-surface-variant": "#c7c4d7",
+            "on-error-container": "#ffdad6",
+            "surface-dim": "#111317",
+            "on-tertiary": "#402d00",
+            "on-primary-fixed": "#07006c",
+            "tertiary": "#f9bd22",
+            "primary": "#c0c1ff",
+            "surface-container-lowest": "#0c0e12",
+            "on-tertiary-container": "#372700",
+            "primary-fixed": "#e1e0ff",
+            "surface-container-high": "#282a2e",
+            "tertiary-fixed-dim": "#f9bd22",
+            "surface-tint": "#c0c1ff"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          spacing: {
+            "space-md": "0.75rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-lg": "1rem",
+            "space-sm": "0.5rem",
+            "gutter": "0.5rem"
+          },
+          fontFamily: {
+            "label-sm": ["JetBrains Mono"],
+            "headline-sm": ["Inter"],
+            "code-lg": ["JetBrains Mono"],
+            "body-lg": ["Inter"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-md": ["Inter"],
+            "body-md": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-lg": ["Inter"],
+            "code-md": ["JetBrains Mono"],
+            "body-sm": ["Inter"]
+          },
+          fontSize: {
+            "label-sm": ["10px", { lineHeight: "14px", letterSpacing: "0.04em", fontWeight: "500" }],
+            "headline-sm": ["16px", { lineHeight: "22px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "code-lg": ["13px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "500" }],
+            "body-lg": ["15px", { lineHeight: "22px", letterSpacing: "-0.005em", fontWeight: "400" }],
+            "code-sm": ["11px", { lineHeight: "16px", letterSpacing: "0.02em", fontWeight: "400" }],
+            "headline-md": ["18px", { lineHeight: "24px", letterSpacing: "-0.015em", fontWeight: "600" }],
+            "body-md": ["14px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "400" }],
+            "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.01em", fontWeight: "500" }],
+            "headline-lg": ["22px", { lineHeight: "28px", letterSpacing: "-0.02em", fontWeight: "600" }],
+            "code-md": ["12px", { lineHeight: "18px", letterSpacing: "0em", fontWeight: "400" }],
+            "body-sm": ["13px", { lineHeight: "18px", letterSpacing: "0em", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #0f1115;
+      color: #e6e8ee;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#0f1115] text-[#e6e8ee] antialiased flex flex-col min-h-screen max-w-[430px] mx-auto relative overflow-x-hidden pb-36">
+<!-- 1. Top App Bar (docked full-width top-0, height 56px, border-b #2a2f3a) -->
+<header class="fixed top-0 left-0 right-0 max-w-[430px] mx-auto z-40 bg-[#0f1115] border-b border-[#2a2f3a] h-14 flex items-center justify-between px-3">
+<!-- Leading Action -->
+<button aria-label="뒤로 가기" class="w-11 h-11 flex items-center justify-center rounded-lg text-[#8b93a3] hover:text-[#e6e8ee] hover:bg-[#181b22] active:opacity-80 transition-opacity" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="arrow_back">arrow_back</span>
+</button>
+<!-- Title Area -->
+<div class="flex-1 min-w-0 px-2 text-center">
+<h1 class="text-[#e6e8ee] font-headline-sm text-headline-sm truncate font-semibold leading-tight">
+        AdMob 광고 단위 만들기
+      </h1>
+<div class="flex items-center justify-center gap-1.5 mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse"></span>
+<span class="font-code-sm text-code-sm text-[#8b93a3] leading-none">
+          실행 중 · Pocket Agent #4
+        </span>
+</div>
+</div>
+<!-- Trailing Action -->
+<div class="flex items-center">
+<button aria-label="옵션 더보기" class="w-11 h-11 flex items-center justify-center rounded-lg text-[#8b93a3] hover:text-[#e6e8ee] hover:bg-[#181b22] active:opacity-80 transition-opacity" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Main Content Body -->
+<main class="flex-1 w-full pt-16 px-4 space-y-3">
+<!-- 2. Compact Chrome Status Chip Card (No LIVE badge, No browser frame) -->
+<section class="bg-[#181b22] border border-[#2a2f3a] rounded-[10px] p-3 flex items-center gap-3">
+<!-- Thumbnail: 48px wide x 30px height, 16:10 aspect, border 1px #2a2f3a -->
+<div class="relative w-12 h-[30px] rounded shrink-0 overflow-hidden border border-[#2a2f3a] bg-[#0c0e12]">
+<img alt="AdMob 대시보드 스크린샷 썸네일" class="w-full h-full object-cover opacity-85" data-alt="A clean, flat dark-mode software console UI mockup of Google AdMob dashboard unit creation screen, rendered in crisp indigo and charcoal lines with subtle glowing controls under modern dark aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCD584u2LR4yN9lNhrvkZjQjMLGkm2UoxSNdUyYQkCU18grYaBLArk3aZNGfQXxXnvT8J6vVcfigsj0yMcS92AIPbe-4LvRS_LzJrdYzUsUFZhp_vTHYFZGV8phLEuiFAmrdNdw6RnfwDvSpwF1joSqg4jKqvwfkdec4ej-OanF0m8sHaZSHiJlb5SzDWH1Nt0J5CwFgn7gyHAcaGyOuJsdqfAPIHP1aLS6DI1P6Jz41Y7qAXRgzCrx-Fw4DoeEBDNPV87OqULh-t4"/>
+</div>
+<!-- Structured Metadata -->
+<div class="flex-1 min-w-0">
+<!-- Top line -->
+<div class="flex items-center justify-between leading-none mb-1">
+<div class="flex items-center gap-1.5 text-xs text-[#8b93a3]">
+<span class="text-[#e6e8ee] font-medium">🌐 Chrome</span>
+<span class="text-[#2a2f3a] text-[10px]">|</span>
+<span class="text-[#6366f1] font-code-sm text-code-sm font-semibold">📋 3/6</span>
+<span class="text-[#8b93a3] text-[11px]">· 12단계</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#8b93a3] shrink-0">📷 2분 전</span>
+</div>
+<!-- Middle line: Monospace coordinates and Korean action description -->
+<div class="text-[11px] leading-tight text-[#e6e8ee] truncate font-normal">
+<span class="text-[#fbbf24]">⏳</span>
+<span>🖱 클릭 </span>
+<span class="font-code-sm text-code-sm text-[#c0c1ff] font-medium bg-[#0f1115] px-1 py-0.5 rounded border border-[#2a2f3a]">(412, 300)</span>
+<span class="text-[#8b93a3] ml-1">· 💬 앱 추가 버튼을 누릅니다 (8초 시작)</span>
+</div>
+</div>
+</section>
+<!-- 3. Chat / Timeline Feed -->
+<!-- AI System Context Callout -->
+<div class="bg-[#181b22] border border-[#2a2f3a] rounded-xl p-3 flex gap-2.5 items-start">
+<div class="w-6 h-6 rounded bg-[#6366f1]/15 text-[#6366f1] flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[15px]" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[12px] font-semibold text-[#e6e8ee]">Pocket AI Agent</span>
+<span class="font-code-sm text-code-sm text-[#8b93a3]">14:01:45</span>
+</div>
+<p class="font-body-sm text-body-sm text-[#8b93a3] leading-relaxed">
+          Google AdMob 콘솔에 로그인 후 신규 광고 단위를 생성하고 있습니다. 세션 토큰 확인 완료.
+        </p>
+</div>
+</div>
+<!-- Milestone Progress Header Card -->
+<div class="bg-[#181b22] border border-[#2a2f3a] rounded-xl p-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="text-xs font-semibold text-[#e6e8ee]">📋 할 일 3/6</span>
+<span class="text-[#8b93a3] text-xs">·</span>
+<span class="text-xs text-[#c0c1ff] font-medium">▶ 배너 광고 단위 만드는 중</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#6366f1] font-semibold">50%</span>
+</div>
+<!-- Subtle progress indicator bar -->
+<div class="w-full h-1.5 bg-[#0f1115] rounded-full overflow-hidden border border-[#2a2f3a]">
+<div class="h-full bg-[#6366f1] rounded-full" style="width: 50%;"></div>
+</div>
+</div>
+<!-- Step Execution Timeline -->
+<div class="bg-[#181b22] border border-[#2a2f3a] rounded-xl p-3 space-y-3">
+<div class="flex items-center justify-between pb-2 border-b border-[#2a2f3a]">
+<span class="font-body-sm text-body-sm font-semibold text-[#e6e8ee] flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-[#6366f1]" data-icon="route">route</span>
+          실행 단계 로그
+        </span>
+<span class="font-code-sm text-code-sm text-[#8b93a3]">자동화 엔진 v2.4</span>
+</div>
+<!-- Step 1: Completed -->
+<div class="relative pl-6 pb-1 border-l-2 border-[#34d399]/40 ml-1.5">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0f1115] border border-[#34d399] flex items-center justify-center">
+<span class="text-[10px] text-[#34d399] font-bold">✓</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="text-[13px] text-[#e6e8ee] font-medium flex items-center gap-1 flex-wrap">
+<span>🖱 클릭</span>
+<span class="font-code-sm text-code-sm text-[#34d399] bg-[#0c0e12] px-1 py-0.2 rounded border border-[#2a2f3a]">(120, 88)</span>
+<span class="text-[#8b93a3] text-xs">· 광고 단위 메뉴를 엽니다</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#8b93a3] shrink-0">14:02:11</span>
+</div>
+</div>
+<!-- Step 2: Completed with tag -->
+<div class="relative pl-6 pb-1 border-l-2 border-[#34d399]/40 ml-1.5">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0f1115] border border-[#34d399] flex items-center justify-center">
+<span class="text-[10px] text-[#34d399] font-bold">✓</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="text-[13px] text-[#e6e8ee] font-medium flex items-center gap-1.5 flex-wrap">
+<span>⌨ 입력</span>
+<span class="text-[#8b93a3] text-xs">· 광고 단위 이름을 넣습니다</span>
+<span class="font-code-sm text-[10px] text-[#c0c1ff] bg-[#6366f1]/15 px-1.5 py-0.5 rounded border border-[#6366f1]/30">banner_main_top</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#8b93a3] shrink-0">14:02:18</span>
+</div>
+</div>
+<!-- Step 3: Active / Waiting (Hourglass / Spinner) -->
+<div class="relative pl-6 ml-1.5 border-l-2 border-[#fbbf24]/50">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#0f1115] border border-[#fbbf24] flex items-center justify-center">
+<span class="text-[9px] text-[#fbbf24] font-bold">⏳</span>
+</div>
+<div>
+<div class="flex items-center justify-between">
+<div class="text-[13px] text-[#e6e8ee] font-medium flex items-center gap-1 flex-wrap">
+<span class="text-[#fbbf24] font-semibold">🖱 클릭</span>
+<span class="font-code-sm text-code-sm text-[#fbbf24] bg-[#0c0e12] px-1 py-0.2 rounded border border-[#2a2f3a] font-semibold">(412, 300)</span>
+<span class="text-[#e6e8ee] text-xs">· 앱 추가 버튼을 누릅니다</span>
+</div>
+<span class="font-code-sm text-code-sm text-[#fbbf24] shrink-0">14:02:26</span>
+</div>
+<div class="mt-1 flex items-center gap-1.5 text-[11px] text-[#8b93a3] font-code-sm bg-[#0c0e12] p-2 rounded-lg border border-[#2a2f3a]/80">
+<span class="w-1.5 h-1.5 rounded-full bg-[#fbbf24] animate-ping shrink-0"></span>
+<span class="truncate">요소 가시성 대기 중... 타임아웃 15초 남음</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Additional Developer Context: Mini Stdout Log Block -->
+<div class="bg-[#0c0e12] border border-[#2a2f3a] rounded-lg p-2.5">
+<div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#2a2f3a]">
+<div class="flex items-center gap-1 text-[11px] font-code-sm text-[#8b93a3]">
+<span class="material-symbols-outlined text-[13px] text-[#6366f1]" data-icon="terminal">terminal</span>
+<span>stdout (runner-instance-09)</span>
+</div>
+<span class="font-code-sm text-[10px] text-[#34d399]">DOM_OBSERVER: ACTIVE</span>
+</div>
+<div class="font-code-sm text-[11px] leading-[17px] text-[#8b93a3] space-y-0.5">
+<div class="text-[#8b93a3]"><span class="text-[#555e70]">14:02:24</span> [agent] page.locator('button[data-action="add-unit"]').waitFor()</div>
+<div class="text-[#8b93a3]"><span class="text-[#555e70]">14:02:25</span> [agent] dispatchEvent: mouseover -&gt; (x:412, y:300)</div>
+<div class="text-[#c0c1ff]"><span class="text-[#555e70]">14:02:26</span> &gt;&gt; pending click event execution on #admob-btn-primary</div>
+</div>
+</div>
+</main>
+<!-- 4. Bottom Message Input Bar & Navigation Dock (Fixed) -->
+<div class="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto z-50 bg-[#0f1115] border-t border-[#2a2f3a]">
+<!-- Quick Command Chips Bar -->
+<div class="px-3 pt-2 pb-1.5 flex items-center gap-1.5 overflow-x-auto custom-scroll">
+<button class="shrink-0 h-7 px-2.5 rounded-full bg-[#181b22] border border-[#2a2f3a] hover:border-[#6366f1] text-[11px] font-medium text-[#e6e8ee] flex items-center gap-1 active:bg-[#282a2e]" type="button">
+<span class="text-[#6366f1] font-bold">+</span> 추가 지시
+      </button>
+<button class="shrink-0 h-7 px-2.5 rounded-full bg-[#181b22] border border-[#2a2f3a] hover:border-[#f87171] text-[11px] font-medium text-[#8b93a3] hover:text-[#f87171] flex items-center gap-1 active:bg-[#282a2e]" type="button">
+<span class="material-symbols-outlined text-[12px]" data-icon="pause">pause</span> 일시 중지
+      </button>
+<button class="shrink-0 h-7 px-2.5 rounded-full bg-[#181b22] border border-[#2a2f3a] hover:border-[#34d399] text-[11px] font-medium text-[#8b93a3] hover:text-[#34d399] flex items-center gap-1 active:bg-[#282a2e]" type="button">
+<span class="material-symbols-outlined text-[12px]" data-icon="refresh">refresh</span> 스크린샷 갱신
+      </button>
+</div>
+<!-- Text Input Bar (Height strictly 44px interactive button) -->
+<div class="px-3 pb-2 flex items-center gap-2">
+<div class="relative flex-1">
+<input class="w-full h-11 bg-[#181b22] border border-[#2a2f3a] focus:border-[#6366f1] rounded-lg px-3 text-sm text-[#e6e8ee] placeholder-[#8b93a3] outline-none transition-colors font-body-md" placeholder="에이전트에게 추가 지시 입력..." type="text"/>
+</div>
+<!-- Primary Indigo Send Button (Strictly 44px height) -->
+<button aria-label="전송" class="w-11 h-11 rounded-lg bg-[#6366f1] hover:bg-[#4f46e5] text-white flex items-center justify-center active:scale-95 transition-transform shrink-0" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="send">send</span>
+</button>
+</div>
+<!-- Shared Component: BottomNavBar (Active: Agents) -->
+<nav class="h-14 border-t border-[#2a2f3a] bg-[#0f1115] flex items-center justify-around px-2">
+<!-- Item 1: Agents (ACTIVE) -->
+<button class="flex flex-col items-center justify-center text-primary font-label-sm text-label-sm py-1 active:scale-95 transition-transform flex-1" type="button">
+<span class="material-symbols-outlined text-[20px] mb-0.5" data-icon="smart_toy">smart_toy</span>
+<span class="font-bold">Agents</span>
+</button>
+<!-- Item 2: Logs -->
+<button class="flex flex-col items-center justify-center text-[#8b93a3] hover:text-[#e6e8ee] font-label-sm text-label-sm py-1 active:scale-95 transition-transform flex-1" type="button">
+<span class="material-symbols-outlined text-[20px] mb-0.5" data-icon="terminal">terminal</span>
+<span>Logs</span>
+</button>
+<!-- Item 3: Diffs -->
+<button class="flex flex-col items-center justify-center text-[#8b93a3] hover:text-[#e6e8ee] font-label-sm text-label-sm py-1 active:scale-95 transition-transform flex-1" type="button">
+<span class="material-symbols-outlined text-[20px] mb-0.5" data-icon="difference">difference</span>
+<span>Diffs</span>
+</button>
+<!-- Item 4: Console -->
+<button class="flex flex-col items-center justify-center text-[#8b93a3] hover:text-[#e6e8ee] font-label-sm text-label-sm py-1 active:scale-95 transition-transform flex-1" type="button">
+<span class="material-symbols-outlined text-[20px] mb-0.5" data-icon="tune">tune</span>
+<span>Console</span>
+</button>
+</nav>
+</div>
+</body></html>

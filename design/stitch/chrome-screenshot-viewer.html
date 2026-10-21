@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Pocket-Dev - Chrome 스크린샷 오버레이</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Pretendard & JetBrains Mono Fonts -->
+<link as="style" crossorigin="" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#f1f3ff",
+            "surface-variant": "#dfe2ed",
+            "surface-tint": "#0053db",
+            "on-tertiary": "#ffffff",
+            "surface-dim": "#d7dae5",
+            "on-error-container": "#93000a",
+            "surface-container-highest": "#dfe2ed",
+            "secondary-container": "#82f5c1",
+            "primary": "#004ac6",
+            "tertiary-fixed": "#ffdcc3",
+            "surface-container-high": "#e5e8f3",
+            "primary-container": "#2563eb",
+            "on-secondary-container": "#00714e",
+            "tertiary-fixed-dim": "#ffb77d",
+            "primary-fixed": "#dbe1ff",
+            "error": "#ba1a1a",
+            "on-primary-fixed": "#00174b",
+            "on-background": "#181c23",
+            "outline": "#737686",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "on-surface-variant": "#434655",
+            "secondary-fixed": "#85f8c4",
+            "secondary": "#006c4a",
+            "on-surface": "#181c23",
+            "on-tertiary-fixed": "#2f1500",
+            "surface": "#f9f9ff",
+            "inverse-on-surface": "#eef0fc",
+            "primary-fixed-dim": "#b4c5ff",
+            "secondary-fixed-dim": "#68dba9",
+            "on-error": "#ffffff",
+            "on-primary-fixed-variant": "#003ea8",
+            "error-container": "#ffdad6",
+            "background": "#f9f9ff",
+            "surface-container": "#ebedf9",
+            "on-secondary-fixed-variant": "#005137",
+            "inverse-surface": "#2c3039",
+            "inverse-primary": "#b4c5ff",
+            "outline-variant": "#c3c6d7",
+            "tertiary-container": "#a65900",
+            "on-secondary": "#ffffff",
+            "tertiary": "#824500",
+            "on-primary-container": "#eeefff",
+            "on-primary": "#ffffff",
+            "on-tertiary-container": "#ffede1",
+            "on-secondary-fixed": "#002114",
+            "surface-bright": "#f9f9ff",
+            "surface-container-lowest": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "code-inline": ["\"JetBrains Mono\", monospace"],
+            "body-md": ["\"Pretendard\", -apple-system, sans-serif"],
+            "label-sm": ["\"Pretendard\", -apple-system, sans-serif"],
+            "label-md": ["\"Pretendard\", -apple-system, sans-serif"],
+            "code-body": ["\"JetBrains Mono\", monospace"],
+            "body-sm": ["\"Pretendard\", -apple-system, sans-serif"],
+            "body-lg": ["\"Pretendard\", -apple-system, sans-serif"],
+            "headline-sm": ["\"Pretendard\", -apple-system, sans-serif"],
+            "badge-mono": ["\"JetBrains Mono\", monospace"],
+            "headline-lg": ["\"Pretendard\", -apple-system, sans-serif"],
+            "headline-md": ["\"Pretendard\", -apple-system, sans-serif"]
+          },
+          "fontSize": {
+            "code-inline": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "code-body": ["12px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "badge-mono": ["10px", { "lineHeight": "12px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .custom-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.08); }
+    }
+    .animate-reticle {
+      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-slate-950 text-slate-100 font-body-md antialiased h-full flex justify-center selection:bg-primary-container selection:text-white">
+<!-- Mobile Viewport Container (Strict max-w-[480px], optimized for 390px native mobile experience) -->
+<div class="relative w-full max-w-[480px] h-full min-h-screen bg-slate-950 flex flex-col justify-between overflow-hidden shadow-2xl border-x border-slate-800/60">
+<!-- Subtle Background Ambient Grid Overlay for Tech Terminal Atmosphere -->
+<div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b0d_1px,transparent_1px),linear-gradient(to_bottom,#1e293b0d_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none"></div>
+<!-- 1. TOP BAR (Overlay Navigation Header) -->
+<header class="relative z-30 flex items-center justify-between px-4 pt-3 pb-2.5 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 shrink-0">
+<div class="flex items-center space-x-2 min-w-0">
+<!-- Terminal Step Badge -->
+<div class="flex items-center space-x-1.5 bg-slate-800/90 px-2 py-1 rounded-md border border-slate-700/70">
+<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-badge-mono text-badge-mono text-emerald-400 tracking-wider">DOM 정상 로드</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-badge-mono text-badge-mono text-slate-400 truncate">Chrome #12 · 8초 전</span>
+<span class="font-headline-sm text-[13px] leading-tight font-semibold text-slate-100 truncate">AdMob 대시보드 스냅샷</span>
+</div>
+</div>
+<!-- Quick Action Utilities (Right) -->
+<div class="flex items-center space-x-1.5 shrink-0">
+<!-- Download/Open in New Icon Button -->
+<button aria-label="스냅샷 원본 다운로드" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-center transition-all" title="스냅샷 원본 다운로드" type="button">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+</button>
+<!-- Modal Dismiss / Close -->
+<button aria-label="닫기" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-slate-300 hover:text-white border border-slate-700/60 flex items-center justify-center transition-all" title="오버레이 닫기" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</header>
+<!-- 2. MAIN SCREENSHOT VIEWPORT CANVAS (Center Interactive Area) -->
+<main class="relative flex-1 flex flex-col justify-center items-center p-3.5 overflow-hidden z-10">
+<!-- Virtual Browser Window Shell -->
+<div class="w-full max-w-[420px] bg-slate-900 rounded-xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col transition-transform duration-200" id="browserViewer">
+<!-- Browser Address Bar Mockup -->
+<div class="flex items-center px-3 py-2 bg-slate-950/80 border-b border-slate-800/80 space-x-2">
+<!-- Window Controls -->
+<div class="flex items-center space-x-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+</div>
+<!-- Chrome URL Bar Pill -->
+<div class="flex-1 flex items-center bg-slate-900 border border-slate-700/60 rounded-md px-2.5 py-1 text-slate-300 text-[11px] font-code-inline min-w-0">
+<span class="material-symbols-outlined text-emerald-400 text-[13px] mr-1.5 shrink-0">lock</span>
+<span class="truncate text-slate-200">https://apps.admob.com/v2/apps/create</span>
+</div>
+<!-- Driver Sync Status Indicator -->
+<div class="flex items-center shrink-0">
+<span class="font-badge-mono text-[9px] px-1.5 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60">HEADLESS</span>
+</div>
+</div>
+<!-- Rendered Web Snapshot Content Canvas with Target Highlight -->
+<div class="relative w-full aspect-[4/3] bg-slate-900/40 flex flex-col justify-between p-3 select-none overflow-hidden">
+<!-- Mock Web Content Layout (Simulated Google AdMob Workspace) -->
+<div class="space-y-2 opacity-95">
+<div class="flex items-center justify-between border-b border-slate-700/40 pb-2">
+<div class="flex items-center space-x-2">
+<div class="w-5 h-5 rounded bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">M</div>
+<span class="text-xs font-semibold text-slate-200">AdMob 앱 관리 콘솔</span>
+</div>
+<span class="text-[10px] text-slate-400 font-code-inline">프로젝트: pk-dev-prod</span>
+</div>
+<div class="grid grid-cols-3 gap-2 pt-1">
+<div class="bg-slate-800/70 p-2 rounded border border-slate-700/40">
+<span class="text-[10px] text-slate-400 block">등록된 앱</span>
+<span class="text-xs font-bold text-slate-100 font-code-inline">14개</span>
+</div>
+<div class="bg-slate-800/70 p-2 rounded border border-slate-700/40">
+<span class="text-[10px] text-slate-400 block">광고 단위</span>
+<span class="text-xs font-bold text-slate-100 font-code-inline">42개</span>
+</div>
+<div class="bg-slate-800/70 p-2 rounded border border-slate-700/40">
+<span class="text-[10px] text-slate-400 block">상태</span>
+<span class="text-[10px] font-semibold text-emerald-400">정상 승인</span>
+</div>
+</div>
+</div>
+<!-- TARGET ELEMENT: Agent Action Target Reticle Box -->
+<div class="relative my-auto flex justify-center items-center py-2">
+<div class="relative group">
+<!-- Bounding Box Reticle -->
+<div class="absolute -inset-1.5 rounded-lg border-2 border-amber-400 bg-amber-400/10 pointer-events-none animate-reticle">
+<!-- Reticle Corner Markers -->
+<div class="absolute -top-1 -left-1 w-2 h-2 bg-amber-400 rounded-xs"></div>
+<div class="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-xs"></div>
+<div class="absolute -bottom-1 -left-1 w-2 h-2 bg-amber-400 rounded-xs"></div>
+<div class="absolute -bottom-1 -right-1 w-2 h-2 bg-amber-400 rounded-xs"></div>
+<!-- Floating Selector Tooltip Label -->
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 font-badge-mono text-[9px] px-1.5 py-0.5 rounded shadow-md whitespace-nowrap font-bold flex items-center space-x-1">
+<span class="material-symbols-outlined text-[11px] leading-none">near_me</span>
+<span>CLICK: button.create-app-cta</span>
+</div>
+</div>
+<!-- Real Targeted Button Mock inside Snapshot -->
+<button class="relative bg-primary-container text-white text-xs font-medium px-4 py-2 rounded-md shadow flex items-center space-x-1.5 cursor-default">
+<span class="material-symbols-outlined text-[15px]">add</span>
+<span>새 앱 추가</span>
+</button>
+</div>
+</div>
+<!-- Bottom subtle DOM indicator -->
+<div class="flex items-center justify-between text-[10px] text-slate-400 font-code-inline pt-1 border-t border-slate-800/60">
+<span>XPath: //button[@id='btn-add-app']</span>
+<span class="text-emerald-400 font-medium">Click Event Triggered ✓</span>
+</div>
+<!-- Floating Zoom / Viewport Controls Floating Pill (Top-Right or Bottom-Right) -->
+<div class="absolute bottom-2.5 right-2.5 z-20 flex items-center bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-full px-1.5 py-0.5 shadow-lg space-x-1">
+<button class="text-slate-400 hover:text-white px-1.5 py-0.5 font-code-inline text-[10px] transition-colors">-</button>
+<span class="text-[10px] font-code-inline font-medium text-slate-200 px-1 border-x border-slate-700">100%</span>
+<button class="text-slate-400 hover:text-white px-1.5 py-0.5 font-code-inline text-[10px] transition-colors">+</button>
+<button class="text-slate-400 hover:text-white pl-1 pr-1.5 flex items-center transition-colors" title="전체 화면 보기">
+<span class="material-symbols-outlined text-[12px]">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Target Inspection Caption Box (Directly beneath the image) -->
+<div class="w-full max-w-[420px] mt-2.5 bg-slate-900/95 border border-slate-800 rounded-lg p-2.5 text-slate-300 shadow-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-1.5">
+<span class="text-xs">📷</span>
+<span class="font-body-sm text-[12px] font-medium text-slate-200">2분 전 · 🖱 클릭 <span class="text-amber-400 font-semibold">'앱 추가'</span></span>
+</div>
+<span class="font-badge-mono text-badge-mono text-slate-400">14:31:40 KST</span>
+</div>
+<div class="mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-slate-400 font-code-inline text-[10.5px]">
+<div class="truncate mr-2">
+<span class="text-slate-500">Selector:</span> <span class="text-blue-300">button.create-app-cta</span>
+</div>
+<div class="shrink-0 space-x-1.5 text-slate-400">
+<span>1440×900</span>
+<span class="text-slate-600">|</span>
+<span class="text-emerald-400">1.2s</span>
+</div>
+</div>
+</div>
+</main>
+<!-- 3. BOTTOM SECTION: THUMBNAILS CAROUSEL + FALLBACK INFO + ACTION DOCK -->
+<footer class="relative z-20 bg-slate-900/95 backdrop-blur-md border-t border-slate-800/90 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] px-3 space-y-2.5 shrink-0">
+<!-- Section Header -->
+<div class="flex items-center justify-between px-1">
+<span class="font-headline-sm text-[12px] font-semibold text-slate-300">단계별 실행 스냅샷 히스토리</span>
+<span class="font-badge-mono text-[10px] text-slate-400">총 4개 프레임</span>
+</div>
+<!-- Horizontal Thumbnail Carousel -->
+<div class="flex space-x-2.5 overflow-x-auto custom-scrollbar pb-1 pt-0.5 px-0.5">
+<!-- Thumbnail 1: Step 1 (Completed) -->
+<div class="shrink-0 w-28 bg-slate-950 rounded-lg p-1.5 border border-slate-800 hover:border-slate-700 transition cursor-pointer">
+<div class="relative w-full h-14 bg-slate-900 rounded flex items-center justify-center overflow-hidden mb-1.5 border border-slate-800">
+<span class="material-symbols-outlined text-slate-600 text-lg">login</span>
+<span class="absolute top-1 right-1 bg-emerald-950 text-emerald-400 text-[8px] font-badge-mono px-1 py-0.2 rounded border border-emerald-800">완료</span>
+</div>
+<div class="text-[10px] font-medium text-slate-300 truncate">1단계: 구글 로그인</div>
+<div class="text-[9px] font-code-inline text-slate-400">14:31:02</div>
+</div>
+<!-- Thumbnail 2: Step 2 (ACTIVE SELECTED) -->
+<div class="shrink-0 w-28 bg-slate-950 rounded-lg p-1.5 border-2 border-primary-container ring-2 ring-blue-500/40 relative cursor-pointer shadow-lg">
+<div class="relative w-full h-14 bg-slate-900 rounded flex items-center justify-center overflow-hidden mb-1.5 border border-blue-900/40">
+<div class="w-full h-full p-1 bg-slate-950 flex flex-col justify-between">
+<div class="h-1.5 w-10 bg-slate-700 rounded-xs"></div>
+<div class="w-5 h-3 bg-primary-container rounded-xs self-center"></div>
+<div class="h-1 w-full bg-slate-800 rounded-xs"></div>
+</div>
+<!-- Selection Badge -->
+<span class="absolute top-1 right-1 bg-primary text-white text-[8px] font-badge-mono px-1 py-0.2 rounded font-bold">선택됨</span>
+</div>
+<div class="text-[10px] font-bold text-white truncate">2단계: AdMob 대시보드</div>
+<div class="text-[9px] font-code-inline text-blue-400">14:31:40</div>
+</div>
+<!-- Thumbnail 3: Step 3 (Warning / Pending) -->
+<div class="shrink-0 w-28 bg-slate-950 rounded-lg p-1.5 border border-slate-800 hover:border-slate-700 transition cursor-pointer opacity-80">
+<div class="relative w-full h-14 bg-slate-900 rounded flex items-center justify-center overflow-hidden mb-1.5 border border-slate-800">
+<span class="material-symbols-outlined text-amber-500 text-lg">verified_user</span>
+<span class="absolute top-1 right-1 bg-amber-950 text-amber-400 text-[8px] font-badge-mono px-1 py-0.2 rounded border border-amber-800">대기</span>
+</div>
+<div class="text-[10px] font-medium text-slate-300 truncate">3단계: reCAPTCHA 검증</div>
+<div class="text-[9px] font-code-inline text-slate-400">14:32:05</div>
+</div>
+<!-- Thumbnail 4: Step 4 (Queued) -->
+<div class="shrink-0 w-28 bg-slate-950 rounded-lg p-1.5 border border-slate-800 hover:border-slate-700 transition cursor-pointer opacity-60">
+<div class="relative w-full h-14 bg-slate-900 rounded flex items-center justify-center overflow-hidden mb-1.5 border border-slate-800">
+<span class="material-symbols-outlined text-slate-600 text-lg">payments</span>
+</div>
+<div class="text-[10px] font-medium text-slate-400 truncate">4단계: 결제 프로필 진입</div>
+<div class="text-[9px] font-code-inline text-slate-400">14:32:20</div>
+</div>
+</div>
+<!-- DOM Fallback Notice Chip -->
+<div class="bg-slate-950/70 border border-slate-800 rounded-lg p-2 flex items-start space-x-2">
+<span class="text-amber-400 text-xs shrink-0 mt-0.5">💡</span>
+<div class="flex-1 text-[11px] leading-snug text-slate-400">
+          이미지 렌더링 지연 시 <button class="text-blue-400 underline font-medium hover:text-blue-300">DOM 텍스트 트리 및 a11y 구조체</button>로 자동 전환됩니다.
+        </div>
+<!-- Toggle button -->
+<button class="shrink-0 text-[10px] font-badge-mono bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 transition">
+          DOM 보기
+        </button>
+</div>
+<!-- Primary Action Buttons (2-Action Row) -->
+<div class="grid grid-cols-2 gap-2 pt-0.5">
+<!-- Secondary Button: Retake / Refresh Snapshot -->
+<button class="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold transition" type="button">
+<span class="material-symbols-outlined text-sm">refresh</span>
+<span>스냅샷 다시 찍기</span>
+</button>
+<!-- Primary Button: Open Live Browser / Approve Step -->
+<button class="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-lg bg-primary-container hover:bg-blue-600 active:bg-blue-700 text-white text-xs font-semibold shadow-md transition" type="button">
+<span class="material-symbols-outlined text-sm">open_in_browser</span>
+<span>Chrome 원격 열기</span>
+</button>
+</div>
+</footer>
+</div>
+</body></html>

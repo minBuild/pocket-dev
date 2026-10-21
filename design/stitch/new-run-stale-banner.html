@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pocket-Dev</title>
+<!-- Google Fonts: Inter, Plus Jakarta Sans, JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#e5e2e0",
+            "primary-fixed": "#ffdbd0",
+            "surface-bright": "#fcf9f6",
+            "on-error": "#ffffff",
+            "tertiary-fixed-dim": "#5edac7",
+            "surface-container": "#f0edeb",
+            "on-primary-container": "#541400",
+            "secondary-fixed": "#e5e2da",
+            "on-background": "#1c1c1a",
+            "tertiary-fixed": "#7df7e3",
+            "surface-container-lowest": "#ffffff",
+            "secondary-fixed-dim": "#c9c6be",
+            "on-secondary-container": "#64635c",
+            "surface": "#fcf9f6",
+            "on-surface": "#1c1c1a",
+            "tertiary": "#006b5f",
+            "tertiary-container": "#09a493",
+            "on-primary-fixed": "#390b00",
+            "secondary-container": "#e2e0d7",
+            "primary": "#99462a",
+            "on-primary-fixed-variant": "#7a2f15",
+            "inverse-primary": "#ffb59e",
+            "on-tertiary-fixed-variant": "#005047",
+            "on-tertiary-container": "#00312b",
+            "surface-container-highest": "#e5e2e0",
+            "on-secondary": "#ffffff",
+            "on-tertiary-fixed": "#00201c",
+            "on-secondary-fixed": "#1c1c17",
+            "inverse-on-surface": "#f3f0ee",
+            "secondary": "#5f5f58",
+            "primary-container": "#d97757",
+            "outline-variant": "#dbc1b9",
+            "error": "#ba1a1a",
+            "on-secondary-fixed-variant": "#474741",
+            "on-error-container": "#93000a",
+            "surface-tint": "#99462a",
+            "error-container": "#ffdad6",
+            "background": "#fcf9f6",
+            "surface-container-low": "#f6f3f1",
+            "outline": "#88726c",
+            "on-primary": "#ffffff",
+            "inverse-surface": "#31302f",
+            "surface-dim": "#dcd9d7",
+            "surface-container-high": "#ebe8e5",
+            "primary-fixed-dim": "#ffb59e",
+            "on-tertiary": "#ffffff",
+            "on-surface-variant": "#55433d"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "margin": "1rem",
+            "space-sm": "0.5rem",
+            "space-xs": "0.25rem",
+            "space-xl": "1.5rem",
+            "space-lg": "1rem",
+            "gutter": "0.75rem",
+            "space-md": "0.75rem"
+          },
+          "fontFamily": {
+            "label-md": ["Inter"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "body-sm": ["Inter"],
+            "code-md": ["JetBrains Mono"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "code-sm": ["JetBrains Mono"],
+            "body-md": ["Inter"],
+            "body-lg": ["Inter"],
+            "label-sm": ["Inter"],
+            "headline-sm": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "code-md": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "fontWeight": "400" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "fontWeight": "500" }],
+            "headline-sm": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    body {
+      background-color: #fcf9f6;
+      -webkit-font-smoothing: antialiased;
+    }
+    textarea:focus, select:focus, input:focus {
+      outline: none;
+      box-shadow: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-full flex flex-col font-body-md antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Outer Centering Frame -->
+<div class="w-full max-w-[540px] mx-auto min-h-screen flex flex-col bg-background relative shadow-sm border-x border-surface-variant/40">
+<!-- Top Command Header (JSON TopAppBar Anchor) -->
+<header class="sticky top-0 z-50 flex items-center justify-between w-full h-12 px-4 max-w-[540px] mx-auto bg-surface dark:bg-inverse-surface shadow-sm dark:shadow-none border-b border-surface-variant dark:border-outline">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" data-icon="terminal">terminal</span>
+<span class="text-headline-sm font-headline-sm font-bold text-on-surface dark:text-inverse-on-surface tracking-tight">Pocket-Dev</span>
+<span class="font-code-sm text-code-sm px-1.5 py-0.5 rounded bg-surface-container text-secondary font-medium">v0.9.4</span>
+</div>
+<div class="flex items-center gap-1.5">
+<!-- Status indicator: agent-live -->
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="font-code-sm text-[10px] font-semibold text-emerald-700 tracking-tight">agent-live</span>
+</div>
+<!-- Trailing Refresh Button -->
+<button aria-label="새로고침" class="p-1.5 text-secondary hover:text-on-surface rounded-lg hover:bg-surface-container active:scale-95 transition-all duration-150 flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="refresh">refresh</span>
+</button>
+<!-- Power Button -->
+<button aria-label="전원" class="p-1.5 text-secondary hover:text-error rounded-lg hover:bg-surface-container active:scale-95 transition-all duration-150 flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-[18px]" data-icon="power_settings_new">power_settings_new</span>
+</button>
+</div>
+</header>
+<!-- Sub-header Top Tab Navigation -->
+<div class="w-full bg-surface/90 backdrop-blur-md sticky top-12 z-40 px-4 border-b border-surface-variant flex items-center gap-6">
+<a class="py-2.5 text-label-md font-label-md text-primary dark:text-inverse-primary border-b-2 border-primary dark:border-inverse-primary font-bold transition-colors flex items-center gap-1" href="#">
+<span>새 작업</span>
+</a>
+<a class="py-2.5 text-label-md font-label-md text-secondary hover:text-on-surface transition-colors flex items-center gap-1" href="#">
+<span>작업</span>
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+</a>
+<a class="py-2.5 text-label-md font-label-md text-secondary hover:text-on-surface transition-colors" href="#">
+<span>기록</span>
+</a>
+</div>
+<!-- Main Content Stream -->
+<main class="flex-1 px-4 py-3 space-y-3 pb-24">
+<!-- 1. Stale-Server Alert Banner -->
+<section class="rounded-xl border border-amber-300 bg-amber-50/80 p-3 shadow-sm">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-amber-700 text-[20px] shrink-0 mt-0.5" data-icon="warning">warning</span>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm text-body-sm text-amber-950 font-medium leading-snug">
+              ⚠️ 서버 코드가 바뀌었어요 — 진행 중인 작업이 끝난 뒤 🔄 재시작해야 반영돼요 (Chrome 화면 보기·상태 표시 포함).
+            </p>
+<div class="mt-2.5 flex justify-end">
+<button class="inline-flex items-center gap-1.5 bg-primary-container text-white hover:bg-primary font-label-md text-label-md px-3 py-1.5 rounded-lg active:scale-95 transition-all duration-150 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[15px]" data-icon="refresh">refresh</span>
+<span>지금 재시작</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. New Task Creation Form Card -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant/80 p-3.5 shadow-sm space-y-4">
+<!-- Section Header -->
+<div class="flex items-center justify-between pb-2 border-b border-surface-variant/50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[19px]" data-icon="add_task">add_task</span>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface tracking-tight">새 작업 시작</h1>
+</div>
+<!-- Model Selector Pill -->
+<div class="inline-flex items-center gap-1.5 bg-surface-container px-2 py-1 rounded-md text-on-surface-variant font-code-sm text-code-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+<span>Claude 3.5 Sonnet</span>
+</div>
+</div>
+<!-- Project Selector Dropdown -->
+<div class="space-y-1.5">
+<label class="block font-label-md text-label-md text-secondary font-medium">프로젝트 / 리포지토리</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-[17px]" data-icon="folder_git">emoji_symbols</span>
+</div>
+<select class="w-full pl-9 pr-9 py-2.5 bg-surface rounded-lg border border-surface-variant text-on-surface font-code-md text-code-md appearance-none focus:border-primary-container transition-colors cursor-pointer">
+<option value="pocket-dev-frontend">pocket-dev-frontend (main branch)</option>
+<option value="pocket-dev-agent-backend">pocket-dev-agent-backend (main branch)</option>
+<option value="sandbox-app">sandbox-app (feat/auth-v2 branch)</option>
+</select>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-secondary">
+<span class="material-symbols-outlined text-[18px]" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Task Instructions Textarea -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between">
+<label class="block font-label-md text-label-md text-secondary font-medium">작업 목표 및 지시사항</label>
+<span class="font-code-sm text-code-sm text-secondary">Markdown 지원</span>
+</div>
+<div class="relative rounded-lg border border-surface-variant focus-within:border-primary-container transition-colors bg-surface-container-low p-2.5">
+<textarea class="w-full bg-transparent border-0 p-0 text-on-surface placeholder:text-secondary/70 font-body-md text-body-md leading-relaxed resize-none focus:ring-0" placeholder="무엇을 만들까요? 구현하고 싶은 기능이나 버그 수정 요청을 자세히 적어주세요... (예: 로그인 화면 소셜 로그인 버튼 추가 및 유효성 검사 구현)" rows="6"></textarea>
+<!-- Quick Context Helper Chips -->
+<div class="pt-2 border-t border-surface-variant/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary hover:text-on-surface font-code-sm text-code-sm shrink-0 active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[13px]" data-icon="attach_file">attach_file</span>
+<span>파일 참조</span>
+</button>
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary hover:text-on-surface font-code-sm text-code-sm shrink-0 active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[13px]" data-icon="bug_report">bug_report</span>
+<span>버그 수정 템플릿</span>
+</button>
+<button class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container text-secondary hover:text-on-surface font-code-sm text-code-sm shrink-0 active:scale-95 transition-all" type="button">
+<span class="material-symbols-outlined text-[13px]" data-icon="palette">palette</span>
+<span>UI 컴포넌트 추가</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Execution Options / Feature Toggles -->
+<div class="space-y-2 pt-1">
+<h2 class="font-label-md text-label-md text-secondary font-medium">실행 옵션</h2>
+<!-- Toggle 1: Chrome Usage -->
+<label class="flex items-start justify-between p-2.5 rounded-lg border border-surface-variant/80 bg-surface hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="pr-3">
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-semibold text-on-surface">
+<span>🌐 Chrome 사용</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5 leading-snug">
+                브라우저 화면을 직접 탐색하고 조작하며 테스트합니다.
+              </p>
+</div>
+<div class="relative inline-flex items-center shrink-0 mt-0.5">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container"></div>
+</div>
+</label>
+<!-- Toggle 2: Plan Approval -->
+<label class="flex items-start justify-between p-2.5 rounded-lg border border-surface-variant/80 bg-surface hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="pr-3">
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-semibold text-on-surface">
+<span>📋 기획안 승인 받기</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary mt-0.5 leading-snug">
+                작업 착수 전 구현 계획 및 단계별 플랜 검토
+              </p>
+</div>
+<div class="relative inline-flex items-center shrink-0 mt-0.5">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container"></div>
+</div>
+</label>
+</div>
+<!-- Primary Action CTA Button -->
+<div class="pt-2">
+<button class="w-full flex items-center justify-center gap-2 bg-primary-container hover:bg-primary text-white font-headline-sm text-headline-sm font-bold py-3 px-4 rounded-xl shadow-sm active:scale-[0.98] transition-all duration-150" type="button">
+<span class="text-base">🚀</span>
+<span>시작</span>
+</button>
+</div>
+</section>
+<!-- Active Workspace Quick Status Card (Contextual Bento-style micro widget) -->
+<section class="bg-surface-container-lowest rounded-xl border border-surface-variant/80 p-3 shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[18px]" data-icon="dns">dns</span>
+</div>
+<div class="min-w-0">
+<div class="font-label-md text-label-md text-on-surface font-semibold truncate">로컬 데브 서버 세션</div>
+<div class="font-code-sm text-code-sm text-secondary truncate">port: 3000 • uptime: 42m</div>
+</div>
+</div>
+<span class="font-code-sm text-code-sm px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 font-medium">대기 중</span>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Mandatory Shared Component JSON) -->
+<!-- Destination count: 3, labels: ["새 작업", "작업", "기록"], active tab: "새 작업" -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 flex justify-around items-center h-16 px-4 max-w-[540px] mx-auto pb-safe bg-surface dark:bg-inverse-surface shadow-md dark:shadow-none border-t border-surface-variant dark:border-outline">
+<!-- Tab 1: 새 작업 (Active) -->
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-3 py-1.5 active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-white text-[20px]" data-icon="add_circle">add_circle</span>
+<span class="text-label-sm font-label-sm text-white font-medium mt-0.5">새 작업</span>
+</a>
+<!-- Tab 2: 작업 (Inactive) -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim px-3 py-1.5 hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="play_circle">play_circle</span>
+<span class="text-label-sm font-label-sm font-medium mt-0.5">작업</span>
+</a>
+<!-- Tab 3: 기록 (Inactive) -->
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim px-3 py-1.5 hover:bg-surface-container-high dark:hover:bg-inverse-surface active:scale-95 transition-all duration-150" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+<span class="text-label-sm font-label-sm font-medium mt-0.5">기록</span>
+</a>
+</nav>
+</div>
+</body></html>

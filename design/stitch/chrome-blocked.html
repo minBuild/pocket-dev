@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pocket-Dev - Chrome 막힘 상태 작업 화면</title>
+<!-- Material Symbols Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with Forms and Container Queries Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration verbatim from Design System -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "error-container": "#93000a",
+            "on-secondary-fixed-variant": "#005321",
+            "surface-variant": "#333539",
+            "surface-bright": "#37393e",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary-container": "#0d0096",
+            "surface-dim": "#111317",
+            "primary-container": "#8083ff",
+            "outline": "#908fa0",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "inverse-on-surface": "#2f3035",
+            "surface-container-low": "#1a1c20",
+            "secondary-container": "#00b954",
+            "background": "#111317",
+            "primary-fixed": "#e1e0ff",
+            "on-tertiary-fixed": "#2a1700",
+            "tertiary-fixed-dim": "#ffb95f",
+            "on-background": "#e2e2e8",
+            "on-primary": "#1000a9",
+            "surface-tint": "#c0c1ff",
+            "error": "#ffb4ab",
+            "tertiary-fixed": "#ffddb8",
+            "primary": "#c0c1ff",
+            "inverse-surface": "#e2e2e8",
+            "on-tertiary-container": "#3e2400",
+            "on-secondary-fixed": "#002109",
+            "on-primary-fixed": "#07006c",
+            "on-error-container": "#ffdad6",
+            "surface-container-lowest": "#0c0e12",
+            "tertiary": "#ffb95f",
+            "on-error": "#690005",
+            "tertiary-container": "#ca8100",
+            "on-surface": "#e2e2e8",
+            "surface": "#111317",
+            "secondary": "#4ae176",
+            "on-secondary": "#003915",
+            "on-tertiary-fixed-variant": "#653e00",
+            "secondary-fixed": "#6bff8f",
+            "on-secondary-container": "#004119",
+            "surface-container-highest": "#333539",
+            "secondary-fixed-dim": "#4ae176",
+            "on-tertiary": "#472a00",
+            "surface-container-high": "#282a2e",
+            "outline-variant": "#464554",
+            "inverse-primary": "#494bd6",
+            "on-surface-variant": "#c7c4d7",
+            "surface-container": "#1e2024"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "gutter": "1rem",
+            "space-xs": "0.25rem"
+          },
+          "fontFamily": {
+            "headline-md": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "headline-lg": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "label-md": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "body-lg": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "title-sm": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "headline-sm": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "code-sm": [
+              "\"JetBrains Mono, monospace\""
+            ],
+            "body-md": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "body-sm": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "title-md": [
+              "\"Geist, 'Pretendard', sans-serif\""
+            ],
+            "code-md": [
+              "\"JetBrains Mono, monospace\""
+            ],
+            "label-xs": [
+              "\"JetBrains Mono, monospace\""
+            ]
+          },
+          "fontSize": {
+            "headline-md": [
+              "22px",
+              {
+                "lineHeight": "30px",
+                "letterSpacing": "-0.015em",
+                "fontWeight": "600"
+              }
+            ],
+            "headline-lg": [
+              "28px",
+              {
+                "lineHeight": "36px",
+                "letterSpacing": "-0.02em",
+                "fontWeight": "700"
+              }
+            ],
+            "label-md": [
+              "12px",
+              {
+                "lineHeight": "16px",
+                "letterSpacing": "0.01em",
+                "fontWeight": "500"
+              }
+            ],
+            "body-lg": [
+              "15px",
+              {
+                "lineHeight": "22px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "400"
+              }
+            ],
+            "title-sm": [
+              "14px",
+              {
+                "lineHeight": "20px",
+                "letterSpacing": "-0.005em",
+                "fontWeight": "600"
+              }
+            ],
+            "headline-sm": [
+              "18px",
+              {
+                "lineHeight": "26px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "600"
+              }
+            ],
+            "code-sm": [
+              "11px",
+              {
+                "lineHeight": "16px",
+                "fontWeight": "500"
+              }
+            ],
+            "body-md": [
+              "13px",
+              {
+                "lineHeight": "19px",
+                "letterSpacing": "-0.005em",
+                "fontWeight": "400"
+              }
+            ],
+            "body-sm": [
+              "12px",
+              {
+                "lineHeight": "17px",
+                "fontWeight": "400"
+              }
+            ],
+            "title-md": [
+              "16px",
+              {
+                "lineHeight": "24px",
+                "letterSpacing": "-0.01em",
+                "fontWeight": "600"
+              }
+            ],
+            "code-md": [
+              "13px",
+              {
+                "lineHeight": "20px",
+                "fontWeight": "500"
+              }
+            ],
+            "label-xs": [
+              "10px",
+              {
+                "lineHeight": "14px",
+                "letterSpacing": "0.04em",
+                "fontWeight": "600"
+              }
+            ]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: 'liga';
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Subtle scanline and terminal pulse */
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.96); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- Shared Component: TopAppBar (Strict JSON matching & styling) -->
+<header class="fixed top-0 left-0 w-full z-40 flex items-center justify-between px-margin h-14 bg-surface-container-low dark:bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-space-sm min-w-0">
+<button aria-label="뒤로가기" class="flex items-center justify-center w-8 h-8 rounded-lg text-on-surface hover:bg-surface-variant transition-opacity active:opacity-80" type="button">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="text-title-md font-title-md text-on-surface truncate">웹 자동화 및 데이터 수집</h1>
+</div>
+<div class="flex items-center gap-space-sm flex-shrink-0">
+<!-- Status Indicator Pill -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-tertiary-container/20 border border-tertiary/40">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse-subtle"></span>
+<span class="font-label-xs text-label-xs text-tertiary font-semibold tracking-wide">일시중지</span>
+</div>
+<button aria-label="옵션 더보기" class="flex items-center justify-center w-8 h-8 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-opacity active:opacity-80" type="button">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Main Execution Stream Viewport -->
+<main class="flex-1 w-full max-w-xl mx-auto pt-16 pb-36 px-margin flex flex-col gap-space-md">
+<!-- Section 2: Chrome Status Header Area -->
+<section class="flex flex-col gap-space-sm mt-1">
+<!-- Main Status Pill Card -->
+<div class="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-container border border-outline-variant/60 shadow-sm">
+<div class="flex items-center gap-2 overflow-hidden">
+<span class="material-symbols-outlined text-primary text-base flex-shrink-0" data-icon="language">language</span>
+<span class="font-code-sm text-code-sm text-on-surface font-medium truncate">Chrome · 7단계 · <span class="text-error font-semibold">⛔ 막힘 감지</span></span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant whitespace-nowrap pl-2">12초 전</span>
+</div>
+<!-- Critical Amber Warning Banner -->
+<div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-tertiary-container/30 to-surface-container border border-tertiary/50 p-3.5 shadow-sm">
+<div class="flex items-start gap-3">
+<div class="flex items-center justify-center w-8 h-8 rounded-lg bg-tertiary/20 text-tertiary flex-shrink-0 border border-tertiary/30 mt-0.5">
+<span class="material-symbols-outlined" data-icon="lock" style="font-variation-settings: 'FILL' 1;">lock</span>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-label-xs text-label-xs px-1.5 py-0.2 rounded bg-tertiary text-on-tertiary font-bold">INTERVENTION</span>
+<span class="font-label-xs text-label-xs text-tertiary-fixed-dim tracking-wider font-code-sm">HOST::DESKTOP_HOME_01</span>
+</div>
+<h2 class="font-title-sm text-title-sm text-on-surface font-semibold mt-1">
+              집 PC Chrome 에서 처리 필요: <span class="text-tertiary">로그인 필요</span>
+</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5 leading-snug">
+              원격 세션 쿠키 보호 정책으로 인해 외부 인스턴스가 차단되었습니다. 홈 데스크톱 인스턴스에서 브라우저 인증을 승인하세요.
+            </p>
+</div>
+</div>
+</div>
+<!-- Compact Legend Card (Micro-guide for states) -->
+<div class="rounded-xl bg-surface-container-low border border-outline-variant/40 p-2.5">
+<div class="flex items-center justify-between pb-1.5 mb-2 border-b border-outline-variant/30">
+<span class="font-label-xs text-label-xs text-on-surface-variant uppercase tracking-wider font-code-sm">제어 모드 및 상태 규약</span>
+<span class="font-label-xs text-label-xs text-outline font-code-sm">v2.4 spec</span>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+<!-- 칩 1: 막힘 의심 -->
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container border border-error/30 text-error">
+<span class="text-xs">⚠️</span>
+<span class="font-label-xs text-label-xs truncate font-medium">막힘 의심</span>
+</div>
+<!-- 칩 2: 내 결정 대기 -->
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-primary-container/20 border border-primary/40 text-primary">
+<span class="text-xs">✋</span>
+<span class="font-label-xs text-label-xs truncate font-medium">내 결정 대기</span>
+</div>
+<!-- 칩 3: 한도 대기 -->
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container border border-tertiary/40 text-tertiary">
+<span class="text-xs">⏳</span>
+<span class="font-label-xs text-label-xs truncate font-medium">한도 대기</span>
+</div>
+<!-- 칩 4: 텍스트로만 -->
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-surface-variant/50 border border-outline-variant text-on-surface-variant">
+<span class="material-symbols-outlined text-xs" data-icon="notes">notes</span>
+<span class="font-label-xs text-label-xs truncate font-medium">텍스트로만</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Execution Log Pipeline (Linear Timeline & Code Viewport) -->
+<section class="rounded-xl bg-surface-container border border-outline-variant/50 p-3.5 flex flex-col gap-3">
+<!-- Section Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg" data-icon="account_tree">account_tree</span>
+<h3 class="font-title-sm text-title-sm text-on-surface font-semibold">실행 로그 파이프라인</h3>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant/40">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-code-sm text-code-sm text-on-surface-variant font-semibold">AUTO_AGENT_V2</span>
+</div>
+</div>
+<!-- Timeline Flow Nodes -->
+<div class="relative pl-6 pt-1 pb-1 flex flex-col gap-3.5 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-3 before:w-[2px] before:bg-outline-variant/50">
+<!-- Node 1: 이전 성공 단계 -->
+<div class="relative flex flex-col gap-1">
+<!-- Bullet Icon -->
+<span class="absolute -left-[23px] top-0.5 flex items-center justify-center w-5 h-5 rounded-full bg-surface-container border border-secondary text-secondary">
+<span class="material-symbols-outlined text-xs" data-icon="check" style="font-variation-settings: 'FILL' 1;">check</span>
+</span>
+<div class="flex items-center justify-between text-on-surface-variant font-code-sm text-code-sm">
+<span class="flex items-center gap-1.5 font-medium text-on-surface">
+<span class="text-xs">🌐</span>
+<span>[이동]</span>
+<span class="text-primary truncate max-w-[200px]">https://example.com/login</span>
+</span>
+<span class="text-secondary font-semibold">200 OK</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline font-code-sm">14:02:18 · elapsed 410ms</span>
+</div>
+<!-- Node 2: 1단계 실패 (reCAPTCHA v3) -->
+<div class="relative flex flex-col gap-1 p-2 rounded-lg bg-error-container/20 border border-error/30">
+<!-- Bullet Icon -->
+<span class="absolute -left-[23px] top-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-error-container border border-error text-error">
+<span class="material-symbols-outlined text-xs" data-icon="close">close</span>
+</span>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm font-semibold text-error flex items-center gap-1">
+<span>⛔ [1단계 실패]</span>
+</span>
+<span class="font-label-xs text-label-xs text-error font-code-sm">14:02:30</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-error-container font-mono">
+            DOM 렌더링 감지 실패: 보안 캡차(reCAPTCHA v3) 트리거됨
+          </p>
+<div class="text-[10px] font-code-sm text-outline flex items-center gap-1.5 pt-0.5">
+<span class="material-symbols-outlined text-[12px]" data-icon="terminal">terminal</span>
+<span>ERR_CAPTCHA_INTERCEPT_SCORE_LOW (0.1)</span>
+</div>
+</div>
+<!-- Node 3: 2단계 실패 (세션 쿠키 불일치) -->
+<div class="relative flex flex-col gap-1 p-2 rounded-lg bg-error-container/20 border border-error/30">
+<!-- Bullet Icon -->
+<span class="absolute -left-[23px] top-2.5 flex items-center justify-center w-5 h-5 rounded-full bg-error-container border border-error text-error">
+<span class="material-symbols-outlined text-xs" data-icon="close">close</span>
+</span>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm font-semibold text-error flex items-center gap-1">
+<span>⛔ [2단계 실패]</span>
+</span>
+<span class="font-label-xs text-label-xs text-error font-code-sm">14:02:33</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-error-container font-mono">
+            자동 키스트로크 차단: 세션 쿠키 불일치 (403 Forbidden)
+          </p>
+<div class="text-[10px] font-code-sm text-outline flex items-center gap-1.5 pt-0.5">
+<span class="material-symbols-outlined text-[12px]" data-icon="shield">shield</span>
+<span>SEC_POLICY_BLOCKED: CF-Ray-8c29019da</span>
+</div>
+</div>
+<!-- Node 4: 3단계 경고/막힘 (가드레일 작동) -->
+<div class="relative flex flex-col gap-1 p-2.5 rounded-lg bg-tertiary-container/20 border border-tertiary/50">
+<!-- Bullet Icon -->
+<span class="absolute -left-[23px] top-3 flex items-center justify-center w-5 h-5 rounded-full bg-surface-container-high border border-tertiary text-tertiary">
+<span class="material-symbols-outlined text-xs" data-icon="warning">warning</span>
+</span>
+<div class="flex items-center justify-between">
+<span class="font-code-sm text-code-sm font-semibold text-tertiary flex items-center gap-1">
+<span>⚠️ [3단계 경고/막힘]</span>
+</span>
+<span class="font-label-xs text-label-xs text-tertiary font-code-sm">14:02:35</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium">
+            연속 실패 가드레일 작동: 사람 개입 및 홈 세션 인증 필요
+          </p>
+<span class="font-label-xs text-label-xs text-tertiary-fixed-dim">
+            AUTO_FAILSAFE_THRESHOLD (2/2) 초과. 자동 브라우징 동작이 동결되었습니다.
+          </span>
+</div>
+</div>
+<!-- Browser Snapshot Thumbnail Preview Frame -->
+<div class="mt-1 rounded-lg border border-outline-variant/60 overflow-hidden bg-surface-container-lowest">
+<!-- Mock Browser Window Header -->
+<div class="px-3 py-1.5 bg-surface-container-high border-b border-outline-variant/40 flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-error/70 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-tertiary/70 inline-block"></span>
+<span class="w-2.5 h-2.5 rounded-full bg-secondary/70 inline-block"></span>
+<span class="font-code-sm text-[11px] text-on-surface-variant ml-2 font-mono">auth.example.com/login/challenge</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="font-label-xs text-[10px] px-1.5 py-0.2 rounded bg-surface-variant text-on-surface font-code-sm">1280x720</span>
+</div>
+</div>
+<!-- Snapshot Content with Suspended Overlay -->
+<div class="relative w-full h-36 bg-[#13151b] flex flex-col justify-center items-center p-4">
+<!-- Background Wireframe Login Form -->
+<div class="w-full max-w-xs flex flex-col gap-2 opacity-25 filter blur-[0.5px]">
+<div class="h-3 w-24 bg-outline rounded"></div>
+<div class="h-7 w-full bg-surface-variant rounded border border-outline-variant"></div>
+<div class="h-7 w-full bg-surface-variant rounded border border-outline-variant"></div>
+<div class="h-7 w-full bg-primary/40 rounded mt-1"></div>
+</div>
+<!-- Stoppage Overlay Pill -->
+<div class="absolute inset-0 bg-surface-container-lowest/70 backdrop-blur-[1px] flex flex-col items-center justify-center p-3 text-center">
+<div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high border border-outline-variant shadow-lg mb-1">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+<span class="font-code-sm text-code-sm text-on-surface font-bold">정지됨 (HALTED)</span>
+</div>
+<p class="font-label-xs text-label-xs text-on-surface-variant mt-1 font-mono">
+              클라우드 브라우저 대기: 사용자의 세션 릴레이 요청 응답 대기 중
+            </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 4: Bottom Consensus / Human-in-the-loop Decision Card -->
+<section class="rounded-xl bg-surface-container border border-primary/40 shadow-lg p-4 flex flex-col gap-3 relative overflow-hidden">
+<!-- Top Glow Accent -->
+<div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent"></div>
+<!-- Header & Model Consensus Tag -->
+<div class="flex items-start justify-between gap-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl flex-shrink-0" data-icon="gavel">gavel</span>
+<h4 class="font-title-sm text-title-sm text-on-surface font-bold tracking-tight">
+            심사자 의견이 갈렸어요: <span class="font-code-md text-code-md text-primary font-semibold">🖱 클릭 (412, 300)</span>
+</h4>
+</div>
+<!-- 50:50 Indicator -->
+<span class="font-code-sm text-[11px] px-2 py-0.5 rounded-full bg-surface-variant text-primary border border-primary/30 flex-shrink-0 font-bold">
+          1 vs 1 투표
+        </span>
+</div>
+<!-- Consensus Meter Visual -->
+<div class="flex flex-col gap-1">
+<div class="w-full h-1.5 bg-surface-variant rounded-full overflow-hidden flex">
+<div class="h-full bg-primary" style="width: 50%;"></div>
+<div class="h-full bg-error" style="width: 50%;"></div>
+</div>
+<div class="flex items-center justify-between font-label-xs text-[10px] text-on-surface-variant font-code-sm">
+<span class="text-primary font-medium">에이전트 A (허용 50%)</span>
+<span class="text-error font-medium">보안 검증기 B (거부 50%)</span>
+</div>
+</div>
+<!-- Detailed Info Text -->
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+        자동 실행 에이전트가 로그인 폼 통과를 위해 민감 버튼 클릭을 시도했으나, 1개 검증기가 위험으로 판단했습니다.
+      </p>
+<!-- Snapshot Deep-link Button -->
+<div class="flex items-center">
+<button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-variant border border-outline-variant text-on-surface text-label-md font-label-md transition-colors active:opacity-80" type="button">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="photo_camera">photo_camera</span>
+<span>최근 화면 (12초 전)</span>
+<span class="material-symbols-outlined text-xs text-outline" data-icon="open_in_new">open_in_new</span>
+</button>
+</div>
+<!-- Action Buttons Pair -->
+<div class="grid grid-cols-2 gap-space-sm pt-1">
+<!-- Reject Button -->
+<button class="w-full py-2.5 px-3 rounded-xl bg-error-container/20 hover:bg-error-container/30 border border-error/40 text-error font-title-sm text-title-sm font-semibold flex items-center justify-center gap-1.5 transition-colors active:opacity-80" type="button">
+<span class="material-symbols-outlined text-base" data-icon="cancel">cancel</span>
+<span>거부</span>
+</button>
+<!-- Approve & Execute Button (#6366f1 style indigo highlight) -->
+<button class="w-full py-2.5 px-3 rounded-xl bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-title-sm text-title-sm font-bold flex items-center justify-center gap-1.5 shadow-md transition-colors active:opacity-80" type="button">
+<span class="material-symbols-outlined text-base" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span>허용 및 실행</span>
+</button>
+</div>
+</section>
+</main>
+<!-- Section 5: Persistent Floating Prompt & Intervention Dock -->
+<footer class="fixed bottom-0 left-0 w-full z-40 bg-surface-dim/95 backdrop-blur-md border-t border-outline-variant/50 p-margin">
+<div class="max-w-xl mx-auto flex items-center gap-2">
+<!-- Plus Action Button -->
+<button aria-label="추가 기능 및 파라미터 삽입" class="flex items-center justify-center w-10 h-10 rounded-xl bg-surface-container border border-outline-variant text-on-surface hover:bg-surface-variant active:opacity-80 transition-colors flex-shrink-0" type="button">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<!-- Input Field Container -->
+<div class="flex-1 relative flex items-center bg-surface-container rounded-xl border border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+<input class="w-full bg-transparent text-on-surface placeholder:text-outline text-body-md font-body-md px-3.5 py-2.5 focus:outline-none" placeholder="에이전트에게 수동 지시 입력..." type="text"/>
+</div>
+<!-- Purple/Indigo Submit Button -->
+<button aria-label="지시 전송" class="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-container text-on-primary-container font-bold hover:bg-primary-container/90 active:opacity-80 transition-colors shadow-sm flex-shrink-0" type="button">
+<span class="material-symbols-outlined" data-icon="send" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</footer>
+<!-- Micro Interaction Script for Button Feedback -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Subtle active feedback vibration pattern if supported
+          if (navigator.vibrate) {
+            navigator.vibrate(15);
+          }
+        });
+      });
+    });
+  </script>
+</body></html>
