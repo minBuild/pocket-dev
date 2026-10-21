@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chrome 화면 오버레이 - Pocket-Dev</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary-fixed": "#e1e0ff",
+            "surface": "#0b1420",
+            "secondary-fixed-dim": "#45dfa4",
+            "on-secondary-fixed-variant": "#005137",
+            "surface-bright": "#323a47",
+            "outline": "#908fa0",
+            "on-secondary": "#003825",
+            "surface-container-high": "#222a37",
+            "on-secondary-container": "#00452e",
+            "on-tertiary": "#402d00",
+            "on-primary-container": "#0d0096",
+            "on-surface-variant": "#c7c4d7",
+            "surface-container": "#18202c",
+            "surface-container-lowest": "#060e1a",
+            "on-background": "#dbe3f4",
+            "on-error": "#690005",
+            "tertiary-fixed": "#ffdf9f",
+            "tertiary": "#f9bd22",
+            "on-tertiary-fixed-variant": "#5c4300",
+            "error": "#ffb4ab",
+            "primary-container": "#8083ff",
+            "on-tertiary-fixed": "#261a00",
+            "surface-container-low": "#141c28",
+            "on-surface": "#dbe3f4",
+            "on-primary": "#1000a9",
+            "inverse-on-surface": "#29313e",
+            "on-tertiary-container": "#372700",
+            "on-primary-fixed": "#07006c",
+            "tertiary-fixed-dim": "#f9bd22",
+            "on-secondary-fixed": "#002114",
+            "inverse-surface": "#dbe3f4",
+            "background": "#0b1420",
+            "surface-container-highest": "#2d3542",
+            "secondary": "#45dfa4",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-error-container": "#ffdad6",
+            "inverse-primary": "#494bd6",
+            "error-container": "#93000a",
+            "surface-dim": "#0b1420",
+            "secondary-fixed": "#68fcbf",
+            "surface-variant": "#2d3542",
+            "surface-tint": "#c0c1ff",
+            "primary": "#c0c1ff",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "secondary-container": "#00bd85",
+            "outline-variant": "#464554",
+            "tertiary-container": "#b88900"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "1.5rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1rem",
+            "margin": "1rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "code-sm": ["JetBrains Mono"],
+            "label-caps": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "body-lg": ["Inter"],
+            "body-sm": ["Inter"],
+            "code-md": ["JetBrains Mono"],
+            "headline-xl": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "body-md": ["Inter"]
+          },
+          "fontSize": {
+            "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "label-caps": ["10px", { "lineHeight": "14px", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "code-md": ["13px", { "lineHeight": "20px", "fontWeight": "500" }],
+            "headline-xl": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+            "label-md": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+            "headline-sm": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Custom Hide Scrollbar for horizontal scrolling preview */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest text-on-surface antialiased font-body-md select-none min-h-screen overflow-x-hidden flex flex-col justify-end">
+<!-- Background App Mock View (Dimmed Behind Bottom Sheet) -->
+<div class="fixed inset-0 bg-surface-container-lowest/80 backdrop-blur-sm z-0 pointer-events-none"></div>
+<!-- Bottom Sheet Modal Overlay (Full-depth mobile command sheet) -->
+<div class="relative z-10 w-full max-w-md mx-auto bg-surface-container-low rounded-t-3xl border-t border-outline-variant/30 flex flex-col max-h-[830px] shadow-2xl overflow-hidden">
+<!-- Top Drag Handle -->
+<div class="pt-3 pb-2 flex justify-center items-center w-full">
+<div class="w-10 h-1 bg-outline-variant/60 rounded-full"></div>
+</div>
+<!-- Sheet Header -->
+<header class="px-margin pt-1 pb-3 flex items-center justify-between border-b border-outline-variant/20">
+<div class="flex items-center space-x-2">
+<span class="text-primary flex items-center">
+<span class="material-symbols-outlined text-lg" data-icon="language">language</span>
+</span>
+<h1 class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">
+          Chrome 진행 화면
+        </h1>
+</div>
+<!-- Close Action -->
+<button aria-label="닫기" class="w-8 h-8 rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors active:scale-95 duration-100" type="button">
+<span class="material-symbols-outlined text-xl" data-icon="close">close</span>
+</button>
+</header>
+<!-- Context Bar Under Header -->
+<div class="px-margin py-2.5 bg-surface-container/60 border-b border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2 overflow-hidden">
+<span class="relative flex h-2 w-2 flex-shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+<p class="font-label-md text-label-md text-on-surface-variant truncate">
+          AdMob 콘솔 자동화 세션
+        </p>
+</div>
+<span class="px-2 py-0.5 rounded-full font-code-sm text-code-sm bg-primary/10 text-primary border border-primary/20 flex-shrink-0">
+        실행 중
+      </span>
+</div>
+<!-- Scrollable Content Body -->
+<div class="flex-1 overflow-y-auto pb-8">
+<!-- Section 1: Horizontal Snapshot Strip -->
+<section class="mt-4">
+<div class="px-margin mb-2.5 flex items-center justify-between">
+<span class="font-label-caps text-label-caps uppercase tracking-wider text-outline font-semibold">실시간 스크린샷 스트림</span>
+<span class="font-code-sm text-code-sm text-outline">좌우 스와이프</span>
+</div>
+<!-- Snap-scroll Container -->
+<div class="flex space-x-3 overflow-x-auto no-scrollbar px-margin snap-x snap-mandatory pt-1 pb-2">
+<!-- Card 1 -->
+<div class="flex-none w-[280px] snap-center">
+<div class="w-full aspect-[16/10] bg-surface rounded-xl border border-outline-variant/30 p-3 flex flex-col justify-between overflow-hidden relative group">
+<!-- Mock AdMob UI: Initial login/dashboard wireframe -->
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-1.5">
+<div class="flex items-center space-x-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-outline-variant"></div>
+<span class="font-code-sm text-code-sm text-outline">google.com/admob</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<div class="space-y-2 py-1">
+<div class="h-2 w-3/4 bg-surface-container-high rounded"></div>
+<div class="grid grid-cols-3 gap-1.5">
+<div class="h-8 bg-surface-container rounded border border-outline-variant/10"></div>
+<div class="h-8 bg-surface-container rounded border border-outline-variant/10"></div>
+<div class="h-8 bg-surface-container rounded border border-outline-variant/10"></div>
+</div>
+<div class="h-3 w-1/2 bg-surface-container-high rounded"></div>
+</div>
+<div class="flex items-center justify-between text-outline">
+<span class="font-code-sm text-code-sm">DOM: readyState 200</span>
+<span class="material-symbols-outlined text-sm" data-icon="check_circle">check_circle</span>
+</div>
+</div>
+<p class="mt-1.5 font-code-sm text-code-sm text-outline truncate">
+              1/5 · 09:41:02 · AdMob 콘솔 접속
+            </p>
+</div>
+<!-- Card 2 -->
+<div class="flex-none w-[280px] snap-center">
+<div class="w-full aspect-[16/10] bg-surface rounded-xl border border-outline-variant/30 p-3 flex flex-col justify-between overflow-hidden relative">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-1.5">
+<div class="flex items-center space-x-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-outline-variant"></div>
+<span class="font-code-sm text-code-sm text-outline">apps/create/platform</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<!-- Mock Wireframe: Platform Selection -->
+<div class="space-y-2 py-1">
+<div class="h-2.5 w-2/3 bg-surface-container-high rounded"></div>
+<div class="flex space-x-2">
+<div class="flex-1 p-1.5 bg-surface-container rounded border border-primary/30 flex flex-col items-center justify-center">
+<span class="material-symbols-outlined text-base text-primary mb-0.5" data-icon="android">android</span>
+<div class="h-1.5 w-8 bg-primary/40 rounded"></div>
+</div>
+<div class="flex-1 p-1.5 bg-surface-container/60 rounded border border-outline-variant/20 flex flex-col items-center justify-center opacity-40">
+<span class="material-symbols-outlined text-base text-outline mb-0.5" data-icon="phone_iphone">phone_iphone</span>
+<div class="h-1.5 w-8 bg-outline/40 rounded"></div>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between text-outline">
+<span class="font-code-sm text-code-sm">Target: btn_platform_android</span>
+<span class="material-symbols-outlined text-sm text-secondary" data-icon="touch_app">touch_app</span>
+</div>
+</div>
+<p class="mt-1.5 font-code-sm text-code-sm text-outline truncate">
+              2/5 · 09:41:18 · 새 앱 추가 화면 이동
+            </p>
+</div>
+<!-- Card 3 (Current / Active Focus) -->
+<div class="flex-none w-[280px] snap-center">
+<div class="w-full aspect-[16/10] bg-surface rounded-xl border border-primary/60 p-3 flex flex-col justify-between overflow-hidden relative shadow-[0_0_12px_rgba(99,102,241,0.18)]">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-1.5">
+<div class="flex items-center space-x-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></div>
+<span class="font-code-sm text-code-sm text-primary font-medium">apps/details/confirm</span>
+</div>
+<span class="px-1.5 py-0.2 rounded font-code-sm text-code-sm bg-primary/20 text-primary">현재</span>
+</div>
+<!-- Mock Form & Action Button -->
+<div class="space-y-1.5 py-1">
+<div class="h-2 w-1/2 bg-surface-container-high rounded"></div>
+<div class="h-5 bg-surface-container rounded border border-outline-variant/30 px-2 flex items-center">
+<span class="font-code-sm text-code-sm text-on-surface">Pocket-Dev Android</span>
+</div>
+<div class="flex justify-end pt-1">
+<div class="px-3 py-1 bg-primary text-on-primary rounded text-code-sm font-semibold flex items-center space-x-1 shadow-sm">
+<span>앱 추가</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between text-primary">
+<span class="font-code-sm text-code-sm">action: click('#submit')</span>
+<span class="material-symbols-outlined text-sm" data-icon="mouse">mouse</span>
+</div>
+</div>
+<p class="mt-1.5 font-code-sm text-code-sm text-on-surface font-medium truncate">
+              3/5 · 09:42:15 · 앱 만들기 클릭
+            </p>
+</div>
+<!-- Card 4 -->
+<div class="flex-none w-[280px] snap-center">
+<div class="w-full aspect-[16/10] bg-surface rounded-xl border border-outline-variant/30 p-3 flex flex-col justify-between overflow-hidden relative opacity-75">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-1.5">
+<div class="flex items-center space-x-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-outline-variant"></div>
+<span class="font-code-sm text-code-sm text-outline">adunits/create</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-outline-variant"></span>
+</div>
+<div class="space-y-2 py-1">
+<div class="h-2 w-2/3 bg-surface-container-high rounded"></div>
+<div class="grid grid-cols-2 gap-2">
+<div class="h-6 bg-surface-container rounded border border-outline-variant/20"></div>
+<div class="h-6 bg-surface-container rounded border border-outline-variant/20"></div>
+</div>
+<div class="h-2 w-1/3 bg-surface-container-high rounded"></div>
+</div>
+<div class="flex items-center justify-between text-outline">
+<span class="font-code-sm text-code-sm">Waiting for input...</span>
+<span class="material-symbols-outlined text-sm" data-icon="pending">pending</span>
+</div>
+</div>
+<p class="mt-1.5 font-code-sm text-code-sm text-outline truncate">
+              4/5 · 09:42:31 · 앱 정보 입력
+            </p>
+</div>
+</div>
+</section>
+<!-- Section 2: Step List -->
+<section class="mt-6 px-margin">
+<div class="flex items-center justify-between mb-3">
+<div class="flex items-center space-x-1.5">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-on-surface">최근 단계</h2>
+<span class="font-code-sm text-code-sm text-outline">(총 8개 단계)</span>
+</div>
+<span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">세션 로그</span>
+</div>
+<!-- Step List (8 steps) -->
+<div class="space-y-1.5">
+<!-- Step 1: Active In-Progress Step -->
+<div class="p-3 bg-surface-container rounded-xl border border-primary/50 shadow-[0_0_10px_rgba(99,102,241,0.12)] flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-base animate-spin" data-icon="hourglass_top">hourglass_top</span>
+</span>
+<div class="min-w-0">
+<p class="font-body-md text-body-md font-medium text-on-surface truncate">
+                  광고 단위 만들기 <span class="text-primary text-xs font-code-sm font-normal">(5초 전 시작)</span>
+</p>
+</div>
+</div>
+<span class="font-code-sm text-code-sm text-primary flex-shrink-0">09:42:36</span>
+</div>
+<!-- Step 2 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                앱 만들기 클릭
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:42:15</span>
+</div>
+<!-- Step 3 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                'Pocket-Dev Android' 앱 이름 및 플랫폼 설정
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:41:52</span>
+</div>
+<!-- Step 4 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                새 앱 추가 대시보드 진입
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:41:18</span>
+</div>
+<!-- Step 5 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                Google 로그인 및 2단계 인증 세션 통과
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:41:09</span>
+</div>
+<!-- Step 6 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                AdMob 콘솔 URL 열기
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:41:02</span>
+</div>
+<!-- Step 7: Caution/Retry passed -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-tertiary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="block">block</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                이전 세션 캐시 초기화 (타임아웃 재시도 통과)
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:40:48</span>
+</div>
+<!-- Step 8 -->
+<div class="p-2.5 bg-surface/50 rounded-xl border border-outline-variant/20 flex items-center justify-between">
+<div class="flex items-center space-x-2.5 min-w-0 pr-2">
+<span class="text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-base" data-icon="check_circle">check_circle</span>
+</span>
+<p class="font-body-md text-body-md text-on-surface-variant truncate">
+                Headless Chromium 브라우저 프로세스 시작
+              </p>
+</div>
+<span class="font-code-sm text-code-sm text-outline flex-shrink-0">09:40:30</span>
+</div>
+</div>
+</section>
+<!-- Bottom Status Pill Footer -->
+<div class="mt-6 px-margin flex items-center justify-between text-outline border-t border-outline-variant/20 pt-3">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm" data-icon="dns">dns</span>
+<span class="font-code-sm text-code-sm">PID: 38291 · 메모리 248MB</span>
+</div>
+<div class="flex items-center space-x-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="font-code-sm text-code-sm text-secondary">원격 연결 정상</span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -239,8 +239,11 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     if run.attachments:  # 사용자 첨부 자료도 읽을 수 있게
         args += ["--add-dir", run.attach_dir]
     allowed = [*ex.get("always_allow_tools", []), *extra_allowed]
+    bcfg = CONFIG.get("browser") or {}
     if use_chrome:  # Claude in Chrome — 규칙은 여기서 한 번만 붙임. 읽기 도구만 바로 허용, 나머지는 권한 심사
-        prompt += browser.EXEC_NOTE
+        keep = int(bcfg.get("keep_shots", 100))
+        prompt += browser.exec_note(bcfg.get("shot_policy", "key"), bcfg.get("max_shots", 12),
+                                    text_only=keep <= 0 or browser.text_only_seen(run.events))
         args.append("--chrome")
         allowed += [*browser.READ_ONLY, browser.ACCOUNT_TOOL]
         # 로그인 계정 상태는 실행마다 새로 (그 사이 사용자가 계정을 바꿀 수 있음) — 칩의 옛 ✅ 도 지움
@@ -265,7 +268,6 @@ async def run_claude_code(run: Run, prompt: str, model: str, port: int,
     proc.stdin.close()
 
     result: dict = {}
-    bcfg = CONFIG.get("browser") or {}
     relay = _Relay(run_dir, int(bcfg.get("keep_shots", 100)), bool(bcfg.get("debug_dump", False)))
     pending: dict[str, dict] = {}  # tool_use_id → describe() + name (Chrome 단계 시작됨, 결과 대기)
 

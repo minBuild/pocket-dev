@@ -54,12 +54,45 @@ EXEC_NOTE = """
   앱 게시·심사 제출, 로컬 파일 업로드. 이런 단계가 필요하면 멈추고 "[CHROME-BLOCKED] <무엇이 필요한지>" 한 줄을 남긴다.
 - 로그인·2단계 인증·캡차가 나오면 우회하지 말고 멈춰서 "[CHROME-BLOCKED] 사용자가 Chrome 에서 로그인해야 함" 한 줄을 남긴다.
 - 같은 동작이 2번 거부되거나 실패하면 반복하지 말고, "[CHROME-BLOCKED] <이유>" 한 줄을 남긴 뒤 Chrome 작업을 멈춘다 (코드 작업은 계속한다).
-- computer 도구의 screenshot·zoom·wait·scroll 은 심사 없이 허용된다. 스크린샷은 막혔을 때와 Chrome 작업을 마치기 직전에 1장씩만 찍고, 동작마다 찍지 않는다.
+- computer 도구의 screenshot·zoom·wait·scroll 은 심사 없이 허용된다.
 - JavaScript 실행 도구와 파일 업로드 도구는 쓸 수 없다 (즉시 거부). ID 는 get_page_text·find 로 읽는다.
 - 발급받은 ID 는 코드·설정 파일에 반영하고, 작업 끝에 무엇을 만들었고 어떤 ID 를 어디에 넣었는지 정리한다.
   단 프로젝트 규칙(CLAUDE.md·명세서)이 실제 ID 를 저장소에 넣지 말라고 하면 그 방식(--dart-define 등)을 따르고, ID 는 결과 정리에만 남긴다.
   (AdMob 앱 ID 는 ca-app-pub-…~…, 광고 단위 ID 는 ca-app-pub-…/… 형식. 테스트 빌드에 테스트 광고 ID 를 쓰는 구조면 그대로 지킨다.)
 - Chrome 연결이 안 되면 브라우저 작업은 건너뛰고 코드 작업만 끝낸 뒤, "[CHROME-BLOCKED] Chrome 연결 안 됨" 한 줄을 남긴다."""
+
+SHOT_POLICIES = ("key", "minimal")
+_SHOT_MINIMAL = ("\n- 스크린샷은 막혔을 때와 Chrome 작업을 마치기 직전에 1장씩만 찍고, 동작마다 찍지 않는다.")
+_SHOT_KEY = ("\n- 사용자가 폰에서 Chrome 진행 화면을 본다. 스크린샷은 ① 새 콘솔 페이지로 navigate 한 직후 "
+             "② 앱·광고 단위 등을 만들거나 저장하는 버튼을 누른 직후 ③ 막혔을 때 ④ Chrome 작업을 마치기 직전에만 1장씩 찍는다. "
+             "그 밖의 클릭·입력·스크롤 뒤에는 찍지 않고, 이번 실행에서 {n}장을 넘기지 않는다.")
+
+
+def shot_policy(value) -> str:
+    """설정값 → 'key' | 'minimal' (모르는 값은 minimal — 토큰을 덜 쓰는 쪽)."""
+    v = str(value or "").strip().lower()
+    return v if v in SHOT_POLICIES else "minimal"
+
+
+def clamp_max_shots(value, default: int = 12) -> int:
+    try:
+        return max(1, min(30, int(value)))
+    except Exception:
+        return default
+
+
+def text_only_seen(events) -> bool:
+    """이 작업에서 screenshot 이 성공했는데 이미지가 없었던 적이 있는가 (이미지가 전달되지 않는 환경)."""
+    try:
+        return any(isinstance(e, dict) and e.get("type") == "browser" and e.get("no_image") for e in (events or []))
+    except Exception:
+        return False
+
+
+def exec_note(policy, max_shots, text_only: bool) -> str:
+    """구현 프롬프트에 붙일 Chrome 규칙 전체 (EXEC_NOTE + 스크린샷 정책 한 줄)."""
+    p = "minimal" if text_only else shot_policy(policy)
+    return EXEC_NOTE + (_SHOT_KEY.format(n=clamp_max_shots(max_shots)) if p == "key" else _SHOT_MINIMAL)
 
 
 def enabled(settings: dict) -> bool:

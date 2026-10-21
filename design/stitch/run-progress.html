@@ -3,12 +3,15 @@
 <html class="dark" lang="ko"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-<title>Pocket-Dev - 웹 자동화 및 데이터 수집</title>
+<title>Pocket-Dev - AdMob 앱 등록</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts: Inter & JetBrains Mono -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     tailwind.config = {
@@ -16,53 +19,53 @@
       theme: {
         extend: {
           "colors": {
-            "surface-variant": "#333539",
-            "outline": "#908fa0",
-            "tertiary-fixed-dim": "#ffb95f",
-            "on-primary-container": "#0d0096",
-            "on-tertiary": "#472a00",
-            "surface-bright": "#37393e",
-            "inverse-primary": "#494bd6",
-            "secondary-fixed-dim": "#4ae176",
-            "surface-container-low": "#1a1c20",
-            "surface-container-high": "#282a2e",
-            "tertiary-container": "#ca8100",
-            "background": "#111317",
-            "on-tertiary-container": "#3e2400",
-            "on-primary-fixed": "#07006c",
-            "secondary": "#4ae176",
-            "on-primary-fixed-variant": "#2f2ebe",
-            "on-secondary-fixed": "#002109",
-            "on-secondary-fixed-variant": "#005321",
-            "on-tertiary-fixed": "#2a1700",
+            "secondary": "#45dfa4",
             "outline-variant": "#464554",
-            "surface": "#111317",
-            "surface-container-lowest": "#0c0e12",
-            "error": "#ffb4ab",
-            "on-surface": "#e2e2e8",
-            "on-secondary": "#003915",
+            "on-background": "#dbe3f4",
+            "on-secondary-fixed": "#002114",
+            "on-primary": "#1000a9",
+            "primary-fixed-dim": "#c0c1ff",
+            "on-primary-fixed": "#07006c",
+            "surface": "#0b1420",
+            "secondary-fixed": "#68fcbf",
+            "outline": "#908fa0",
             "primary-fixed": "#e1e0ff",
             "primary": "#c0c1ff",
-            "surface-container-highest": "#333539",
-            "on-error-container": "#ffdad6",
-            "primary-container": "#8083ff",
-            "tertiary": "#ffb95f",
-            "on-error": "#690005",
-            "error-container": "#93000a",
-            "surface-container": "#1e2024",
-            "surface-tint": "#c0c1ff",
+            "on-secondary": "#003825",
+            "tertiary-fixed": "#ffdf9f",
             "on-surface-variant": "#c7c4d7",
-            "on-tertiary-fixed-variant": "#653e00",
-            "on-secondary-container": "#004119",
-            "secondary-fixed": "#6bff8f",
-            "surface-dim": "#111317",
-            "on-background": "#e2e2e8",
-            "primary-fixed-dim": "#c0c1ff",
-            "inverse-surface": "#e2e2e8",
-            "inverse-on-surface": "#2f3035",
-            "tertiary-fixed": "#ffddb8",
-            "secondary-container": "#00b954",
-            "on-primary": "#1000a9"
+            "on-tertiary": "#402d00",
+            "tertiary": "#f9bd22",
+            "inverse-on-surface": "#29313e",
+            "surface-variant": "#2d3542",
+            "secondary-container": "#00bd85",
+            "inverse-primary": "#494bd6",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "on-secondary-fixed-variant": "#005137",
+            "surface-container-low": "#141c28",
+            "surface-bright": "#323a47",
+            "primary-container": "#8083ff",
+            "surface-tint": "#c0c1ff",
+            "on-primary-container": "#0d0096",
+            "on-error-container": "#ffdad6",
+            "error-container": "#93000a",
+            "on-tertiary-fixed": "#261a00",
+            "on-secondary-container": "#00452e",
+            "surface-container-lowest": "#060e1a",
+            "on-tertiary-fixed-variant": "#5c4300",
+            "secondary-fixed-dim": "#45dfa4",
+            "inverse-surface": "#dbe3f4",
+            "tertiary-fixed-dim": "#f9bd22",
+            "on-surface": "#dbe3f4",
+            "error": "#ffb4ab",
+            "surface-dim": "#0b1420",
+            "on-error": "#690005",
+            "tertiary-container": "#b88900",
+            "on-tertiary-container": "#372700",
+            "background": "#0b1420",
+            "surface-container": "#18202c",
+            "surface-container-high": "#222a37",
+            "surface-container-highest": "#2d3542"
           },
           "borderRadius": {
             "DEFAULT": "0.25rem",
@@ -71,41 +74,37 @@
             "full": "9999px"
           },
           "spacing": {
-            "space-sm": "0.5rem",
             "space-xs": "0.25rem",
-            "space-xl": "2rem",
-            "space-md": "1rem",
-            "space-lg": "1.5rem",
+            "margin": "1rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem",
+            "space-lg": "1rem",
             "gutter": "1rem",
-            "margin": "1rem"
+            "space-xl": "1.5rem"
           },
           "fontFamily": {
-            "label-xs": ["\"JetBrains Mono, monospace\""],
-            "title-sm": ["\"Geist, 'Pretendard', sans-serif\""],
-            "code-sm": ["\"JetBrains Mono, monospace\""],
-            "title-md": ["\"Geist, 'Pretendard', sans-serif\""],
-            "code-md": ["\"JetBrains Mono, monospace\""],
-            "body-sm": ["\"Geist, 'Pretendard', sans-serif\""],
-            "headline-lg": ["\"Geist, 'Pretendard', sans-serif\""],
-            "label-md": ["\"Geist, 'Pretendard', sans-serif\""],
-            "body-md": ["\"Geist, 'Pretendard', sans-serif\""],
-            "body-lg": ["\"Geist, 'Pretendard', sans-serif\""],
-            "headline-md": ["\"Geist, 'Pretendard', sans-serif\""],
-            "headline-sm": ["\"Geist, 'Pretendard', sans-serif\""]
+            "label-caps": ["JetBrains Mono"],
+            "code-sm": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "label-md": ["Inter"],
+            "headline-sm": ["Inter"],
+            "code-md": ["JetBrains Mono"],
+            "headline-xl": ["Inter"],
+            "body-md": ["Inter"]
           },
           "fontSize": {
-            "label-xs": ["10px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
-            "title-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "-0.005em", "fontWeight": "600" }],
+            "label-caps": ["10px", { "lineHeight": "14px", "fontWeight": "600" }],
             "code-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }],
-            "title-md": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "18px", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "label-md": ["13px", { "lineHeight": "18px", "fontWeight": "500" }],
+            "headline-sm": ["18px", { "lineHeight": "26px", "fontWeight": "600" }],
             "code-md": ["13px", { "lineHeight": "20px", "fontWeight": "500" }],
-            "body-sm": ["12px", { "lineHeight": "17px", "fontWeight": "400" }],
-            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500" }],
-            "body-md": ["13px", { "lineHeight": "19px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
-            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.01em", "fontWeight": "400" }],
-            "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
-            "headline-sm": ["18px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+            "headline-xl": ["32px", { "lineHeight": "40px", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }]
           }
         }
       }
@@ -118,17 +117,20 @@
       vertical-align: middle;
       line-height: 1;
     }
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.4); opacity: 0.5; }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.88); }
     }
-    .animate-pulse-dot {
-      animation: pulse-dot 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    .status-pulse-dot {
+      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
-    /* Hide scrollbar for neat terminal feel */
-    ::-webkit-scrollbar {
-      width: 0px;
-      height: 0px;
+    /* Hide scrollbar for tabs/chips */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
 <style>
@@ -137,308 +139,198 @@
     }
   </style>
   </head>
-<body class="bg-surface text-on-surface antialiased min-h-screen pb-32 select-none">
-<!-- TOP APP BAR (from Shared Components JSON) -->
-<header class="fixed top-0 left-0 w-full z-40 flex items-center justify-between px-margin h-14 bg-surface-container-low border-b border-outline-variant">
-<div class="flex items-center gap-space-sm">
-<button aria-label="뒤로 가기" class="p-1 rounded text-on-surface hover:bg-surface-variant active:opacity-80 transition-opacity">
-<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+<body class="bg-surface text-on-surface antialiased selection:bg-primary selection:text-on-primary">
+<!-- Mobile Container Shell (Centered on large screens, native 390px fluid on mobile) -->
+<div class="relative mx-auto flex min-h-screen w-full max-w-[440px] flex-col bg-surface shadow-2xl">
+<!-- 1. Top App Bar (Shared Component Anchor) -->
+<header class="fixed top-0 left-0 right-0 mx-auto w-full max-w-[440px] z-50 flex items-center justify-between px-margin h-14 bg-surface dark:bg-surface border-b border-outline-variant/30">
+<div class="flex items-center space-x-2">
+<button aria-label="뒤로가기" class="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface hover:bg-surface-container-high transition-colors duration-150 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[22px]">arrow_back</span>
 </button>
-<h1 class="font-title-md text-title-md text-on-surface truncate max-w-[190px]">웹 자동화 및 데이터 수집</h1>
+<h1 class="text-headline-sm font-headline-sm text-on-surface tracking-tight">AdMob 앱 등록</h1>
 </div>
-<div class="flex items-center gap-space-sm">
-<!-- Status Badge -->
-<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container border border-primary/30">
-<span class="relative flex h-2 w-2">
-<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-</span>
-<span class="font-label-xs text-label-xs text-primary font-medium tracking-tight">실행 중</span>
+<!-- Trailing Action: Status Badge & Utility Menu -->
+<div class="flex items-center space-x-2">
+<!-- Status Pill: 진행 중 -->
+<div class="flex items-center space-x-1.5 rounded-full border border-tertiary/40 bg-surface-container-high px-2.5 py-1">
+<span class="status-pulse-dot h-2 w-2 rounded-full bg-tertiary"></span>
+<span class="font-code-sm text-code-sm text-tertiary">진행 중</span>
 </div>
-<button aria-label="추가 옵션" class="p-1 rounded text-on-surface hover:bg-surface-variant active:opacity-80 transition-opacity">
-<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+<button aria-label="작업 옵션" class="flex h-8 w-8 items-center justify-center rounded-lg text-outline hover:bg-surface-container-high transition-colors duration-150 active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
 </button>
 </div>
 </header>
-<!-- CONTENT WRAPPER -->
-<main class="pt-16 px-margin flex flex-col gap-space-md max-w-md mx-auto">
-<!-- SUB-HEADER SUMMARY BANNER (Tappable single-line horizontal chip banner) -->
-<div class="flex items-center justify-between w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-xl active:opacity-80 hover:bg-surface-container transition-colors shadow-sm cursor-pointer group" role="button" tabindex="0">
-<div class="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none font-label-xs text-label-xs text-on-surface-variant py-0.5">
-<span class="text-on-surface font-semibold flex items-center gap-1">
-<span class="text-xs">🌐</span> Chrome
-        </span>
-<span class="text-outline">·</span>
-<span class="text-primary font-medium">7단계</span>
-<span class="text-outline">·</span>
-<span class="flex items-center gap-0.5 text-secondary">
-<span>✅</span> 🖱 클릭 (412, 300)
-        </span>
-<span class="text-outline">·</span>
-<span class="font-code-sm text-code-sm text-outline">12초 전</span>
-<span class="text-outline">·</span>
-<span class="flex items-center gap-0.5 text-tertiary">
-<span>📷</span> 15초 전
-        </span>
+<!-- Main Scrollable Canvas -->
+<main class="flex-1 px-margin pt-16 pb-40 space-y-3.5">
+<!-- 2. Compact Chrome Chip (Directly under Top App Bar) -->
+<section class="rounded-xl border border-outline-variant/30 bg-surface-container p-2.5 shadow-sm">
+<div class="flex items-center space-x-3">
+<!-- 48px wide 16:10 aspect thumbnail -->
+<div class="relative h-[30px] w-[48px] flex-shrink-0 overflow-hidden rounded bg-surface-container-lowest border border-outline-variant/40">
+<img alt="AdMob 콘솔 미리보기" class="h-full w-full object-cover opacity-85" data-alt="A macro minimalist screenshot preview of the Google AdMob developer console dashboard interface on a dark mode screen with subtle blue button accents, clean typography, and UI configuration cards." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1Pff3aULA-xK2AiKueUBc6ZrG66rGSrnDj6OVxJ_EXP63vuCvz_hslAV9lAdwFKh7ggFWGFviA7iuPqccMM0VjdAwm8bffjNnh1yyYy64IJbLv_Lc_coW3pB4U-SDLovFyklrDNLwK-EOT45vGGca2TMmKBo785Kl4OvEszP_RKBjQm9I_Ys4DmAOUjsw1WvnJCWCa7LqgxP6C0659XPtDoN7qpUtR8xGpOs3Gzk1doDk9bE8jfzX2tUFTq_fPxBA2YNVMxRzQgAk"/>
 </div>
-<span class="material-symbols-outlined text-outline group-hover:text-on-surface transition-colors ml-1 text-sm shrink-0" data-icon="chevron_right">chevron_right</span>
-</div>
-<!-- EXECUTION LOG TIMELINE -->
-<section aria-label="실행 로그 타임라인" class="flex flex-col gap-space-sm">
-<div class="flex items-center justify-between px-0.5">
-<span class="font-label-xs text-label-xs text-outline tracking-wider uppercase">실행 로그 파이프라인</span>
-<span class="font-label-xs text-label-xs text-outline-variant">AUTO_AGENT_V2</span>
-</div>
-<!-- Timeline Canvas Card -->
-<div class="bg-surface-container-low border border-outline-variant rounded-xl p-space-md flex flex-col relative overflow-hidden">
-<!-- Continuous Spine Line -->
-<div class="absolute left-[29px] top-6 bottom-6 w-[2px] bg-outline-variant/60"></div>
-<div class="flex flex-col gap-space-lg relative">
-<!-- Step 1: Navigate -->
-<div class="flex items-start gap-space-md relative group">
-<div class="z-10 flex items-center justify-center w-7 h-7 rounded-lg bg-surface-container-high border border-outline-variant text-tertiary shrink-0 shadow-sm">
-<span class="text-xs">⏳</span>
-</div>
-<div class="flex flex-col flex-1 min-w-0 pt-0.5">
-<div class="flex items-center justify-between">
-<span class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5">
-<span>🌐</span> 이동
-                </span>
-<span class="font-label-xs text-label-xs text-outline">14:02:18</span>
-</div>
-<div class="mt-1 font-code-sm text-code-sm text-primary underline truncate tracking-tight">
-                https://example.com
-              </div>
-<div class="mt-1 flex items-center gap-2">
-<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-code-sm bg-surface-variant text-on-surface-variant">HTTP 200 OK</span>
-<span class="font-code-sm text-[10px] text-outline">렌더 완료 (420ms)</span>
+<!-- Chip Contextual Metadata -->
+<div class="min-w-0 flex-1">
+<div class="truncate text-label-md font-label-md text-on-surface">
+              🌐 Chrome 7단계 · ⏳ 앱 만들기 클릭 (12초 전 시작)
+            </div>
+<div class="flex items-center space-x-1 pt-0.5 text-code-sm font-code-sm text-outline">
+<span class="truncate">📷 1분 전</span>
 </div>
 </div>
-</div>
-<!-- Step 2: Click with Thumbnail (FOCUSED/COMPLETED PREVIEW) -->
-<div class="flex items-start gap-space-md relative">
-<div class="z-10 flex items-center justify-center w-7 h-7 rounded-lg bg-surface-container-high border border-secondary text-secondary shrink-0 shadow-sm">
-<span class="text-xs">✅</span>
-</div>
-<div class="flex flex-col flex-1 min-w-0 pt-0.5">
-<div class="flex items-center justify-between">
-<span class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5 font-semibold">
-<span>🖱</span> 클릭
-                  <span class="font-code-sm text-code-sm text-on-surface-variant font-normal">(412, 300)</span>
-</span>
-<span class="font-label-xs text-label-xs text-outline">14:02:22</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-                요소 감지: <code class="font-code-sm text-code-sm text-primary">button#cta-export</code>
-</p>
-<!-- Browser Screenshot Preview Frame (16:10 aspect, max-w: 240px) -->
-<div class="mt-2.5 max-w-[240px] rounded-lg border border-outline-variant bg-surface-container-lowest overflow-hidden shadow-md group/frame">
-<!-- Mini Browser Bar -->
-<div class="flex items-center justify-between px-2 py-1 bg-surface-container-high border-b border-outline-variant">
-<div class="flex items-center gap-1">
-<div class="w-1.5 h-1.5 rounded-full bg-error/70"></div>
-<div class="w-1.5 h-1.5 rounded-full bg-tertiary/70"></div>
-<div class="w-1.5 h-1.5 rounded-full bg-secondary/70"></div>
-</div>
-<span class="font-code-sm text-[9px] text-outline truncate max-w-[120px]">example.com/dashboard</span>
-<span class="font-label-xs text-[9px] text-secondary">LIVE</span>
-</div>
-<!-- Mini Viewport Canvas with Target Indicator -->
-<div class="relative w-full aspect-[16/10] bg-surface-container flex flex-col p-2 justify-between overflow-hidden">
-<!-- Mock wireframe layout elements -->
-<div class="flex items-center justify-between w-full border-b border-outline-variant/30 pb-1">
-<div class="w-8 h-2 rounded bg-surface-variant"></div>
-<div class="flex gap-1">
-<div class="w-4 h-2 rounded bg-surface-variant"></div>
-<div class="w-4 h-2 rounded bg-surface-variant"></div>
-</div>
-</div>
-<div class="flex gap-1.5 items-center">
-<div class="w-12 h-6 rounded bg-surface-container-high border border-outline-variant/40 flex items-center justify-center">
-<div class="w-8 h-1.5 rounded bg-outline-variant"></div>
-</div>
-<div class="w-16 h-6 rounded bg-surface-container-high border border-outline-variant/40 flex items-center justify-center">
-<div class="w-10 h-1.5 rounded bg-outline-variant"></div>
-</div>
-</div>
-<!-- Simulated target element -->
-<div class="flex justify-end">
-<div class="px-2 py-1 bg-primary text-on-primary font-code-sm text-[8px] rounded font-semibold flex items-center gap-1 shadow-sm">
-                      Export CSV
-                    </div>
-</div>
-<!-- Target Crosshair & Pointer Dot at (412, 300) simulated -->
-<div class="absolute right-5 bottom-3 flex items-center justify-center pointer-events-none">
-<span class="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-primary opacity-60"></span>
-<div class="w-2.5 h-2.5 rounded-full bg-primary border-2 border-on-surface shadow-sm z-10"></div>
-<span class="absolute -top-3.5 right-0 font-code-sm text-[8px] bg-surface-container-lowest px-1 rounded text-primary border border-primary/40 whitespace-nowrap">
-                      X:412 Y:300
-                    </span>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- Step 3: Input with Error/Block -->
-<div class="flex items-start gap-space-md relative">
-<div class="z-10 flex items-center justify-center w-7 h-7 rounded-lg bg-error-container border border-error text-error shrink-0 shadow-sm">
-<span class="text-xs">⛔</span>
-</div>
-<div class="flex flex-col flex-1 min-w-0 pt-0.5">
-<div class="flex items-center justify-between">
-<span class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5">
-<span>⌨️</span> 입력 (8자)
-                </span>
-<span class="font-label-xs text-label-xs text-outline">14:02:30</span>
-</div>
-<div class="mt-1 px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border border-error/40 flex flex-col gap-0.5">
-<span class="font-code-sm text-code-sm text-error font-medium">권한 차단됨: 키스트로크 입력 승인 필요</span>
-<span class="font-body-sm text-[11px] text-on-surface-variant">대상 폼 필드 접근이 보안 정책에 의해 일시 중지되었습니다.</span>
-</div>
-</div>
-</div>
-<!-- Step 4: Page Reading Warning -->
-<div class="flex items-start gap-space-md relative">
-<div class="z-10 flex items-center justify-center w-7 h-7 rounded-lg bg-tertiary-container/30 border border-tertiary text-tertiary shrink-0 shadow-sm">
-<span class="text-xs">⚠️</span>
-</div>
-<div class="flex flex-col flex-1 min-w-0 pt-0.5">
-<div class="flex items-center justify-between">
-<span class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5">
-<span>👀</span> 페이지 읽기
-                </span>
-<span class="font-label-xs text-label-xs text-outline">14:02:32</span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-                동적 DOM 트리가 250ms 동안 변경 중이었습니다. 관측 계속 진행됨.
-              </p>
-</div>
-</div>
-<!-- Step 5: New Tab Step -->
-<div class="flex items-start gap-space-md relative">
-<div class="z-10 flex items-center justify-center w-7 h-7 rounded-lg bg-surface-container-high border border-outline-variant text-on-surface-variant shrink-0 shadow-sm">
-<span class="text-xs">⏹</span>
-</div>
-<div class="flex flex-col flex-1 min-w-0 pt-0.5">
-<div class="flex items-center justify-between">
-<span class="font-title-sm text-title-sm text-on-surface flex items-center gap-1.5">
-<span>🗂</span> 새 탭
-                </span>
-<span class="font-label-xs text-label-xs text-outline">14:02:34</span>
-</div>
-<span class="font-code-sm text-code-sm text-outline mt-0.5">chrome://tab-allocator (ID: #4)</span>
-</div>
-</div>
-</div>
+<!-- Micro Quick Inspector Chevron -->
+<button aria-label="상세 보기" class="flex-shrink-0 p-1 text-outline hover:text-on-surface active:scale-95" type="button">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
 </div>
 </section>
-<!-- PERMISSIONS SECTION -->
-<section aria-label="권한 관리" class="flex flex-col gap-space-sm">
-<!-- PENDING PERMISSION CARD (Prominent Highlighted Action Block) -->
-<div class="bg-surface-container-low rounded-xl border border-primary/50 shadow-lg p-space-md flex flex-col gap-space-sm relative overflow-hidden ring-1 ring-primary/20">
-<!-- Glow gradient accent on top edge -->
-<div class="absolute top-0 left-0 right-0 h-[2px] bg-primary"></div>
-<div class="flex items-center justify-between">
-<div class="flex items-center gap-2">
-<span class="font-title-md text-title-md text-on-surface flex items-center gap-1.5">
-<span>🔐</span> 권한 요청: <span class="text-primary font-semibold">🖱 클릭</span>
+<!-- 3. Chat / Timeline List Area -->
+<section class="space-y-3.5">
+<!-- Assistant Message Bubble #1 -->
+<div class="flex items-start space-x-2.5">
+<!-- Pocket-Dev Agent Avatar -->
+<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary-container text-on-primary-container">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</div>
+<!-- Message Body -->
+<div class="max-w-[85%] rounded-xl rounded-tl-sm border border-outline-variant/30 bg-surface-container px-3.5 py-2.5 shadow-sm">
+<div class="flex items-center justify-between pb-1">
+<span class="font-code-sm text-code-sm text-primary">Pocket-Dev Agent</span>
+<span class="font-code-sm text-code-sm text-outline">09:41</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface leading-relaxed">
+              AdMob 콘솔에서 새 Android 앱 등록 작업을 시작했습니다. 필수 메타데이터와 광고 단위 설정을 차례로 진행합니다.
+            </p>
+</div>
+</div>
+<!-- Timeline / Execution Steps Bento Card -->
+<div class="ml-9 rounded-xl border border-outline-variant/30 bg-surface-container-low p-3.5 space-y-2.5">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-2">
+<span class="text-label-caps font-label-caps text-outline tracking-wider uppercase">실행 파이프라인 (3/4)</span>
+<span class="flex items-center space-x-1 font-code-sm text-code-sm text-secondary">
+<span class="material-symbols-outlined text-[14px]">autorenew</span>
+<span>동기화 완료</span>
 </span>
 </div>
-<span class="inline-flex items-center px-2 py-0.5 rounded text-label-xs font-label-xs bg-tertiary-container/30 text-tertiary border border-tertiary/40">
-            대기 중
-          </span>
-</div>
-<p class="font-body-sm text-body-sm text-on-surface-variant">
-          에이전트가 데이터 다운로드 트리거 버튼 클릭을 승인 대기 중입니다.
-        </p>
-<!-- Collapsed / Foldable detail section -->
-<details class="group/details bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-on-surface transition-all">
-<summary class="flex items-center justify-between cursor-pointer list-none select-none font-code-sm text-code-sm text-primary">
-<span class="flex items-center gap-1">
-<span class="material-symbols-outlined text-sm" data-icon="tune">tune</span>
-              입력 상세 보기 (Payload)
-            </span>
-<span class="material-symbols-outlined text-sm group-open/details:rotate-180 transition-transform text-outline" data-icon="expand_more">expand_more</span>
-</summary>
-<div class="mt-2 pt-2 border-t border-outline-variant/50 font-code-sm text-[11px] text-on-surface-variant flex flex-col gap-1 leading-relaxed">
-<div class="flex justify-between">
-<span class="text-outline">타겟 노드:</span>
-<span class="text-on-surface font-semibold">button#submit-export</span>
-</div>
-<div class="flex justify-between">
-<span class="text-outline">좌표 (X, Y):</span>
-<span class="text-primary">[412, 300]</span>
-</div>
-<div class="flex justify-between">
-<span class="text-outline">동작 파라미터:</span>
-<span class="text-secondary">pointer_event: click</span>
-</div>
-</div>
-</details>
-<!-- Decision Action Buttons -->
-<div class="grid grid-cols-2 gap-space-sm pt-1">
-<button class="flex items-center justify-center gap-1.5 py-2.5 px-space-md rounded-xl font-title-sm text-title-sm text-error bg-error-container/20 border border-error/30 hover:bg-error-container/30 active:opacity-80 transition-all font-semibold">
-<span class="material-symbols-outlined text-sm" data-icon="close">close</span>
-            거부
-          </button>
-<button class="flex items-center justify-center gap-1.5 py-2.5 px-space-md rounded-xl font-title-sm text-title-sm text-on-primary bg-primary-container hover:bg-primary transition-all active:opacity-80 font-semibold shadow-md">
-<span class="material-symbols-outlined text-sm" data-icon="check">check</span>
-            허용
-          </button>
-</div>
-</div>
-<!-- ALLOWED PERMISSIONS CARD (Collapsed Summary Card) -->
-<details class="group bg-surface-container-low border border-outline-variant rounded-xl p-3 text-on-surface transition-all">
-<summary class="flex items-center justify-between cursor-pointer list-none select-none">
-<div class="flex items-center gap-2 truncate">
-<span class="text-secondary text-sm">✓</span>
-<span class="font-body-sm text-body-sm text-on-surface font-medium truncate">
-              허용된 권한 (3건): <span class="text-on-surface-variant font-normal">브라우저 제어, 네트워크 요청, 쿠키 읽기</span>
+<!-- Pipeline Steps Stack -->
+<div class="space-y-2">
+<!-- Step 1: Finished -->
+<div class="flex items-center justify-between rounded-lg bg-surface-container/60 px-2.5 py-1.5 border border-outline-variant/20">
+<div class="flex items-center space-x-2">
+<span class="text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
 </span>
+<span class="text-body-sm font-body-md text-on-surface">✅ AdMob 콘솔 열기</span>
 </div>
-<span class="material-symbols-outlined text-sm group-open:rotate-180 transition-transform text-outline shrink-0 ml-1" data-icon="expand_more">expand_more</span>
-</summary>
-<div class="mt-3 pt-2 border-t border-outline-variant flex flex-col gap-1.5 font-code-sm text-code-sm">
-<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest">
-<span class="text-on-surface flex items-center gap-1.5">
-<span class="text-secondary text-xs">●</span> 브라우저 세션 제어
-            </span>
-<span class="text-outline text-label-xs">영구 허용됨</span>
+<span class="font-code-sm text-code-sm text-outline">09:41:02</span>
 </div>
-<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest">
-<span class="text-on-surface flex items-center gap-1.5">
-<span class="text-secondary text-xs">●</span> CORS 네트워크 페치 요청
-            </span>
-<span class="text-outline text-label-xs">영구 허용됨</span>
+<!-- Step 2: Finished -->
+<div class="flex items-center justify-between rounded-lg bg-surface-container/60 px-2.5 py-1.5 border border-outline-variant/20">
+<div class="flex items-center space-x-2">
+<span class="text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">check_circle</span>
+</span>
+<span class="text-body-sm font-body-md text-on-surface">✅ 새 앱 추가 화면으로 이동</span>
 </div>
-<div class="flex items-center justify-between py-1 px-2 rounded bg-surface-container-lowest">
-<span class="text-on-surface flex items-center gap-1.5">
-<span class="text-secondary text-xs">●</span> 세션 쿠키 읽기 전용 접근
-            </span>
-<span class="text-outline text-label-xs">현재 탭 한정</span>
+<span class="font-code-sm text-code-sm text-outline">09:41:18</span>
+</div>
+<!-- Step 3: Active Running (Subtle glow border) -->
+<div class="flex items-center justify-between rounded-lg bg-surface-container-high px-2.5 py-1.5 border border-primary/50 shadow-[0_0_12px_rgba(99,102,241,0.15)]">
+<div class="flex items-center space-x-2">
+<span class="flex h-4 w-4 items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[16px] animate-spin">progress_activity</span>
+</span>
+<span class="text-body-sm font-body-md font-medium text-on-surface">⏳ 앱 만들기 클릭</span>
+</div>
+<span class="font-code-sm text-code-sm text-primary">12초 전 시작</span>
+</div>
+<!-- Step 4: Queued -->
+<div class="flex items-center justify-between rounded-lg bg-surface-container/30 px-2.5 py-1.5 border border-outline-variant/10 opacity-60">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-outline text-[16px]">hourglass_empty</span>
+<span class="text-body-sm font-body-md text-outline">광고 단위 생성 (배너 &amp; 전면 광고)</span>
+</div>
+<span class="font-code-sm text-code-sm text-outline">대기 중</span>
 </div>
 </div>
-</details>
+</div>
+<!-- Terminal Execution Log Snippet Card -->
+<div class="ml-9 rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-3">
+<div class="flex items-center justify-between border-b border-outline-variant/20 pb-1.5">
+<div class="flex items-center space-x-1.5">
+<span class="h-2 w-2 rounded-full bg-error/70"></span>
+<span class="h-2 w-2 rounded-full bg-tertiary/70"></span>
+<span class="h-2 w-2 rounded-full bg-secondary/70"></span>
+<span class="pl-1 font-code-sm text-code-sm text-outline">puppeteer.agent.log</span>
+</div>
+<button aria-label="로그 복사" class="text-outline hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[15px]">content_copy</span>
+</button>
+</div>
+<!-- Terminal Code Lines -->
+<div class="pt-2 font-code-sm text-code-sm space-y-1 select-all">
+<div class="text-outline-variant flex items-center space-x-1">
+<span class="text-outline select-none">&gt;</span>
+<span class="text-secondary">$</span>
+<span class="text-on-surface">puppeteer click [data-test="create-app-btn"]</span>
+</div>
+<div class="text-outline text-[10px] leading-relaxed">
+              [DOM] Found matching selector: button#submit-new-app-android
+            </div>
+<div class="text-secondary flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px]">check</span>
+<span>Payload: { platform: 'Android', name: 'Pocket-Dev Android' }</span>
+</div>
+</div>
+</div>
+<!-- Assistant Contextual Inquiry Bubble #2 -->
+<div class="flex items-start space-x-2.5">
+<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary-container text-on-primary-container">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+</div>
+<div class="max-w-[85%] rounded-xl rounded-tl-sm border border-outline-variant/30 bg-surface-container px-3.5 py-2.5 shadow-sm">
+<div class="flex items-center justify-between pb-1">
+<span class="font-code-sm text-code-sm text-primary">Pocket-Dev Agent</span>
+<span class="font-code-sm text-code-sm text-outline">방금</span>
+</div>
+<p class="text-body-md font-body-md text-on-surface leading-relaxed">
+              앱 이름 <span class="rounded bg-surface-container-highest px-1.5 py-0.5 font-code-sm text-code-sm text-primary">'Pocket-Dev Android'</span>를 입력하고 플랫폼을 Android로 지정했습니다. 계속 진행할까요?
+            </p>
+</div>
+</div>
 </section>
 </main>
-<!-- BOTTOM FIXED CHAT INPUT BAR -->
-<div class="fixed bottom-0 left-0 right-0 z-50 bg-surface-container-low border-t border-outline-variant px-margin py-3 backdrop-blur-md bg-opacity-95 shadow-2xl">
-<div class="max-w-md mx-auto flex items-center gap-space-sm">
-<!-- Attachment / Command helper button -->
-<button aria-label="명령어 또는 파일 첨부" class="flex items-center justify-center w-10 h-10 rounded-xl bg-surface-container border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-variant active:opacity-80 transition-all shrink-0">
-<span class="material-symbols-outlined text-lg" data-icon="add">add</span>
-</button>
-<!-- Input Field Container -->
-<div class="flex-1 relative flex items-center">
-<input class="w-full h-10 pl-3 pr-9 rounded-xl bg-surface-container-lowest border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary text-body-md font-body-md text-on-surface placeholder:text-outline transition-all outline-none" placeholder="에이전트에게 추가 지시 입력..." type="text"/>
-<button aria-label="슬래시 명령어 힌트" class="absolute right-2.5 p-0.5 text-outline hover:text-on-surface">
-<span class="font-code-sm text-xs text-outline bg-surface-container px-1 py-0.5 rounded border border-outline-variant">/</span>
-</button>
+<!-- 4. Fixed Bottom Prompt & Input Bar -->
+<div class="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-[440px] z-40 bg-surface-container/95 backdrop-blur-md border-t border-outline-variant/30 px-3.5 pt-2 pb-6 space-y-2">
+<!-- Quick Action Prompt Suggestion Chips (Swipe Overflow) -->
+<div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5">
+<button class="whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-label-md text-label-md text-primary hover:bg-primary/20 active:scale-95 transition-all" type="button">
+          계속 진행해줘
+        </button>
+<button class="whitespace-nowrap rounded-full border border-outline-variant/40 bg-surface-container-high px-3 py-1 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-variant active:scale-95 transition-all" type="button">
+          스크린샷 다시 보기
+        </button>
+<button class="whitespace-nowrap rounded-full border border-outline-variant/40 bg-surface-container-high px-3 py-1 font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:bg-surface-variant active:scale-95 transition-all" type="button">
+          잠시 대기
+        </button>
 </div>
-<!-- Send Action Button -->
-<button aria-label="명령 전송" class="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-container text-on-primary hover:bg-primary active:opacity-80 transition-all shrink-0 shadow-md">
-<span class="material-symbols-outlined text-lg" data-icon="arrow_upward">arrow_upward</span>
+<!-- Input Form Field Cluster -->
+<form class="flex items-center space-x-2" onsubmit="event.preventDefault();">
+<!-- Plus/Attachment Action -->
+<button aria-label="추가 옵션" class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-outline-variant/40 bg-surface text-outline hover:text-on-surface hover:border-outline transition-colors active:scale-95" type="button">
+<span class="material-symbols-outlined text-[20px]">add</span>
 </button>
+<!-- Command Input Text Field -->
+<div class="relative flex-1">
+<input class="w-full rounded-xl border border-outline-variant/40 bg-surface px-3.5 py-2.5 font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all duration-150" placeholder="어시스턴트에게 지시하거나 피드백 입력..." type="text"/>
+</div>
+<!-- Primary Action Send Button -->
+<button aria-label="전송" class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary hover:opacity-90 active:scale-95 transition-transform duration-100 shadow-md" type="submit">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</form>
 </div>
 </div>
 </body></html>

@@ -326,6 +326,7 @@ function handle(ev, mode = "live") {
     case "cc": {
       if (ev.step) {   // Chrome 단계 시작 — 끝 이벤트가 먼저 그려졌으면(이전 대화 경계) 건너뜀
         if (!steps.has(ev.step)) steps.set(ev.step, line("cc tool bstep running", "⏳ " + ev.tool));
+        if (!older) { chrome.current = { step: ev.step, text: ev.tool, ts: ev.ts }; renderChip(); }
       } else line("cc" + (ev.tool ? " tool" : ""), ev.tool || ev.text);
       const i = (ev.text || "").indexOf(BLOCK_MARK);
       if (i >= 0 && !older) {
@@ -340,6 +341,7 @@ function handle(ev, mode = "live") {
       fillStep(el, ev);
       if (ev.shot) { shots.push({ url: ev.shot, ts: ev.ts, text: ev.text }); shots.sort((a, b) => a.ts - b.ts); }
       if (!older) {
+        if (chrome.current?.step === ev.step) chrome.current = null;
         chrome.count++; chrome.last = ev; chrome.lastTs = ev.ts;
         chrome.noImage ||= !!ev.no_image;
         chrome.recent = [...chrome.recent, ev.status].slice(-8);
@@ -348,6 +350,7 @@ function handle(ev, mode = "live") {
         if ((last3.length === 3 && last3.every(s => s === "denied" || s === "error"))
             || (ev.tool === "tabs_context_mcp" && ev.status !== "ok")) chrome.suspect = true;
         renderChip();
+        if (!$("#browserOverlay").hidden) refreshOverlay(ev);
       }
       break;
     }
@@ -406,7 +409,7 @@ function handle(ev, mode = "live") {
     case "status":
       if (older) break;
       if (currentRun) currentRun.status = ev.status;
-      if (FINAL.includes(ev.status)) pending.clear();
+      if (FINAL.includes(ev.status)) { pending.clear(); chrome.current = null; }
       if (ev.status === "done") addRollback();
       break;
   }
@@ -485,7 +488,8 @@ const BLOCK_MARK = "[CHROME-BLOCKED]";
 function resetChrome() {
   steps.clear(); shots = [];
   chrome = { count: 0, last: null, lastTs: 0, blocked: null, suspect: false, noImage: false, recent: [],
-             account: null, gate: true };
+             account: null, gate: true, current: null };
+  $(".bc-thumb", $("#browserChip"))?.remove();
   $("#browserChip").hidden = true; $("#browserOverlay").hidden = true;
 }
 resetChrome();
@@ -516,12 +520,13 @@ function fillStep(el, ev) {
 function renderChip() {
   const chip = $("#browserChip");
   if (!chrome || $("#tab-run").hidden) return;
-  if (chrome.count === 0 && !shots.length && !chrome.account) { chip.hidden = true; return; }
-  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account;
+  if (chrome.count === 0 && !shots.length && !chrome.account && !chrome.current) { chip.hidden = true; return; }
+  const last = chrome.last, shot = shots[shots.length - 1], a = chrome.account, cur = chrome.current;
   let text = `🌐 Chrome · ${chrome.count}${firstIndex > 0 ? "+" : ""}단계`;
   if (a) text += ` · 👤 ${a.email}` + (chrome.gate === false ? " · 검사 꺼짐" : "");
   else if (chrome.gate === false) text += " · 👤 계정 검사 꺼짐";
-  if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
+  if (cur) text += ` · ⏳ ${cur.text} (${ago(cur.ts)} 시작)`;   // 진행 중 동작이 먼저
+  else if (last) text += ` · ${BSTAT[last.status] || ""} ${last.text} · ${ago(chrome.lastTs)}`;
   if (shot) text += ` · 📷 ${ago(shot.ts)}`;
   const waits = [...pending.values()];
   const badge = a && a.verified && a.gate !== false && !a.allowed ? ["blocked", `🔒 계정 불일치: ${a.email}`]
@@ -531,31 +536,68 @@ function renderChip() {
     : chrome.suspect ? ["suspect", "⚠️ 막힘 의심"]
     : chrome.noImage ? ["textonly", "텍스트로만"] : null;
   chip.className = "browser-chip" + (badge ? " " + badge[0] : "");
-  chip.innerHTML = (badge ? `<span class="bc-badge">${esc(badge[1])}</span>` : "") + `<span class="bc-text">${esc(text)}</span>`;
+  // 썸네일 <img> 는 재사용하고 URL 이 바뀔 때만 src 를 바꿈 (10초마다 다시 그려도 no-store 이미지를 다시 받지 않게)
+  let thumb = $(".bc-thumb", chip);
+  if (shot && !chrome.noImage) {
+    if (!thumb) { thumb = document.createElement("img"); thumb.className = "bc-thumb"; thumb.alt = ""; chip.prepend(thumb); }
+    if (thumb.dataset.src !== shot.url) { thumb.dataset.src = shot.url; thumb.onerror = () => thumb.remove(); thumb.src = shot.url; }
+  } else thumb?.remove();
+  chip.querySelectorAll(".bc-badge, .bc-text").forEach(e => e.remove());
+  const span = (cls, t) => { const s = document.createElement("span"); s.className = cls; s.textContent = t; chip.append(s); };
+  if (badge) span("bc-badge", badge[1]);
+  span("bc-text", text);
   chip.title = text;
   chip.hidden = false;
 }
 setInterval(renderChip, 10000);   // "N초 전" 갱신
 
-function openOverlay() {
-  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov), list = $(".bo-steps", ov);
-  strip.innerHTML = ""; list.innerHTML = "";
-  if (!shots.length) strip.innerHTML = '<p class="muted">아직 찍은 화면이 없어요 — 텍스트로만 보여요</p>';
-  shots.forEach((s, i) => {
-    const fig = document.createElement("figure"); fig.className = "bo-shot";
-    const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener";
-    const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = s.url;
-    img.onerror = () => { a.textContent = "🗑 정리된 화면"; a.classList.add("gone"); };
-    a.append(img);
-    const cap = document.createElement("figcaption");
-    cap.textContent = `${i + 1}/${shots.length} · ${new Date(s.ts * 1000).toLocaleTimeString()} · ${s.text}`;
-    fig.append(a, cap); strip.append(fig);
+function shotFigure(s) {
+  const fig = document.createElement("figure"); fig.className = "bo-shot";
+  fig.dataset.ts = s.ts; fig.dataset.text = s.text || "";
+  const a = document.createElement("a"); a.href = s.url; a.target = "_blank"; a.rel = "noopener";
+  const img = document.createElement("img"); img.loading = "lazy"; img.alt = ""; img.src = s.url;
+  img.onerror = () => { a.textContent = "🗑 정리된 화면"; a.classList.add("gone"); };
+  a.append(img);
+  fig.append(a, document.createElement("figcaption"));
+  return fig;
+}
+
+// 캡션 번호만 다시 씀 (img 는 건드리지 않음)
+function captionAll(strip) {
+  const figs = strip.querySelectorAll("figure.bo-shot");
+  figs.forEach((f, i) => {
+    $("figcaption", f).textContent = `${i + 1}/${figs.length} · ${new Date(f.dataset.ts * 1000).toLocaleTimeString()} · ${f.dataset.text}`;
   });
+}
+
+function renderOverlaySteps(list) {
   const rows = [...$("#stream").querySelectorAll(".bstep")].slice(-8);   // 화면 순서(시간순) 기준 마지막 8개
   list.innerHTML = `<div class="bo-title">최근 단계 (${rows.length})</div>`;
   rows.forEach(r => { const d = document.createElement("div"); d.className = r.className; d.textContent = r.textContent; list.append(d); });
+}
+
+function openOverlay() {
+  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov), list = $(".bo-steps", ov);
+  strip.innerHTML = "";
+  if (!shots.length) strip.innerHTML = '<p class="muted">아직 찍은 화면이 없어요 — 텍스트로만 보여요</p>';
+  shots.forEach(s => strip.append(shotFigure(s)));
+  captionAll(strip);
+  renderOverlaySteps(list);
   ov.hidden = false;
   strip.scrollLeft = strip.scrollWidth;   // 마지막 장부터
+}
+
+// 오버레이를 연 채로 새 단계가 오면 새 화면 카드만 덧붙임 (이미 있는 img 는 다시 받지 않음)
+function refreshOverlay(ev) {
+  const ov = $("#browserOverlay"), strip = $(".bo-strip", ov);
+  if (ev.shot && !strip.querySelector(`a[href="${CSS.escape(ev.shot)}"]`)) {
+    const atEnd = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 8;
+    strip.querySelector("p.muted")?.remove();                 // "아직 찍은 화면이 없어요" 안내
+    strip.append(shotFigure(shots.find(s => s.url === ev.shot) || { url: ev.shot, ts: ev.ts, text: ev.text }));
+    captionAll(strip);
+    if (atEnd) strip.scrollLeft = strip.scrollWidth;          // 마지막 장을 보던 중일 때만 따라감
+  }
+  renderOverlaySteps($(".bo-steps", ov));
 }
 const closeOverlay = () => { $("#browserOverlay").hidden = true; };
 

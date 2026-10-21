@@ -403,3 +403,34 @@ def test_progress_account():
 def test_progress_tolerates_non_dict_items():
     p = browser.progress(["x", None, 3, _bev("a")])
     assert p["steps"] == 1
+
+
+def test_shot_policy_values():
+    assert browser.shot_policy("key") == "key"
+    assert browser.shot_policy(" KEY ") == "key"
+    assert browser.shot_policy("minimal") == "minimal"
+    assert browser.shot_policy("every") == "minimal"
+    assert browser.shot_policy(None) == "minimal"
+
+
+def test_clamp_max_shots():
+    assert browser.clamp_max_shots(12) == 12
+    assert browser.clamp_max_shots(0) == 1
+    assert browser.clamp_max_shots(99) == 30
+    assert browser.clamp_max_shots("x") == 12
+
+
+def test_text_only_seen():
+    assert browser.text_only_seen([{"type": "browser", "status": "ok", "no_image": True}])
+    assert not browser.text_only_seen([{"type": "browser", "status": "ok", "shot": "/a"}])
+    assert not browser.text_only_seen(None)
+    assert not browser.text_only_seen(["x", 1, {"type": "cc"}])
+
+
+def test_exec_note_policy():
+    key = browser.exec_note("key", 5, text_only=False)
+    assert key.startswith(browser.EXEC_NOTE) and "navigate 한 직후" in key and "5장" in key
+    mini = browser.exec_note("minimal", 5, text_only=False)
+    assert "마치기 직전에 1장씩만" in mini and "navigate 한 직후" not in mini
+    assert browser.exec_note("key", 5, text_only=True) == mini      # 이미지가 안 오면 최소 정책
+    assert "1장씩만 찍고" not in browser.EXEC_NOTE                   # 횟수 문장은 EXEC_NOTE 에서 빠짐
