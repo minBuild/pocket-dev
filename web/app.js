@@ -11,6 +11,8 @@ const paintStatus = s => { const el = $("#runStatus"); if (!el) return; el.class
 let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
 let currentRun = null, es = null, pending = new Map(), started = false;
+// 상단 프로젝트 표시 — startApp() 이 실제 구현을 채움. 그 전에 불려도 아무 일 없게 기본값 유지.
+const projectBar = { view() {}, unview() {} };
 
 // ── API (로그인 세션 쿠키로 인증) ──
 async function api(path, opts = {}) {
@@ -424,7 +426,7 @@ function handle(ev, mode = "live") {
       if (older) break;
       if (currentRun) currentRun.status = ev.status;
       if (FINAL.includes(ev.status)) { pending.clear(); chrome.current = null; }
-      if (ev.status === "done") addRollback();
+      if (ev.status === "done") addRollback(); else $("#rollbackBtn")?.remove();
       break;
   }
   } finally { if (into) into.parentNode?.append(into); into = null; }   // 새 요소가 붙은 묶음은 맨 아래로
@@ -698,11 +700,16 @@ async function sendMessage(text) {
 
 function addRollback() {
   if ($("#rollbackBtn")) return;
+  const project = currentRun?.project;
+  if (!project) return;
+  const name = project.split(/[\\/]/).pop();
   const b = document.createElement("button"); b.id = "rollbackBtn"; b.textContent = "⏪ 마지막 커밋 되돌리기 (revert + push)";
   b.onclick = async () => {
-    if (!confirm("마지막 커밋을 revert 하고 push 할까요?")) return;
-    try { const r = await post("/api/projects/rollback", { project: $("#project").value }); alert("완료\n" + r.output); }
+    if (!confirm(`${name} 의 마지막 커밋을 revert 하고 push 할까요?`)) return;
+    b.disabled = true;
+    try { const r = await post("/api/projects/rollback", { project }); alert("완료\n" + r.output); }
     catch (e) { alert(e.message); }
+    b.disabled = false;
   };
   $("#stream").append(b);
 }
@@ -793,6 +800,7 @@ function openRun(run) {
   $("#stream").innerHTML = ""; $("#runTitle").textContent = run.title || run.idea; $("#runStage").textContent = "";
   paintStatus(FINAL.includes(run.status) || run.status === "waiting" ? run.status : "working");
   firstIndex = 0; streamGen++;
+  try { projectBar.view(run.project); } catch (e) { console.warn(e); }
   show("run");
   if (es) es.close();
   es = new EventSource(`/api/runs/${run.id}/events`);
@@ -833,6 +841,7 @@ function show(tab) {
   if (tab !== "session") { $("#sessComposer").hidden = true; if (sessEs) { sessEs.close(); sessEs = null; } }
   if (tab === "runs") loadRuns();
   if (tab === "chat") loadSessions();
+  if (tab !== "run" && tab !== "session") { try { projectBar.unview(); } catch (e) { console.warn(e); } }
 }
 
 // ── 💬 Claude 직접 세션 (토론 없이 Claude Code 와 바로 대화 · 권한은 폰으로) ──
@@ -927,6 +936,7 @@ function renderSessHead() {
 function openSession(s) {
   currentSess = s; msgs.clear();
   $("#sessStream").innerHTML = "";
+  try { projectBar.view(s.project); } catch (e) { console.warn(e); }
   show("session");
   $("#sessComposer").hidden = false;
   renderSessHead();
@@ -1167,6 +1177,7 @@ async function startApp() {
   const sel = $("#project");
   const NEW = "__new", GH = "gh:";
   let remote = [], privateNames = new Set();   // GitHub 에만 있는 저장소 · 비공개 저장소 이름
+  let viewing = null;
   const isPrivate = p => p.github && privateNames.has(p.github.split("/").pop().toLowerCase());
   const fillProjects = () => {
     const keep = sel.value;
@@ -1183,8 +1194,9 @@ async function startApp() {
     if (keep) sel.value = keep;
   };
   const badge = () => {
-    const p = projects.find(p => p.path === sel.value);
-    $("#branchBadge").textContent = "🌿 " + (p?.branch || "-");
+    const miss = viewing?.missing;
+    const p = miss ? null : projects.find(p => p.path === sel.value);
+    $("#branchBadge").textContent = miss ? `⚠️ ${viewing.name} · 목록에 없음` : "🌿 " + (p?.branch || "-");
     $("#ghLink").hidden = !p?.github;
     if (p?.github) $("#ghLink").href = p.github;
   };
@@ -1192,6 +1204,23 @@ async function startApp() {
   sel.value = localStorage.getItem("pocketdev.project") || "";
   if (!sel.value || sel.value === NEW || sel.value.startsWith(GH)) sel.value = projects[0]?.path || NEW;
   let last = sel.value;
+  // 상단 프로젝트 표시 불변식:
+  // chosen = 저장된 내 선택 · viewing = 기록·대화 화면 표시 상태(저장 안 함) · last = 지금 select 가 보여야 할 값(취소 복귀용)
+  // 배지는 badge() 한 곳에서만 그림 · 경로 비교는 === (서버 _resolve_project() 와 /api/projects 가 같은 str(p))
+  let chosen = last;
+  projectBar.view = path => {
+    if (!path) { projectBar.unview(); return; }
+    const p = projects.find(x => x.path === path);
+    viewing = { name: path.split(/[\\/]/).pop(), missing: !p };
+    last = p ? p.path : chosen;          // 저장 안 함 · 목록에 없으면 select 는 내가 고른 값 그대로
+    if (sel.disabled) return;            // clone 중: 끝나면 onchange 가 정리
+    sel.value = last; badge();
+  };
+  projectBar.unview = () => {
+    if (!viewing) return;
+    viewing = null; last = chosen;
+    if (!sel.disabled) { sel.value = chosen; badge(); }
+  };
   sel.onchange = async () => {
     if (sel.value === NEW) {
       const name = prompt("새 프로젝트 이름 (영문, 예: my-app)\n첫 push 때 GitHub에 비공개 저장소가 자동으로 만들어져요.");
@@ -1207,10 +1236,10 @@ async function startApp() {
       try {
         const p = await post("/api/github/clone", { name });
         projects.push(p); remote = remote.filter(r => r.name !== name); fillProjects(); sel.value = p.path;
-      } catch (e) { alert(e.message); sel.value = last; }
+      } catch (e) { alert(e.message); sel.value = last; sel.disabled = false; badge(); return; }
       sel.disabled = false;
     }
-    last = sel.value;
+    last = chosen = sel.value; viewing = null;
     localStorage.setItem("pocketdev.project", sel.value); badge();
   };
   badge();
