@@ -34,7 +34,7 @@ code { font: 13px ui-monospace, Consolas, monospace; }
 .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .btn-link { display: inline-block; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); text-decoration: none; background: var(--bg); font-size: 14px; }
 
-main { max-width: 820px; margin: 0 auto; padding: 12px 16px 220px; }
+main { max-width: 820px; margin: 0 auto; padding: 12px 16px calc(268px + env(safe-area-inset-bottom, 0px)); }
 .gate { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .login-card { width: 100%; max-width: 380px; }
 .login-card h1 { font-size: 22px; margin: 4px 0 8px; }
@@ -186,6 +186,12 @@ details summary { color: var(--muted); font-size: 13px; cursor: pointer; }
 .models-panel .model-pick select.exec-model { flex: 1; width: auto; }
 .models-panel .actions { margin-top: 10px; }
 @media (max-width: 480px) { .models-panel .role { flex-basis: 100%; } }
+/* ⚙️ 모델 — 입력창(#composer) 아래 도구 줄 + 그 아래로 펼쳐지는 패널 (고정 바 안에서 자체 스크롤) */
+.composer-tools { display: flex; gap: 6px; margin-top: 8px; }
+.composer-tools button { width: auto; flex: none; min-height: 40px; padding: 6px 12px; font-size: 13px; color: var(--muted); }
+#composer .models-panel { margin: 8px auto 0; overflow-y: auto; overscroll-behavior: contain;
+  max-height: min(40vh, 380px); max-height: min(40svh, 380px); }   /* svh 를 모르는 브라우저는 윗줄 */
+#composer .models-panel .actions { position: sticky; bottom: 0; margin: 10px 0 0; padding: 8px 0; background: var(--card); }
 
 /* 🌐 Chrome 작업 진행 — 단계 줄 · 상단 칩 · 스크린샷 오버레이 (design/stitch) */
 :root { --b-indigo: #6366f1; --b-ok: #22c55e; --b-no: #ef4444; --b-warn: #f59e0b; }

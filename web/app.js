@@ -1175,9 +1175,17 @@ async function startApp() {
 
   const { projects } = await api("/api/projects");
   const sel = $("#project");
-  const NEW = "__new", GH = "gh:";
+  const NEW = "__new", GH = "gh:", VIEW = "__view";
   let remote = [], privateNames = new Set();   // GitHub 에만 있는 저장소 · 비공개 저장소 이름
   let viewing = null;
+  // 기록의 프로젝트가 PC 목록에 없으면 select 에 임시(선택 불가) 항목으로 보여 준다 — 넣고 빼는 건 여기서만
+  const syncViewOption = () => {
+    sel.querySelector(`option[value="${VIEW}"]`)?.remove();
+    if (!viewing?.missing) return;
+    const o = new Option(`⚠️ ${viewing.name} (PC에 없음)`, VIEW);
+    o.disabled = true;
+    sel.prepend(o);
+  };
   const isPrivate = p => p.github && privateNames.has(p.github.split("/").pop().toLowerCase());
   const fillProjects = () => {
     const keep = sel.value;
@@ -1191,6 +1199,7 @@ async function startApp() {
       sel.append(gh);
     }
     sel.add(new Option("＋ 새 프로젝트 만들기…", NEW));
+    syncViewOption();
     if (keep) sel.value = keep;
   };
   const badge = () => {
@@ -1209,16 +1218,18 @@ async function startApp() {
   // 배지는 badge() 한 곳에서만 그림 · 경로 비교는 === (서버 _resolve_project() 와 /api/projects 가 같은 str(p))
   let chosen = last;
   projectBar.view = path => {
-    if (!path) { projectBar.unview(); return; }
+    if (!path) { projectBar.unview(); return; }            // project 가 없는 기록: 이전 레포를 남기지 않음
     const p = projects.find(x => x.path === path);
     viewing = { name: path.split(/[\\/]/).pop(), missing: !p };
-    last = p ? p.path : chosen;          // 저장 안 함 · 목록에 없으면 select 는 내가 고른 값 그대로
-    if (sel.disabled) return;            // clone 중: 끝나면 onchange 가 정리
+    last = p ? p.path : VIEW;                              // 저장 안 함 · chosen 은 그대로
+    syncViewOption();                                      // clone 중이어도 옵션은 미리 (실패 시 sel.value = last 가 가리킬 곳)
+    if (sel.disabled) return;                              // clone 중: 끝나면 onchange 가 정리
     sel.value = last; badge();
   };
   projectBar.unview = () => {
     if (!viewing) return;
     viewing = null; last = chosen;
+    syncViewOption();                                      // 임시 항목 제거
     if (!sel.disabled) { sel.value = chosen; badge(); }
   };
   sel.onchange = async () => {
@@ -1239,7 +1250,7 @@ async function startApp() {
       } catch (e) { alert(e.message); sel.value = last; sel.disabled = false; badge(); return; }
       sel.disabled = false;
     }
-    last = chosen = sel.value; viewing = null;
+    last = chosen = sel.value; viewing = null; syncViewOption();
     localStorage.setItem("pocketdev.project", sel.value); badge();
   };
   badge();
@@ -1294,7 +1305,7 @@ async function startApp() {
     let idea = $("#idea").value.trim();
     if (!idea && ideaFiles.length) idea = "첨부한 문서를 검토해서 기획하고 개발해줘";
     if (!idea) return alert("아이디어를 입력하거나 문서를 첨부하세요");
-    if (!sel.value || sel.value === NEW) return alert("프로젝트를 선택하세요");
+    if (!sel.value || sel.value === NEW || sel.value.startsWith("__") || sel.value.startsWith(GH)) return alert("프로젝트를 선택하세요");
     $("#startBtn").disabled = true;
     try {
       const attachments = await uploadFiles(ideaFiles);

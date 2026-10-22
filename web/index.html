@@ -162,7 +162,6 @@
     <div class="run-head">
       <button id="backBtn">←</button>
       <div><div id="runTitle"></div><div class="run-sub"><span id="runStatus" class="status" hidden></span><span id="runStage" class="muted"></span></div></div>
-      <button id="modelsBtn" title="이 작업의 모델 변경">⚙️ 모델</button>
       <button id="cancelBtn" class="danger">중단</button>
     </div>
     <button id="browserChip" class="browser-chip" hidden></button>
@@ -170,7 +169,6 @@
       <div class="bo-head">📸 Chrome 화면</div>
       <div class="bo-strip"></div><div class="bo-todo" hidden></div><div class="bo-steps"></div><button class="bo-close">닫기</button>
     </div>
-    <div id="modelsPanel" class="card models-panel" hidden></div>
     <div id="stream"></div>
   </section>
 </main>
@@ -187,6 +185,8 @@
     <textarea id="composerText" rows="2"></textarea>
     <button id="sendBtn" class="primary">보내기</button>
   </div>
+  <div class="composer-tools"><button id="modelsBtn" title="이 작업의 모델 변경">⚙️ 모델</button></div>
+  <div id="modelsPanel" class="card models-panel" hidden></div>
 </div>
 </div>
 
