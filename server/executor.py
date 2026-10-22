@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from .config import ACCESS_TOKEN, CONFIG, DATA_DIR, chrome_accounts_setting
+from .config import ACCESS_TOKEN, CONFIG, DATA_DIR, ROOT, chrome_accounts_setting
 from . import browser
 from . import usage as usage_log
 from .engines import check_limit, claude_bin, subscription_env, tool_summary
@@ -583,3 +583,48 @@ async def merge_into_default(run: Run, branch: str) -> dict:
     else:
         await git(cwd, "update-ref", f"refs/heads/{base}", new, local)  # PC 의 main 도 같이 (작업 폴더는 그대로)
     return {"text": f"🔀 {how} · push 완료{note}", "base": base, "pushed": True}
+
+
+def _repo_key(url: str) -> str:
+    """origin 주소 → 비교용 키. GitHub 이면 'owner/repo'(소문자, .git·끝 슬래시 제거), 아니면 정규화한 주소 그대로."""
+    u = url.strip().replace("\\", "/").lower().rstrip("/").removesuffix(".git").rstrip("/")
+    return re.split(r"github\.com[:/]", u)[-1] if "github.com" in u else u
+
+
+async def _origin(cwd: str) -> str:
+    """origin 주소. 없거나 실패하면 "" (sh 는 stderr 를 섞으므로 종료 코드로 판단)."""
+    code, out = await sh(["git", "remote", "get-url", "origin"], cwd, timeout=15)
+    return out.strip() if code == 0 else ""
+
+
+async def self_deploy(project: str, branch: str) -> str | None:
+    """서버가 별도 clone(예: jarvis)에서 돌 때, 같은 저장소·같은 브랜치로 push/머지가 끝나면 서버 폴더를 FF pull.
+    알릴 게 없으면 None. pull 실패만 ⚠️ 문자열. 절대 raise 하지 않음 (CancelledError 는 그대로 통과)."""
+    r, name, pulling = str(ROOT), ROOT.name, False
+    try:
+        if Path(project).resolve() == ROOT.resolve() or not CONFIG["git"].get("self_deploy", True):
+            return None
+        mine = await _origin(r)
+        if not mine or _repo_key(mine) != _repo_key(await _origin(project)):
+            return None
+        code, cur = await sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], r, timeout=15)
+        if code or cur.strip() != branch:
+            return None
+        code, old = await sh(["git", "rev-parse", "HEAD"], r, timeout=15)
+        if code:
+            return None
+        old = old.strip()
+        pulling = True
+        code, out = await sh(["git", "pull", "--ff-only", "origin", branch], r, timeout=120)
+        if code:
+            return f"⚠️ 서버 폴더({name}) pull 실패 — PC 에서 확인: {out.strip()[-200:]}"
+        new = (await sh(["git", "rev-parse", "HEAD"], r, timeout=15))[1].strip()
+        if new == old:
+            return None
+        files = (await sh(["git", "diff", "--name-only", old, new], r, timeout=15))[1]
+        msg = f"🛰 서버 폴더({name}) 도 {branch} 최신으로 받았어요 — 새로고침 ({old[:7]} → {new[:7]})"
+        if re.search(r"^(server/|config\.yaml$)", files, re.M):
+            msg += "\n🔄 서버 코드가 바뀌었어요 — 새로고침한 뒤 상단 🔄 로 재시작해야 반영돼요 (미루지 마세요)"
+        return msg
+    except Exception as e:   # 시간 초과(RuntimeError) 포함
+        return f"⚠️ 서버 폴더({name}) pull 실패 — PC 에서 확인: {str(e)[-200:]}" if pulling else None

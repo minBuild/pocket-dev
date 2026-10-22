@@ -158,6 +158,8 @@ async def merge(run: Run, reply_to: str | None = None) -> None:
     web = await github.web_url(run.project) if res["pushed"] else None
     await run.emit("result", **_rt(reply_to), title="🔀 main 머지", text=res["text"],
                    links={"branch": f"{web}/tree/{res['base']}"} if web else {})
+    if dep := await executor.self_deploy(run.project, res["base"]):
+        await run.emit("log", **_rt(reply_to), text=dep)
 
 
 async def restart_step(run: Run, port: int) -> None:
@@ -411,6 +413,8 @@ async def run_pipeline(run: Run, port: int) -> None:
                 if diff.strip() and Path(run.project).resolve() == ROOT and re.search(r"^ (server/\S+|config\.yaml)\s+\|", diff, re.M):
                     text += "\n\n🔄 서버 코드가 바뀌었어요 — 화면을 새로고침한 뒤 상단 🔄 로 재시작해야 반영돼요"
                 await run.emit("result", text=text, links=links, **({"title": title} if title else {}))
+                if committed["pushed"] and (dep := await executor.self_deploy(run.project, branch)):
+                    await run.emit("log", text=dep)
                 chrome_ok = sm["ok"] if sm and sm["used"] else 0
                 push_failed = bool(diff.strip()) and CONFIG["git"].get("auto_push", True) and not committed["pushed"]
                 line = done_line(basis.get("subject", ""), basis.get("files", 0), title, push_failed, chrome_ok)
