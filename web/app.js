@@ -1178,11 +1178,13 @@ async function startApp() {
   const NEW = "__new", GH = "gh:", VIEW = "__view";
   let remote = [], privateNames = new Set();   // GitHub 에만 있는 저장소 · 비공개 저장소 이름
   let viewing = null;
+  let viewGen = 0;                 // 늦게 온 /api/projects 재확인 응답을 버리는 세대 번호 (view·unview·직접 선택 확정에서 올림)
+  const rechecked = new Set();     // 이 페이지에서 이미 다시 확인한 경로 — 정말 없는 폴더는 한 번만 확인
   // 기록의 프로젝트가 PC 목록에 없으면 select 에 임시(선택 불가) 항목으로 보여 준다 — 넣고 빼는 건 여기서만
   const syncViewOption = () => {
     sel.querySelector(`option[value="${VIEW}"]`)?.remove();
     if (!viewing?.missing) return;
-    const o = new Option(`⚠️ ${viewing.name} (PC에 없음)`, VIEW);
+    const o = new Option(viewing.checking ? `🔎 ${viewing.name} (확인 중…)` : `⚠️ ${viewing.name} (PC에 없음)`, VIEW);
     o.disabled = true;
     sel.prepend(o);
   };
@@ -1205,7 +1207,9 @@ async function startApp() {
   const badge = () => {
     const miss = viewing?.missing;
     const p = miss ? null : projects.find(p => p.path === sel.value);
-    $("#branchBadge").textContent = miss ? `⚠️ ${viewing.name} · 목록에 없음` : "🌿 " + (p?.branch || "-");
+    $("#branchBadge").textContent = miss
+      ? (viewing.checking ? `🔎 ${viewing.name} · 목록 다시 확인 중…` : `⚠️ ${viewing.name} · 목록에 없음`)
+      : "🌿 " + (p?.branch || "-");
     $("#ghLink").hidden = !p?.github;
     if (p?.github) $("#ghLink").href = p.github;
   };
@@ -1217,17 +1221,34 @@ async function startApp() {
   // chosen = 저장된 내 선택 · viewing = 기록·대화 화면 표시 상태(저장 안 함) · last = 지금 select 가 보여야 할 값(취소 복귀용)
   // 배지는 badge() 한 곳에서만 그림 · 경로 비교는 === (서버 _resolve_project() 와 /api/projects 가 같은 str(p))
   let chosen = last;
-  projectBar.view = path => {
+  // 기록의 레포가 이 탭의 목록(페이지를 열 때 한 번 받음)에 없을 때 — 다른 기기에서 새로 만들거나 받아온 레포일 수 있어 한 번만 다시 받음
+  const recheckProjects = (path, gen) => {
+    rechecked.add(path);
+    api("/api/projects").then(d => {
+      let added = false;
+      (d.projects || []).forEach(q => {
+        const o = projects.find(x => x.path === q.path);
+        if (o) Object.assign(o, q); else { projects.push(q); added = true; }
+      });
+      if (added) fillProjects();                 // 지금 선택값(keep)은 fillProjects 가 지킴
+      if (gen === viewGen) projectBar.view(path, false);
+    }).catch(() => { if (gen === viewGen) projectBar.view(path, false); });   // 실패하면 '목록에 없음' 으로 확정
+  };
+  projectBar.view = (path, recheck = true) => {
     if (!path) { projectBar.unview(); return; }            // project 가 없는 기록: 이전 레포를 남기지 않음
+    const gen = ++viewGen;
     const p = projects.find(x => x.path === path);
-    viewing = { name: path.split(/[\\/]/).pop(), missing: !p };
+    const again = !p && recheck && !rechecked.has(path);
+    viewing = { name: path.split(/[\\/]/).pop(), missing: !p, checking: again };
     last = p ? p.path : VIEW;                              // 저장 안 함 · chosen 은 그대로
     syncViewOption();                                      // clone 중이어도 옵션은 미리 (실패 시 sel.value = last 가 가리킬 곳)
+    if (again) recheckProjects(path, gen);
     if (sel.disabled) return;                              // clone 중: 끝나면 onchange 가 정리
     sel.value = last; badge();
   };
   projectBar.unview = () => {
     if (!viewing) return;
+    viewGen++;
     viewing = null; last = chosen;
     syncViewOption();                                      // 임시 항목 제거
     if (!sel.disabled) { sel.value = chosen; badge(); }
@@ -1250,7 +1271,7 @@ async function startApp() {
       } catch (e) { alert(e.message); sel.value = last; sel.disabled = false; badge(); return; }
       sel.disabled = false;
     }
-    last = chosen = sel.value; viewing = null; syncViewOption();
+    last = chosen = sel.value; viewing = null; viewGen++; syncViewOption();
     localStorage.setItem("pocketdev.project", sel.value); badge();
   };
   badge();
