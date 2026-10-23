@@ -423,7 +423,7 @@ async def start_run(req: StartReq):
         "executor_model": req.executor_model or CONFIG["executor"]["claude_model"],
         "max_rounds": max(1, min(req.max_rounds or CONFIG["debate"]["max_rounds"], 10)),
         "plan_gate": req.plan_gate,
-        "branch": req.branch or CONFIG["git"]["branch"],
+        "branch": (req.branch or "").strip() or CONFIG["git"]["branch"],
         "stitch": req.stitch and stitch.configured(),
         "browser": req.browser,
     }
@@ -447,7 +447,7 @@ def _row(r: Run) -> dict:
 
 @app.get("/api/runs")
 async def list_runs():
-    return sorted((_row(r) for r in RUNS.values()), key=lambda r: -r["created"])
+    return sorted((_row(r) for r in RUNS.values()), key=runs.list_key)
 
 
 def _run(run_id: str) -> Run:

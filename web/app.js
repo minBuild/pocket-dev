@@ -12,7 +12,7 @@ let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
 let currentRun = null, es = null, pending = new Map(), started = false;
 // 상단 프로젝트 표시 — startApp() 이 실제 구현을 채움. 그 전에 불려도 아무 일 없게 기본값 유지.
-const projectBar = { view() {}, unview() {} };
+const projectBar = { view() {}, unview() {}, refresh() {} };
 
 // ── API (로그인 세션 쿠키로 인증) ──
 async function api(path, opts = {}) {
@@ -842,6 +842,7 @@ function show(tab) {
   if (tab === "runs") loadRuns();
   if (tab === "chat") loadSessions();
   if (tab !== "run" && tab !== "session") { try { projectBar.unview(); } catch (e) { console.warn(e); } }
+  try { projectBar.refresh(); } catch (e) { console.warn(e); }
 }
 
 // ── 💬 Claude 직접 세션 (토론 없이 Claude Code 와 바로 대화 · 권한은 폰으로) ──
@@ -1025,7 +1026,7 @@ async function loadRuns() {
     const row = document.createElement("div"); row.className = "run-row";
     const b = document.createElement("button"); b.className = "run-item";
     b.innerHTML = `<span class="status ${esc(r.status)}">${esc(r.status)}</span><b class="run-title">${esc(name)}</b>
-      <div class="muted">${new Date(r.created * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.wait ? WAIT_FMT(r.wait) : r.stage)}</div>` +
+      <div class="muted">${new Date((r.last_user_at || r.created) * 1000).toLocaleString()} · ${esc(r.project.split(/[\\/]/).pop())} · ${esc(r.wait ? WAIT_FMT(r.wait) : r.stage)}</div>` +
       (r.chrome ? `<div class="muted run-chrome${r.chrome.blocked ? " blocked" : ""}">${esc(CHROME_FMT(r.chrome))}</div>` : "");
     b.onclick = () => openRun(r);
     const edit = document.createElement("button"); edit.className = "run-edit"; edit.textContent = "✏️"; edit.title = "대화명 바꾸기";
@@ -1162,6 +1163,7 @@ async function startApp() {
     executor_model: CFG.executor_model, max_rounds: CFG.debate.max_rounds, branch: CFG.branch, plan_gate: true,
   };
   try { state = { ...defaults, ...JSON.parse(localStorage.getItem(LS_KEY) || "{}") }; } catch { state = defaults; }
+  state.branch = CFG.branch;   // 브랜치는 작업마다 정하는 값 — 예전에 저장된 값(feat/… 등)이 기본값을 덮지 않게
   renderTeam();
   renderEngineStatus();
   $("#stitchRow").hidden = !CFG.stitch;
@@ -1253,6 +1255,16 @@ async function startApp() {
     syncViewOption();                                      // 임시 항목 제거
     if (!sel.disabled) { sel.value = chosen; badge(); }
   };
+  // 🌿 은 /api/projects 의 HEAD — 화면을 연 뒤 폴더 브랜치가 바뀌어도 따라가게 (기존 행의 branch 만, 30초에 1번, 동시 1건)
+  let refreshing = false, refreshedAt = Date.now();
+  projectBar.refresh = () => {
+    if (refreshing || sel.disabled || Date.now() - refreshedAt < 30000) return;
+    refreshing = true;
+    api("/api/projects").then(d => {
+      (d.projects || []).forEach(q => { const o = projects.find(x => x.path === q.path); if (o) o.branch = q.branch; });
+      if (!sel.disabled) badge();
+    }).catch(() => {}).finally(() => { refreshing = false; refreshedAt = Date.now(); });   // 실패하면 이전 값 유지
+  };
   sel.onchange = async () => {
     if (sel.value === NEW) {
       const name = prompt("새 프로젝트 이름 (영문, 예: my-app)\n첫 push 때 GitHub에 비공개 저장소가 자동으로 만들어져요.");
@@ -1284,8 +1296,10 @@ async function startApp() {
   document.querySelectorAll(".top nav button[data-tab]").forEach(b => b.onclick = () => show(b.dataset.tab));
   $("#restartBtn").onclick = restartServer;
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
-  document.addEventListener("visibilitychange", () => {   // 기록 탭을 보던 중 앱으로 돌아오면 1회 새로고침
-    if (document.visibilityState === "visible" && !$("#app").hidden && !$("#tab-runs").hidden) loadRuns();
+  document.addEventListener("visibilitychange", () => {   // 앱으로 돌아오면: 🌿 재확인(스로틀) + 기록 탭을 보던 중이면 1회 새로고침
+    if (document.visibilityState !== "visible" || $("#app").hidden) return;
+    try { projectBar.refresh(); } catch (e) { console.warn(e); }
+    if (!$("#tab-runs").hidden) loadRuns();
   });
   document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { state.participants = PRESETS[b.dataset.preset](); save(); renderTeam(); });
   $("#addParticipant").onclick = () => { state.participants.push({ ...member("p" + Date.now(), "참가자", "claude-sonnet-5-5"), persona: "" }); save(); renderTeam(); };
@@ -1332,6 +1346,7 @@ async function startApp() {
       const attachments = await uploadFiles(ideaFiles);
       const run = await post("/api/runs", { project: sel.value, idea, attachments, ...state });
       $("#idea").value = ""; ideaFiles.length = 0; renderChips($("#ideaFileList"), ideaFiles);
+      state.branch = CFG.branch; $("#branch").value = CFG.branch;   // 이번 작업에만 쓴 브랜치가 다음 작업에 남지 않게
       openRun(run);
     } catch (e) { alert(e.message); }
     $("#startBtn").disabled = false;

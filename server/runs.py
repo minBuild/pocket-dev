@@ -106,6 +106,13 @@ class Run:
     def alive(self) -> bool:
         return self.task is not None and not self.task.done()
 
+    @property
+    def last_user_at(self) -> float:
+        """기록 정렬 기준 — 사용자가 마지막으로 보낸 질문(user 이벤트) 시각. 없으면 만든 시각."""
+        return max((e["ts"] for e in self.events
+                    if e.get("type") == "user" and isinstance(e.get("ts"), (int, float))),
+                   default=self.created)
+
     # ── 이벤트 ──
     async def emit(self, type_: str, **data: Any) -> dict:
         ev = {"type": type_, "ts": time.time(), **data}
@@ -205,6 +212,7 @@ class Run:
     def summary(self) -> dict:
         return {"id": self.id, "project": self.project, "idea": self.idea, "title": self.title,
                 "status": display_status(self.status, self.waiters), "stage": self.stage, "created": self.created,
+                "last_user_at": self.last_user_at,
                 "pending": list(self.waiters.keys()), "alive": self.alive,
                 "phase": self.checkpoint.get("phase"), "wait": wait_info(self.pending_events())}
 
@@ -259,6 +267,11 @@ def close_orphan_messages(events, now: float) -> list[dict]:
             out.append({"type": "message_end", "ts": now, "msg_id": mid,
                         "text": "⚠️ 서버가 다시 시작돼 응답이 끊겼어요", "error": True})
     return out
+
+
+def list_key(row: dict) -> tuple:
+    """기록 목록 정렬 — 마지막 질문 시각 최신순, 같으면 만든 시각 최신순."""
+    return (-(row.get("last_user_at") or row.get("created") or 0), -(row.get("created") or 0))
 
 
 RUNS: dict[str, Run] = {}

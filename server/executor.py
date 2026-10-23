@@ -148,6 +148,11 @@ async def create_origin(run: Run, cwd: str) -> bool:
     return True
 
 
+async def branch_exists(cwd: str, name: str) -> bool:
+    """로컬 브랜치가 있는지 — 같은 이름의 태그·커밋에 속지 않게 refs/heads 로만 본다."""
+    return await _ok(cwd, "rev-parse", "--verify", "-q", f"refs/heads/{name}")
+
+
 async def prepare_branch(run: Run, branch: str) -> None:
     cwd = run.project
     if CONFIG["git"].get("require_clean_tree", True):
@@ -155,15 +160,19 @@ async def prepare_branch(run: Run, branch: str) -> None:
         if status.strip():
             raise RuntimeError("커밋 안 된 변경사항이 있어 중단합니다 (config.yaml git.require_clean_tree):\n" + status)
     current = (await git(cwd, "rev-parse", "--abbrev-ref", "HEAD")).strip()
-    run.base_branch = current
+    base = await _base_branch(cwd)            # 저장소 기본 브랜치: origin/HEAD → main/master → main
+    if not await branch_exists(cwd, base):
+        base = current                        # 로컬에 기본 브랜치가 없으면 예전처럼 지금 브랜치 기준
+    run.base_branch = base
     pull = CONFIG["git"].get("pull_before_work", True) and await has_origin(cwd)
     if current != branch:
-        code, _ = await sh(["git", "rev-parse", "--verify", branch], cwd)
-        if code == 0:
+        if await branch_exists(cwd, branch):
             await git(cwd, "checkout", branch)
-        else:
-            if pull and current != "HEAD":  # 새 브랜치는 최신 기준 브랜치에서 딴다
-                await ff_pull(run, cwd, current)
+        else:                                 # 새 브랜치는 (지금 HEAD 가 아니라) 최신 기본 브랜치에서 딴다
+            if current != base:
+                await git(cwd, "checkout", base)
+            if pull and base != "HEAD":
+                await ff_pull(run, cwd, base)
             await git(cwd, "checkout", "-b", branch)
     if pull:
         await ff_pull(run, cwd, branch)
