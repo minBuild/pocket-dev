@@ -5,8 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Pocket-Dev</title>
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#0B0F14">
+<script>
+/* 테마 판정 단일 출처 — set: "light"|"dark" 이면 저장(가능하면)+적용, 없으면 저장값 → 기기 설정 */
+window.pdTheme = function (set) {
+  var h = document.documentElement, s = set === "light" || set === "dark" ? set : null;
+  try { s ? localStorage.setItem("pocketdev.theme", s) : (s = localStorage.getItem("pocketdev.theme")); } catch (e) {}
+  var saved = s === "light" || s === "dark",
+      t = saved ? s : (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  h.dataset.theme = t; h.style.colorScheme = t;
+  var m = document.querySelector("meta[name=theme-color]");
+  if (m) m.content = t === "light" ? "#F8FAFC" : "#0B0F14";   /* = 각 테마의 --bg */
+  return { t: t, saved: saved };
+};
+pdTheme();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" media="print" onload="this.media='all'" referrerpolicy="no-referrer"
@@ -43,6 +57,7 @@
 <div id="app" hidden>
 <header class="top">
   <strong>Pocket-Dev</strong>
+  <button id="themeBtn" aria-label="화면 테마 바꾸기" title="화면 테마 바꾸기">🌗</button>
   <select id="project"></select>
   <span id="branchBadge" class="badge"></span>
   <a id="ghLink" class="badge gh-link" target="_blank" rel="noopener" hidden>GitHub ↗</a>

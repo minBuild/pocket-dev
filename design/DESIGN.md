@@ -136,7 +136,7 @@ The design system targets autonomous software engineers, technical founders, and
 
 The design movement mixes **Minimalist Developer Utility** with **Subtle Neon Precision**:
 - High-density layouts organized around clean tabular data and state telemetry.
-- Strictly dark-mode surfaces calibrated to minimize eye strain and battery drain on mobile OLED screens.
+- Dark-mode surfaces by default, calibrated to minimize eye strain and battery drain on mobile OLED screens. An optional light theme follows the device setting or a per-device 🌗 toggle; the single source of truth for light values is `html[data-theme=light]` in `web/style.css`.
 - Monochromatic foundation (slate and graphite) illuminated by purposeful semantic indicators rather than decorative gradients.
 - Tactile, hairline-defined components that favor information density, legibility, and immediate terminal status awareness over superfluous ornamentation.
 

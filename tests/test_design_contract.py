@@ -94,9 +94,68 @@ def test_functional_declarations():
     assert any("268px" in x for s, d in rs if s == "main" for k, x in d if k in ("padding", "padding-bottom"))
 
 
-def test_dark_only_single_root():
+LIGHT = "html[data-theme=light]"
+HEX = re.compile(r"#[0-9A-Fa-f]{6}")
+
+
+def tok(sel):
+    return {k: v for s, d in rules(CSS) if s == sel for k, v in d}
+
+
+def _lum(h):
+    c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    c = [x / 12.92 if x <= .04045 else ((x + .055) / 1.055) ** 2.4 for x in c]
+    return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]
+
+
+def _ratio(a, b):
+    hi, lo = sorted((_lum(a), _lum(b)), reverse=True)
+    return (hi + .05) / (lo + .05)
+
+
+def _over(fg, alpha, bg):
+    """fg 를 alpha 만큼 bg 위에 합성한 #RRGGBB (알약 배지의 틴트 배경)."""
+    f, b = ([int(h[i:i + 2], 16) for i in (1, 3, 5)] for h in (fg, bg))
+    return "#" + "".join(f"{round(alpha * x + (1 - alpha) * y):02X}" for x, y in zip(f, b))
+
+
+def _alpha(rgba):
+    return float(re.search(r",\s*([\d.]+)\s*\)\s*$", rgba)[1])
+
+
+def test_theme_token_parity():
+    """판정은 JS 전담 — CSS 에 미디어쿼리 없음, :root 1개, 라이트 블록이 토큰을 빠짐없이 덮음."""
     assert "prefers-color-scheme" not in CSS
     assert len(re.findall(r"(?m)^\s*:root\s*\{", CSS)) == 1
+    dark, light = tok(":root"), tok(LIGHT)
+    assert light, f"{LIGHT} 블록 없음(선택자는 따옴표 없이)"
+    want = {k for k in dark if k.startswith("--")} - {"--sans", "--mono"}
+    got = {k for k in light if k.startswith("--")}
+    assert got == want, f"빠짐 {sorted(want - got)} / 남음 {sorted(got - want)}"
+    assert light.get("color-scheme") == "light", "네이티브 select·스크롤바·autofill 용"
+    assert 'name="color-scheme" content="dark light"' in HTML
+    assert HTML.index('name="theme-color"') < HTML.index("pdTheme") < HTML.index("/static/style.css"), \
+        "인라인 테마 스크립트는 theme-color meta 뒤, style.css 앞"
+
+
+def test_theme_contrast():
+    """WCAG AA. 실패하면 임계값을 낮추지 말고 전경 토큰을 한 단계(700→800) 어둡게."""
+    dark, light_only = tok(":root"), tok(LIGHT)
+    assert light_only, f"{LIGHT} 블록 없음"
+    fg = ("--text", "--muted", "--accent", "--ok", "--warn", "--danger", "--wait", "--code",
+          "--claude", "--gemini", "--codex", "--b-indigo", "--b-ok", "--b-no", "--b-warn")
+    for name, t in (("dark", dark), ("light", {**dark, **light_only})):
+        pairs = [(f, b, 4.5) for f in fg for b in ("--bg", "--card")]
+        pairs += [("--on-accent", "--accent", 4.5), ("--accent", "--raised", 4.5), ("--muted", "--panel", 4.5)]
+        pairs += [(f, b, 3) for f in ("--faint", "--human") for b in ("--bg", "--card")]
+        for f, b, need in pairs:
+            assert HEX.fullmatch(t[f]) and HEX.fullmatch(t[b]), f"{name} {f}/{b}: #RRGGBB 6자리로"
+            r = _ratio(t[f], t[b])
+            assert r >= need, f"{name}: {f} on {b} = {r:.2f} < {need}"
+        for f, a in (("--accent", _alpha(t["--accent-wash"])), ("--wait", _alpha(t["--wait-wash"])),
+                     ("--b-warn", .12), ("--b-indigo", .12)):
+            r = _ratio(t[f], _over(t[f], a, t["--card"]))
+            assert r >= 4.5, f"{name}: {f} 알약(틴트 {a}) = {r:.2f}"
 
 
 def test_document_scroll_untouched():

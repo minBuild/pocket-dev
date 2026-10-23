@@ -1338,3 +1338,20 @@ async function startApp() {
   };
 }
 boot().catch(e => { if (!/로그인|잠겨/.test(e.message)) document.body.insertAdjacentHTML("afterbegin", `<p class="error">초기화 실패: ${esc(e.message)}</p>`); });
+// 테마 토글 — 탭 = 항상 '지금 보이는 것의 반대'. 결과가 기기 설정과 같으면 저장 삭제(🌗), 다르면 고정(☀️/🌙)
+try {
+  const K = "pocketdev.theme", mq = matchMedia("(prefers-color-scheme: light)"), btn = $("#themeBtn");
+  const sync = set => {
+    const { t, saved } = pdTheme(set);
+    btn.textContent = !saved ? "🌗" : t === "light" ? "☀️" : "🌙";
+    btn.title = `${t === "light" ? "다크" : "라이트"} 모드로 전환${saved ? "" : " (지금은 기기 설정 따라감)"}`;
+    btn.setAttribute("aria-label", btn.title);
+  };
+  btn.onclick = () => {
+    const n = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    if (n === (mq.matches ? "light" : "dark")) { try { localStorage.removeItem(K); } catch {} sync(); }
+    else sync(n);
+  };
+  sync();                                          // 리스너 등록보다 먼저 (구형 Safari 에서 아래가 던져도 아이콘은 그려짐)
+  mq.addEventListener("change", () => sync());     // sync 를 그대로 넘기지 말 것 — 이벤트 객체가 set 으로 들어감
+} catch (e) { console.warn("theme", e); }

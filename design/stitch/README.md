@@ -25,7 +25,7 @@ Stitch 시안에는 명세에 없는 장식이 섞여 있습니다. 구현 때 *
 
 ## 디자인 토큰
 
-> 현재 기준은 `design/DESIGN.md`(다크 전용·틸 `#2DD4BF`)입니다. 아래 표는 옛 라이트 시안 기록이에요.
+> 현재 기준은 `design/DESIGN.md`(다크 기본·라이트 선택, 틸 계열)이고 라이트 값은 `web/style.css` 의 `html[data-theme=light]` 입니다. 아래 표는 옛 오렌지 라이트 시안 기록이라 쓰지 않아요.
 
 색 (실제 앱은 `web/style.css` 변수를 우선)
 
