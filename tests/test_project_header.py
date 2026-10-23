@@ -24,3 +24,27 @@ def test_view_placeholder_never_becomes_target():
     assert 'localStorage.setItem("pocketdev.project"' in js
     for m in re.finditer(r'localStorage\.setItem\("pocketdev\.project", ([^)]+)\)', js):
         assert "VIEW" not in m.group(1)
+
+
+def _fn_body(js: str, sig: str) -> str:
+    i = js.find(sig)
+    assert i >= 0, f"{sig} 를 못 찾음"
+    j = js.find("\n}\n", i)
+    assert j > i, f"{sig} 의 끝을 못 찾음"
+    return js[i:j]
+
+
+def test_header_follows_opened_record():
+    """기록·💬 대화를 열면 상단 레포가 그 기록의 project 로 바뀌고, 나오면 돌아온다 (예외는 화면 전환을 막지 않음)."""
+    js = (ROOT / "web" / "app.js").read_text(encoding="utf-8")
+    assert "const projectBar = {" in js[:2000], "projectBar 스텁이 파일 앞쪽에 있어야 함"
+    for sig, arg, tab in (("function openRun(run) {", "run.project", '"run"'),
+                          ("function openSession(s) {", "s.project", '"session"')):
+        body = _fn_body(js, sig)
+        call = f"projectBar.view({arg})"
+        assert call in body, f"{sig}: {call} 없음"
+        k = body.index(call)
+        assert "try" in body[max(0, k - 20):k], f"{sig}: view 호출이 try 로 감싸져 있지 않음"
+        assert k < body.index(f"show({tab})"), f"{sig}: view 는 show() 보다 먼저"
+    show = _fn_body(js, "function show(tab) {")
+    assert "projectBar.unview()" in show and "try" in show.split("projectBar.unview()")[0][-40:]
