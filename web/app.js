@@ -654,7 +654,7 @@ async function runTerminal(command) {
   ta.value = ""; $("#sendBtn").textContent = "실행 중…";
   try {
     await post(`/api/runs/${currentRun.id}/terminal`, { command });
-    scrollTo(0, document.body.scrollHeight);   // 결과는 대화 기록(실시간 이벤트)으로 붙음
+    if (!$("#tab-run").hidden) scrollTo(0, document.body.scrollHeight);   // 결과는 대화 기록(실시간 이벤트)으로 붙음. 상세를 보는 동안은 그대로, 명령 도중 ← 로 기록에 갔으면 목록을 끝으로 끌어내리지 않음 (445·776 과 같은 가드)
   } catch (e) { ta.value = command; throw e; }
   finally { renderComposer(); }
 }
@@ -839,6 +839,7 @@ function show(tab) {
   document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === navTab));
   if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
   if (tab !== "session") { $("#sessComposer").hidden = true; if (sessEs) { sessEs.close(); sessEs = null; } }
+  if (tab === "runs") scrollTo(0, 0);   // 기록은 마지막 질문 최신순 → 맨 위부터. 탭들이 문서 스크롤을 같이 써서 이전 화면(상세 끝·새 작업 아래) 위치가 남는 걸 끊음
   if (tab === "runs") loadRuns();
   if (tab === "chat") loadSessions();
   if (tab !== "run" && tab !== "session") { try { projectBar.unview(); } catch (e) { console.warn(e); } }
