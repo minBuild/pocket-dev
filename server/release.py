@@ -3,6 +3,7 @@
 - 스캔은 사람 필드(store·dev·next·notes·hidden)를 절대 덮어쓰지 않는다. 자동 필드만 병합한다.
 - 모든 변경은 mutate(fn) 한 경로 — 잠금 안에서는 deepcopy → fn(동기) → 저장 → 교체. 잠금 안에서 git·네트워크 금지.
 - git 은 전부 --no-optional-locks 로 읽기만 한다 (fetch·pull 금지 — 실행 중인 작업과 충돌하지 않게).
+  예외: 사용자가 누른 ⬇️ 풀 받기(pull()) 만 — 실행 중 작업·dirty·missing·스캔 중이면 거부하고 --ff-only 로만 받는다.
 
 드라이런: python -m server.release --dry  (장부·.bak 에 아무것도 쓰지 않음)
 """
@@ -29,6 +30,7 @@ _lock: asyncio.Lock | None = None   # 이벤트 루프마다 지연 생성
 _lock_loop = None
 _scan_task: asyncio.Task | None = None
 _scan = {"done": 0, "total": 0, "current": "", "errors": [], "gh_ok": True}   # 메모리 전용
+_pulling: set[str] = set()   # ⬇️ 받는 중인 key — 그동안 _scan_one 은 건너뜀
 
 SSH_OPTS = ["-c", "core.sshCommand=ssh -o BatchMode=yes -o ConnectTimeout=10"]
 PLATS = ("android", "ios")
@@ -238,13 +240,24 @@ async def mutate(fn, persist: bool = True) -> None:
 repo_key = github.repo_key
 
 
-async def _git(path, *args, timeout=15, ssh=False):
+async def _git(path, *args, timeout=15, ssh=False, kill_tree=False):
     """(returncode, 출력) — 시간 초과·폴더 없음(WinError 267 등)이면 None."""
     try:
         return await executor.sh(["git", "--no-optional-locks", *(SSH_OPTS if ssh else []), *args],
-                                 str(path), timeout=timeout)
+                                 str(path), timeout=timeout, **({"kill_tree": True} if kill_tree else {}))
     except (RuntimeError, OSError):
         return None
+
+
+def _is_ssh(origin) -> bool:
+    return bool(origin) and not re.match(r"https?://", origin) and not os.path.exists(origin)
+
+
+def _dirty_count(res):
+    """status --porcelain 결과 → 비어 있지 않은 줄 수. 읽기 실패면 None."""
+    if not res or res[0] != 0:
+        return None
+    return len([ln for ln in res[1].splitlines() if ln.strip()])
 
 
 def _last(res):
@@ -526,7 +539,8 @@ def snapshot(now: float = None) -> dict:
             "days": {p: days_of(a, p, now) for p in PLATS},
             "overdue": {p: overdue_of(a, p, now, warn) for p in PLATS},
             "commits": {p: commits_of(a, p) for p in PLATS},
-            "no_next": live_n > 0 and a["next"] == "" and a["dev"] != "paused" and not a["missing"]}})
+            "no_next": live_n > 0 and a["next"] == "" and a["dev"] != "paused" and not a["missing"],
+            "pullable": a["scan"]["remote_ahead"] is True and bool(a["path"]) and not a["missing"]}})
         r = by_path.get(os.path.normcase(a["path"])) if a["path"] else None
         if r:
             runs[k] = {"id": r.id, "project": r.project, "title": r.title, "idea": r.idea,
@@ -560,14 +574,14 @@ async def _collect_local(path: str, origin, head, prev) -> dict:
     log = _last(await g("log", "-1", "--format=%s%x1f%cI"))
     msg, _, at = (log or "").partition("\x1f")
     st = await g("status", "--porcelain")
-    dirty = len([ln for ln in st[1].splitlines() if ln.strip()]) if st[0] == 0 else 0
+    dirty = _dirty_count(st) or 0
 
     files = _list_files(root)
     kind = detect_kind(files)
     facts = _read_files(root, kind, files)
 
     is_gh = bool(github.GH_RE.search(origin or ""))
-    ssh = bool(origin) and not re.match(r"https?://", origin) and not os.path.exists(origin)
+    ssh = _is_ssh(origin)
     default = (head or {}).get("default_branch") or ""
     remote_sha = (head or {}).get("oid")
     if not default and origin and not is_gh:
@@ -632,11 +646,12 @@ def _one_line(s) -> str:
     return " ".join(str(s).split())[:200]
 
 
-async def _scan_one(key: str, local, head, persist: bool = True, count: bool = True) -> None:
+async def _scan_one(key: str, local, head, persist: bool = True, count: bool = True) -> bool:
+    """사실을 병합했으면 True — 건너뜀·읽기 실패(stale 표시)면 False."""
     try:
         path = (local or {}).get("path")
-        if path and _busy(path):   # 실행 중인 작업의 저장소는 건드리지 않음 (이전 값 유지)
-            return
+        if path and (_busy(path) or key in _pulling):   # 실행 중 작업·⬇️ 받는 중인 저장소는 건드리지 않음
+            return False
         prev = copy.deepcopy(LEDGER.get("apps", {}).get(key))
         _scan["current"] = (head or {}).get("name") or (Path(path).name if path else key)
         facts, err = None, ""
@@ -646,7 +661,7 @@ async def _scan_one(key: str, local, head, persist: bool = True, count: bool = T
             elif head:
                 facts = _collect_remote(head)
             else:
-                return
+                return False
         except Exception as e:
             err = _one_line(f"{e}" or type(e).__name__)
             _scan["errors"].append(f"{key}: {err}")
@@ -667,6 +682,7 @@ async def _scan_one(key: str, local, head, persist: bool = True, count: bool = T
             apps[key] = a
 
         await mutate(fn, persist=persist)
+        return facts is not None
     finally:
         if count:
             _scan["done"] += 1
@@ -723,8 +739,8 @@ async def scan_start(if_older_min: int | None = None, force: bool = False) -> di
     return {"started": True, "scan": scan_state()}
 
 
-async def _rescan(key: str, path: str | None = None) -> None:
-    """앱 하나만 백그라운드로 다시 스캔 (기준점 변경·clone 직후). 예외는 삼킨다."""
+async def _rescan(key: str, path: str | None = None) -> bool:
+    """앱 하나만 다시 스캔 (기준점 변경·clone·⬇️ 직후). 병합했으면 True, 예외는 삼키고 False."""
     try:
         a = LEDGER.get("apps", {}).get(key) or {}
         path = path or a.get("path")
@@ -734,9 +750,9 @@ async def _rescan(key: str, path: str | None = None) -> None:
             local = {"path": path, "origin": origin, "owner": _gh_owner(origin)}
         heads, _ = await github.repo_heads()
         head = next((h for h in heads if github.repo_key(h.get("url"), "") == key), None)
-        await _scan_one(key, local, head, count=False)
+        return await _scan_one(key, local, head, count=False)
     except Exception:
-        pass
+        return False
 
 
 # ── 사람 필드 수정 ──────────────────────────────────────
@@ -876,6 +892,100 @@ async def hide(key, hidden) -> dict:
 
     await mutate(fn)
     return snapshot()
+
+
+# ── ⬇️ 풀 받기 ──────────────────────────────────────────
+PULL_KEPT = " · PC 파일은 그대로예요"
+PULL_LEDGER_FAIL = " · 장부 갱신은 실패했어요 — ⟳ 를 눌러 주세요"
+PULL_UNREAD = "git 을 읽지 못했어요 — 잠시 뒤 다시 해 주세요"
+PULL_CHECK_FAIL = "⚠️ 받은 뒤 상태를 확인하지 못했어요 — PC에서 git status 로 확인해 주세요"
+
+
+def _pull_tail(out: str) -> str:
+    """git 출력의 꼬리 — hint: 줄은 빼고 마지막 120자."""
+    lines = [ln for ln in (out or "").strip().splitlines() if not ln.lstrip().startswith("hint:")]
+    return "\n".join(lines).strip()[-120:]
+
+
+async def _is_ancestor(path, a, b) -> int | None:
+    res = await _git(path, "merge-base", "--is-ancestor", a, b)
+    return res[0] if res is not None else None
+
+
+async def pull(key: str) -> dict:
+    """⬇️ 사용자가 누른 풀 — 기본 브랜치·깨끗한 작업 트리에서만 --ff-only. 장부는 _rescan 으로만 바뀐다."""
+    _ensure_loaded()
+    if not isinstance(key, str) or not key:
+        raise ValueError("key 가 필요해요")
+    app = LEDGER.get("apps", {}).get(key)
+    if app is None:
+        raise KeyError(key)
+    if key in _pulling:
+        raise ValueError("이미 받는 중이에요")
+    if _scan_task and not _scan_task.done():
+        raise ValueError("저장소를 살펴보는 중이에요 — 스캔이 끝나면 받을 수 있어요")
+    path = app["path"]
+    if app["missing"] or not path or not Path(path).is_dir():
+        raise ValueError("PC에 이 저장소가 없어요 — 새 작업 탭에서 먼저 받아오세요")
+    if _busy(path):
+        raise ValueError("이 프로젝트로 작업이 진행 중이에요 — 끝난 뒤 받아 주세요")
+    _pulling.add(key)
+    try:
+        branch = _last(await _git(path, "rev-parse", "--abbrev-ref", "HEAD"))
+        if branch is None:
+            raise ValueError(PULL_UNREAD)
+        default = app["scan"].get("default_branch") or branch
+        if branch == "HEAD":
+            d = default if default != "HEAD" else "기본 브랜치"
+            raise ValueError(f"브랜치가 아닌 특정 커밋에 머물러 있어요 — PC에서 {d} 로 돌아간 뒤 받아 주세요")
+        if branch != default:
+            raise ValueError(f"지금 {branch} 브랜치예요 — {default} 로 바꾼 뒤 받아 주세요")
+        dirty_before = _dirty_count(await _git(path, "status", "--porcelain"))
+        if dirty_before is None:
+            raise ValueError(PULL_UNREAD)
+        if dirty_before > 0:
+            raise ValueError(f"커밋 안 된 변경이 {dirty_before}개 있어요 — PC에서 커밋하거나 되돌린 뒤 받아 주세요")
+        origin = _last(await _git(path, "remote", "get-url", "origin"))
+        if origin is None:
+            raise ValueError("GitHub 주소(origin)가 없는 저장소예요")
+        old = _last(await _git(path, "rev-parse", "HEAD"))
+        if old is None:
+            raise ValueError(PULL_UNREAD)
+        res = await _git(path, "-c", "pull.rebase=false", "-c", "maintenance.auto=false", "-c", "gc.auto=0",
+                         "pull", "--ff-only", "origin", branch, timeout=120, ssh=_is_ssh(origin), kill_tree=True)
+        new = _last(await _git(path, "rev-parse", "HEAD"))
+        dirty_after = _dirty_count(await _git(path, "status", "--porcelain"))
+        updated, count = False, None
+        if res is None:
+            ok, msg = False, "⚠️ 시간이 너무 걸려 중단했어요 — 상태를 확인하지 못했어요. PC에서 git status 로 확인해 주세요"
+        elif new is None:
+            ok, msg = False, PULL_CHECK_FAIL
+        elif new != old:   # 종료 코드가 0 이 아니어도 HEAD 가 움직였으면 받은 것
+            ok, updated = True, True
+            count = _count(await _git(path, "rev-list", "--count", f"{old}..{new}"))
+            msg = f"⬇️ GitHub 에서 최신 커밋 {count}개를 받아왔어요" if count is not None \
+                else "⬇️ GitHub 에서 최신 커밋을 받아왔어요"
+        elif res[0] == 0:
+            ok, count, msg = True, 0, "이미 최신이에요 — 📥 표시를 지웠어요"
+        elif dirty_after is None:
+            ok, msg = False, PULL_CHECK_FAIL
+        elif dirty_after != dirty_before:
+            ok, msg = False, (f"⚠️ 받는 도중 멈춰서 파일 {dirty_after}개만 바뀌었어요 — "
+                              "PC에서 열린 프로그램을 닫고 git status 로 확인해 주세요")
+        else:
+            rt = _last(await _git(path, "rev-parse", "-q", "--verify", f"refs/remotes/origin/{branch}"))
+            if rt and await _is_ancestor(path, "HEAD", rt) == 1 and await _is_ancestor(path, rt, "HEAD") == 1:
+                raise ValueError("⚠️ 로컬과 GitHub 에서 서로 갈라져 있어서 받아오지 않았어요 — "
+                                 "PC 터미널에서 git pull --rebase 후 git push 하세요" + PULL_KEPT)
+            tail = _pull_tail(res[1])
+            raise ValueError("⚠️ GitHub 에서 받지 못했어요" + PULL_KEPT + ("\n" + tail if tail else ""))
+    finally:
+        _pulling.discard(key)
+    rescanned = await _rescan(key, path)
+    if not rescanned:
+        msg = "이미 최신이에요" + PULL_LEDGER_FAIL if ok and not updated else msg + PULL_LEDGER_FAIL
+    return {**snapshot(), "pull": {"key": key, "ok": ok, "updated": updated, "count": count,
+                                   "rescanned": rescanned, "message": msg}}
 
 
 async def note_clone(name: str, path: str) -> None:

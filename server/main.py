@@ -374,6 +374,15 @@ async def release_hide(payload: dict = Body(...)):
     return await _release_write(release.hide(payload.get("key"), payload["hidden"]))
 
 
+@app.post("/api/release/pull")
+async def release_pull(payload: dict = Body(...)):
+    release._ensure_loaded()
+    key = payload.get("key") if isinstance(payload, dict) else None
+    if not isinstance(key, str) or not key:
+        raise HTTPException(400, "key 가 필요해요")
+    return await _release_write(release.pull(key))
+
+
 def _resolve_project(key: str) -> str:
     """UI 가 보낸 프로젝트 경로가 설정된 폴더 안의 git 저장소일 때만 허용."""
     for p in _projects():

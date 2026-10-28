@@ -314,10 +314,12 @@ button.lock-banner { display: block; width: 100%; text-align: left; }
 .rel-todo { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-top: 6px; }
 .rel-todo > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rel-chev, .rel-faint { color: var(--faint); }
-.rel-go { flex: none; padding: 0 12px; }
+.rel-go, .rel-pull { flex: none; padding: 0 12px; }
 .rel-hit .run-item { border-color: var(--accent-line); }
 .rel-missing { opacity: .5; }
 .rel-next { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; margin-top: 4px; }
+.rel-note.warn { color: var(--warn); }
 .rel-sheet { max-height: 85vh; max-height: 85dvh; overflow: auto; }
 .rel-on { background: var(--accent-wash); color: var(--accent); border-color: var(--accent-line); }
 .rel-meta-row { display: flex; align-items: center; gap: 8px; }

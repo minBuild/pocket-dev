@@ -1,8 +1,10 @@
 """📦 출시 관리 — 순수 파서·그룹·할 일·장부 저장·스캔 병합 (git·gh 는 monkeypatch)."""
 import asyncio
+import copy
 import datetime
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,7 @@ def fresh(monkeypatch, tmp_path):
     monkeypatch.setattr(release, "_warning", "")
     monkeypatch.setattr(release, "_scan_task", None)
     monkeypatch.setattr(release, "_scan", {"done": 0, "total": 0, "current": "", "errors": [], "gh_ok": True})
+    monkeypatch.setattr(release, "_pulling", set())
     release.LEDGER.clear()
     release.LEDGER.update(release._empty())
     yield
@@ -433,3 +436,307 @@ def test_hide_validation():
 
 def test_no_quoted_running_in_release():
     assert not re.search(r"""["']running["']""", (ROOT / "server" / "release.py").read_text(encoding="utf-8"))
+
+
+# ── ⬇️ 풀 받기 ──
+OLD, NEW = "1" * 40, "2" * 40
+KEY = "minbuild/foo"
+
+
+class FakeGit:
+    """하위 명령(-c k=v 건너뜀)+인자 키로 스크립트에서 응답. 리스트는 차례로 소비(마지막 값은 반복)."""
+
+    def __init__(self, script):
+        self.script, self.calls = dict(script), []
+
+    @staticmethod
+    def sub(args):
+        args = list(args)
+        while args[:1] == ["-c"]:
+            args = args[2:]
+        return tuple(args)
+
+    async def __call__(self, path, *args, timeout=15, ssh=False, kill_tree=False):
+        assert not release._get_lock().locked()
+        self.calls.append((args, kill_tree))
+        k = self.sub(args)
+        if k not in self.script:
+            return (1, "")
+        v = self.script[k]
+        if isinstance(v, list):
+            return v.pop(0) if len(v) > 1 else v[0]
+        return v
+
+    def subs(self):
+        return [self.sub(a)[0] for a, _ in self.calls]
+
+
+def _pull_script(over=None):
+    s = {("rev-parse", "--abbrev-ref", "HEAD"): (0, "main\n"),
+         ("status", "--porcelain"): (0, ""),
+         ("remote", "get-url", "origin"): (0, "https://github.com/minBuild/foo.git\n"),
+         ("rev-parse", "HEAD"): [(0, OLD + "\n"), (0, NEW + "\n")],
+         ("pull", "--ff-only", "origin", "main"): (0, "Fast-forward\n"),
+         ("rev-list", "--count", f"{OLD}..{NEW}"): (0, "3\n")}
+    s.update(over or {})
+    return s
+
+
+@pytest.fixture
+def pullenv(monkeypatch, tmp_path):
+    repo = tmp_path / "foo"
+    repo.mkdir()
+    a = _seed()
+    a["path"] = str(repo)
+    a["scan"]["remote_ahead"] = True
+    a["scan"]["default_branch"] = "main"
+    env = {"collect": 0, "rescan": 0, "repo": repo}
+    monkeypatch.setattr(release, "_busy", lambda p: False)
+
+    async def collect(path, origin, head, prev):
+        env["collect"] += 1
+        return {"scan": {**release._default_scan(), "head": NEW, "remote_ahead": False, "default_branch": "main",
+                         "branch": "main"}, "kind": "flutter", "platforms": ["android"], "path": path,
+                "github": "https://github.com/minBuild/foo", "name": "foo"}
+    monkeypatch.setattr(release, "_collect_local", collect)
+
+    async def rh(force=False):
+        return [], False
+    monkeypatch.setattr(github, "repo_heads", rh)
+    orig = release._rescan
+
+    async def spy(*a, **kw):
+        env["rescan"] += 1
+        return await orig(*a, **kw)
+    monkeypatch.setattr(release, "_rescan", spy)
+
+    def use(script):
+        fake = FakeGit(script)
+        monkeypatch.setattr(release, "_git", fake)
+        return fake
+    env["use"] = use
+    return env
+
+
+class _Alive:
+    def done(self):
+        return False
+
+
+HUMAN = ("store", "dev", "next", "notes", "hidden")
+
+
+def _human():
+    a = release.LEDGER["apps"][KEY]
+    return copy.deepcopy({f: a[f] for f in HUMAN})
+
+
+@pytest.mark.parametrize("case, word, zero", [
+    ("missing", "PC에 이 저장소가 없어요", True),
+    ("nopath", "PC에 이 저장소가 없어요", True),
+    ("nodir", "PC에 이 저장소가 없어요", True),
+    ("busy", "작업이 진행 중", True),
+    ("dirty", "2개", False),
+    ("detached", "특정 커밋", False),
+    ("branch", "feat/x", False),
+    ("scanning", "스캔이 끝나면", True),
+    ("dup", "이미 받는 중", True),
+    ("noorigin", "origin", False),
+])
+def test_pull_rejects(monkeypatch, pullenv, tmp_path, case, word, zero):
+    a = release.LEDGER["apps"][KEY]
+    script = _pull_script()
+    if case == "missing":
+        a["missing"] = True
+    elif case == "nopath":
+        a["path"] = None
+    elif case == "nodir":
+        a["path"] = str(tmp_path / "nope")
+    elif case == "busy":
+        monkeypatch.setattr(release, "_busy", lambda p: True)
+    elif case == "dirty":
+        script[("status", "--porcelain")] = (0, " M a.dart\n?? b.txt\n")
+    elif case == "detached":
+        script[("rev-parse", "--abbrev-ref", "HEAD")] = (0, "HEAD\n")
+    elif case == "branch":
+        script[("rev-parse", "--abbrev-ref", "HEAD")] = (0, "feat/x\n")
+    elif case == "scanning":
+        monkeypatch.setattr(release, "_scan_task", _Alive())
+    elif case == "dup":
+        release._pulling.add(KEY)
+    elif case == "noorigin":
+        script[("remote", "get-url", "origin")] = (2, "error: No such remote 'origin'\n")
+    fake = pullenv["use"](script)
+    before = copy.deepcopy(release.LEDGER)
+    with pytest.raises(ValueError) as ei:
+        asyncio.run(release.pull(KEY))
+    assert word in str(ei.value)
+    if case == "branch":
+        assert "main" in str(ei.value)
+    assert "pull" not in fake.subs()
+    assert release.LEDGER == before
+    assert pullenv["rescan"] == 0
+    if zero:
+        assert fake.calls == []
+    if case != "dup":
+        assert release._pulling == set()
+
+
+def test_pull_key_errors(pullenv):
+    pullenv["use"](_pull_script())
+    with pytest.raises(KeyError):
+        asyncio.run(release.pull("minbuild/nope"))
+    with pytest.raises(ValueError, match="key 가 필요해요"):
+        asyncio.run(release.pull(123))
+    with pytest.raises(ValueError, match="key 가 필요해요"):
+        asyncio.run(release.pull(""))
+
+
+def test_pull_command_args(pullenv):
+    fake = pullenv["use"](_pull_script())
+    asyncio.run(release.pull(KEY))
+    pulls = [(a, kt) for a, kt in fake.calls if FakeGit.sub(a)[0] == "pull"]
+    assert len(pulls) == 1
+    args, kt = pulls[0]
+    s = " ".join(args)
+    for w in ("-c pull.rebase=false", "maintenance.auto=false", "gc.auto=0", "--ff-only", "origin", "main"):
+        assert w in s
+    assert "--rebase" not in args and "--no-ff" not in args
+    assert kt is True
+    assert all(kt is False for a, kt in fake.calls if FakeGit.sub(a)[0] != "pull")
+
+
+def test_pull_success(pullenv):
+    pullenv["use"](_pull_script())
+    human = _human()
+    done = release._scan["done"]
+    r = asyncio.run(release.pull(KEY))
+    p = r["pull"]
+    assert p["ok"] is True and p["updated"] is True and p["count"] == 3 and p["rescanned"] is True
+    assert "최신 커밋 3개를 받아왔어요" in p["message"] and p["key"] == KEY
+    a = release.LEDGER["apps"][KEY]
+    assert a["scan"]["head"] == NEW and a["scan"]["remote_ahead"] is False
+    assert _human() == human
+    assert release._scan["done"] == done
+    assert release._pulling == set()
+    assert pullenv["collect"] == 1   # 풀 자신의 재스캔은 _pulling 해제 뒤라 건너뛰지 않음
+    view = next(x for x in r["apps"] if x["key"] == KEY)["view"]
+    assert view["pullable"] is False
+
+
+def test_pull_already_up_to_date(pullenv):
+    pullenv["use"](_pull_script({("rev-parse", "HEAD"): (0, OLD + "\n"),
+                                   ("pull", "--ff-only", "origin", "main"): (0, "Already up to date.\n")}))
+    p = asyncio.run(release.pull(KEY))["pull"]
+    assert p["ok"] is True and p["updated"] is False and p["count"] == 0
+    assert p["message"] == "이미 최신이에요 — 📥 표시를 지웠어요"
+    assert pullenv["collect"] == 1
+
+
+def _fail_script(over=None):
+    s = _pull_script({("rev-parse", "HEAD"): (0, OLD + "\n"),
+                        ("pull", "--ff-only", "origin", "main"): (128, "hint: 어쩌고\n치명적: 빨리 감기가 불가능합니다\n"),
+                        ("rev-parse", "-q", "--verify", "refs/remotes/origin/main"): (0, "3" * 40 + "\n")})
+    s.update(over or {})
+    return s
+
+
+def test_pull_diverged_korean(pullenv):
+    pullenv["use"](_fail_script({("merge-base", "--is-ancestor", "HEAD", "3" * 40): (1, ""),
+                                   ("merge-base", "--is-ancestor", "3" * 40, "HEAD"): (1, "")}))
+    before = copy.deepcopy(release.LEDGER)
+    with pytest.raises(ValueError) as ei:
+        asyncio.run(release.pull(KEY))
+    assert "서로 갈라져" in str(ei.value) and "PC 파일은 그대로예요" in str(ei.value)
+    assert pullenv["rescan"] == 0 and release.LEDGER == before and release._pulling == set()
+
+
+def test_pull_stale_remote_local_ahead(pullenv):
+    pullenv["use"](_fail_script({("merge-base", "--is-ancestor", "HEAD", "3" * 40): (1, ""),
+                                   ("merge-base", "--is-ancestor", "3" * 40, "HEAD"): (0, "")}))
+    with pytest.raises(ValueError) as ei:
+        asyncio.run(release.pull(KEY))
+    msg = str(ei.value)
+    assert "GitHub 에서 받지 못했어요" in msg and "서로 갈라져" not in msg
+    assert "PC 파일은 그대로예요\n" in msg and "빨리 감기가 불가능" in msg and "hint:" not in msg
+
+
+def test_pull_partial_change(pullenv):
+    pullenv["use"](_fail_script({("status", "--porcelain"): [(0, ""), (0, " M a\n M b\n")]}))
+    human = _human()
+    p = asyncio.run(release.pull(KEY))["pull"]
+    assert p["ok"] is False and p["updated"] is False and p["count"] is None
+    assert "파일 2개만 바뀌었어요" in p["message"]
+    assert pullenv["collect"] == 1 and _human() == human
+
+
+def test_pull_timeout(pullenv):
+    pullenv["use"](_pull_script({("rev-parse", "HEAD"): (0, OLD + "\n"),
+                                   ("pull", "--ff-only", "origin", "main"): None}))
+    p = asyncio.run(release.pull(KEY))["pull"]
+    assert p["ok"] is False and "시간이 너무 걸려" in p["message"]
+    assert "PC 파일은 그대로예요" not in p["message"]
+    assert pullenv["collect"] == 1
+
+
+def test_pull_rescan_save_fails(monkeypatch, pullenv):
+    pullenv["use"](_pull_script())
+
+    def deny(*a, **kw):
+        raise PermissionError("locked")
+    monkeypatch.setattr(release.os, "replace", deny)
+    p = asyncio.run(release.pull(KEY))["pull"]
+    assert p["ok"] is True and p["rescanned"] is False
+    assert "⟳ 를 눌러 주세요" in p["message"]
+
+
+def test_scan_one_skips_pulling(monkeypatch, pullenv):
+    release._pulling.add(KEY)
+    before = copy.deepcopy(release.LEDGER)
+    r = asyncio.run(release._scan_one(KEY, {"path": str(pullenv["repo"])}, None, count=False))
+    assert r is False and release.LEDGER == before and pullenv["collect"] == 0
+
+
+@pytest.mark.parametrize("ra", [True, False, None])
+@pytest.mark.parametrize("missing", [True, False])
+@pytest.mark.parametrize("path", ["C:/x", None])
+def test_view_pullable(ra, missing, path):
+    release.LEDGER["apps"][KEY] = app(path=path, missing=missing, scan={"remote_ahead": ra})
+    v = release.snapshot(NOW)["apps"][0]["view"]
+    assert v["pullable"] is (ra is True and missing is False and path == "C:/x")
+
+
+def test_pull_tail():
+    assert release._pull_tail("hint: a\nfatal: b\n  hint: c\n") == "fatal: b"
+    t = release._pull_tail("x" * 300)
+    assert len(t) == 120
+
+
+def test_sh_kill_tree(monkeypatch, tmp_path):
+    hits = []
+    orig = executor._kill_tree
+
+    async def wrap(proc, cwd):
+        hits.append(proc.pid)
+        await orig(proc, cwd)
+    monkeypatch.setattr(executor, "_kill_tree", wrap)
+    cmd = [sys.executable, "-c", "import time; time.sleep(10)"]
+
+    async def run(**kw):
+        try:
+            with pytest.raises(RuntimeError):
+                await executor.sh(cmd, str(tmp_path), timeout=0.5, **kw)
+        finally:
+            await asyncio.sleep(0.5)   # 죽인 프로세스의 파이프가 루프 안에서 닫히게
+    asyncio.run(run(kill_tree=True))
+    assert len(hits) == 1
+    asyncio.run(run())
+    assert len(hits) == 1
+
+
+def test_main_pull_route():
+    src = (ROOT / "server" / "main.py").read_text(encoding="utf-8")
+    assert '@app.post("/api/release/pull")' in src and '"/api/release/pull/{' not in src
+    i = src.index('@app.post("/api/release/pull")')
+    body = src[i:src.index("\n\n\n", i)]
+    assert '"key 가 필요해요"' in body and "_release_write(release.pull(key))" in body

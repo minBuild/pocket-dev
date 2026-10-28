@@ -1051,6 +1051,7 @@ async function loadRuns() {
 
 // ── 📦 출시 관리 (git 사실 + 내 장부 — 그룹·정렬·할 일·배지는 서버가 정하고 여기선 그리기만) ──
 let REL = null, relGen = 0, relTimer = null, relHit = null;
+const relPulling = new Set(); let relNote = null;   // {key, text, warn}
 let relClassifying = false;   // 분류 모드 중에는 폴링 재렌더가 목록을 다시 띄우지 않게
 const REL_PLATS = ["android", "ios"];
 const REL_TAG = { android: "AND", ios: "IOS" }, REL_PLAT = { android: "Android", ios: "iOS" };
@@ -1087,6 +1088,7 @@ function paintRelBadge(d) {
 }
 
 function relLeave() {
+  relNote = null;
   clearTimeout(relTimer); relTimer = null;
   if (!relClassifying) return;
   relClassifying = false;
@@ -1145,14 +1147,44 @@ function relCard(a) {
   b.innerHTML = (pills ? `<div>${pills}</div>` : "") + `<b class="run-title">${esc(a.name || a.key)}</b>`
     + `<div class="muted">${esc(meta.join(" · "))}</div>`
     + (a.next ? `<div class="muted rel-next">→ ${esc(a.next)}</div>` : v.no_next ? '<div class="rel-faint rel-next">→ 다음 할 일 없음</div>' : "")
-    + (run ? `<div class="muted run-chrome"><span class="status ${esc(run.status)}">${esc(run.status)}</span> ${esc(run.title || run.idea)} ›</div>` : "");
+    + (run ? `<div class="muted run-chrome"><span class="status ${esc(run.status)}">${esc(run.status)}</span> ${esc(run.title || run.idea)} ›</div>` : "")
+    + (relNote?.key === a.key ? `<div class="muted rel-note${relNote.warn ? " warn" : ""}">${esc(relNote.warn && !relNote.text.startsWith("⚠️") ? "⚠️ " + relNote.text : relNote.text)}</div>` : "");
   if (s.error) b.title = s.error;
   b.onclick = () => openRelEdit(a);
+  const pulling = relPulling.has(a.key);
+  let pb = null;
+  if (v.pullable) {
+    pb = document.createElement("button"); pb.className = "rel-pull";
+    pb.textContent = pulling ? "⏳" : "⬇️";
+    pb.disabled = pulling || REL.scan.state === "scanning";
+    pb.title = pulling ? "받는 중…" : REL.scan.state === "scanning" ? "스캔이 끝나면 받을 수 있어요" : "GitHub 최신 커밋 받기 — 빨리 감기만";
+    pb.onclick = () => relPull(a, pb);
+  }
   const go = document.createElement("button"); go.className = "rel-go"; go.textContent = "🚀";
   go.title = run?.alive ? "진행 중인 작업으로" : "작업 시작";
   go.onclick = () => openRelLaunch(a);
-  row.append(b, go);
+  if (pulling) { go.disabled = true; go.title = "받는 중이에요"; }
+  row.append(b, ...(pb ? [pb] : []), go);
   return row;
+}
+
+async function relPull(a, btn) {
+  if (relPulling.has(a.key)) return;
+  relNote = null; relPulling.add(a.key);
+  btn.disabled = true; btn.textContent = "⏳";
+  let note, d = null;
+  try {
+    d = await post("/api/release/pull", { key: a.key });
+    note = { key: a.key, text: d.pull.message, warn: !d.pull.ok };
+  } catch (e) {
+    note = { key: a.key, text: e.message, warn: true };   // 400 거부·깨끗한 실패·"이전 코드예요 🔄" 모두
+  } finally {
+    relPulling.delete(a.key);
+  }
+  relNote = note;
+  if (d) { ++relGen; REL = d; paintRelBadge(d); }   // 늦게 온 이전 GET 이 📥 를 되살리지 않게
+  renderRelease(); relFocus(a.key);
+  if (d && d.scan.state === "scanning") loadRelease();   // ++relGen 으로 끊긴 폴링 재개
 }
 
 function relFocus(key) {

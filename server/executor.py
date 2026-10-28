@@ -26,14 +26,33 @@ MCP_SCRIPT = Path(__file__).with_name("permission_mcp.py")
 GIT_ENV = {"GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never"}
 
 
-async def sh(args: list[str], cwd: str, check: bool = False, timeout: float = 600) -> tuple[int, str]:
+async def _kill_tree(proc, cwd: str) -> None:
+    """Windows: Git\\cmd\\git.exe 같은 런처의 자식(실제 git)까지 끝냄. 그 밖의 OS 는 proc.kill()."""
+    if sys.platform == "win32":
+        try:
+            k = await asyncio.create_subprocess_exec("taskkill", "/T", "/F", "/PID", str(proc.pid), cwd=cwd,
+                                                     stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await asyncio.wait_for(k.wait(), 30)
+        except Exception:
+            pass
+    try:
+        proc.kill()
+    except Exception:
+        pass
+
+
+async def sh(args: list[str], cwd: str, check: bool = False, timeout: float = 600,
+             kill_tree: bool = False) -> tuple[int, str]:
     proc = await asyncio.create_subprocess_exec(
         *args, cwd=cwd, env={**os.environ, **GIT_ENV},
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
     try:
         out, _ = await asyncio.wait_for(proc.communicate(), timeout)
     except asyncio.TimeoutError:
-        proc.kill()
+        if kill_tree:
+            await _kill_tree(proc, cwd)
+        else:
+            proc.kill()
         raise RuntimeError(f"{' '.join(args)} 이(가) {timeout:.0f}초 안에 끝나지 않아 중단했습니다")
     text = out.decode("utf-8", "replace")
     if check and proc.returncode:

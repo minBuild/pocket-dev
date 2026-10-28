@@ -74,9 +74,24 @@ def test_css_rules():
     assert re.search(r"\.rel-sheet \{[^}]*max-height", CSS)
 
 
+def test_pull_css():
+    assert ".rel-go, .rel-pull {" in CSS
+    assert ".rel-note {" in CSS and ".rel-note.warn {" in CSS
+
+
+def test_pull_js():
+    for w in ("/api/release/pull", "rel-pull", "relPulling", "rel-note"):
+        assert w in JS, w
+    assert "a.view.pullable" in JS or "v.pullable" in JS
+    assert "스캔이 끝나면 받을 수 있어요" in JS and "빨리 감기만" in JS
+    body = _body("async function relPull(")
+    assert "alert(" not in body and "++relGen" in body and "relFocus(" in body
+    assert "relNote = null" in _body("function relLeave() {")
+
+
 def test_user_data_escaped():
     """카드·시트에 넣는 사용자 데이터는 esc()/textContent 로만."""
     body = _body("function relCard(a) {")
-    for field in ("a.next", "a.name", "run.title", "s.error"):
+    for field in ("a.next", "a.name", "run.title", "s.error", "relNote.text"):
         for m in re.finditer(r"\$\{([^}]*" + re.escape(field) + r"[^}]*)\}", body):
             assert "esc(" in m.group(1), m.group(0)
