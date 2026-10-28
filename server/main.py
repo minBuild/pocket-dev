@@ -16,12 +16,12 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import attachments, auth, browser, engine_setup, executor, github, permissions, pipeline, runs, sessions, stitch, usage
+from . import attachments, auth, browser, engine_setup, executor, github, permissions, pipeline, release, runs, sessions, stitch, usage
 from .config import CONFIG, NEW_PROJECT_ROOT, PROJECTS_ROOTS, ROOT, RUNS_DIR, code_sig
 from .engines import engine_status
 from .runs import RUNS, Run, load_saved_runs
@@ -227,6 +227,7 @@ async def get_config():
         "executor_model": CONFIG["executor"]["claude_model"],
         "branch": CONFIG["git"]["branch"],
         "stitch": stitch.configured(),
+        "release": {"auto_scan_minutes": CONFIG.get("release", {}).get("auto_scan_minutes", 30)},
     }
 
 
@@ -278,12 +279,7 @@ async def get_usage():
     return await asyncio.to_thread(usage.summary)
 
 
-def _projects() -> list[Path]:
-    found: list[Path] = []
-    for root in PROJECTS_ROOTS:
-        if root.exists():
-            found += [p for p in sorted(root.iterdir()) if (p / ".git").exists()]
-    return found
+_projects = github.projects
 
 
 @app.get("/api/projects")
@@ -304,10 +300,9 @@ async def github_repos(refresh: bool = False):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     local: dict[str, str] = {}
-    for p in _projects():
-        url = await github.web_url(str(p))
-        local[(url.rsplit("/", 1)[-1] if url else p.name).lower()] = str(p)
-        local.setdefault(p.name.lower(), str(p))
+    for key, info in (await github.local_index()).items():
+        name = Path(info["path"]).name.lower() if key.startswith("local:") else key.split("/")[-1]
+        local.setdefault(name, info["path"])
     return {"owner": CONFIG["git"].get("github_owner", ""),
             "repos": [{**r, "local_path": local.get(r["name"].lower())} for r in repos]}
 
@@ -327,9 +322,56 @@ async def github_clone(req: CloneReq):
         raise HTTPException(409, str(e))
     except RuntimeError as e:
         raise HTTPException(502, str(e))
+    try:
+        asyncio.create_task(release.note_clone(path.name, str(path)))   # 📦 장부에 경로 반영 (실패해도 clone 응답과 무관)
+    except Exception:
+        pass
     code, branch = await executor.sh(["git", "rev-parse", "--abbrev-ref", "HEAD"], str(path))
     return {"name": f"{path.parent.name}/{path.name}", "path": str(path),
             "branch": branch.strip() if code == 0 else "?", "github": await github.web_url(str(path))}
+
+
+# ── 📦 출시 관리 (git 사실 스캔 + 내 장부, AI 안 씀) — 없는 키는 400 (404 는 구 서버 감지용) ──
+@app.get("/api/release")
+async def release_get():
+    release._ensure_loaded()
+    return release.snapshot()
+
+
+class ReleaseScanReq(BaseModel):
+    if_older_min: int | None = None
+    force: bool = False
+
+
+@app.post("/api/release/scan")
+async def release_scan(req: ReleaseScanReq):
+    release._ensure_loaded()
+    return await release.scan_start(if_older_min=req.if_older_min, force=req.force)
+
+
+async def _release_write(coro):
+    try:
+        return await coro
+    except KeyError:
+        raise HTTPException(400, "그 앱이 장부에 없어요")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except release.LedgerSaveError:
+        raise HTTPException(503, "장부를 저장하지 못했어요 — 잠시 뒤 다시")
+
+
+@app.post("/api/release/update")
+async def release_update(payload: dict = Body(...)):
+    release._ensure_loaded()
+    return await _release_write(release.update(payload))
+
+
+@app.post("/api/release/hide")
+async def release_hide(payload: dict = Body(...)):
+    release._ensure_loaded()
+    if not isinstance(payload, dict) or "hidden" not in payload:
+        raise HTTPException(400, "hidden 이 필요해요")
+    return await _release_write(release.hide(payload.get("key"), payload["hidden"]))
 
 
 def _resolve_project(key: str) -> str:

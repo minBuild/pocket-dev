@@ -12,7 +12,7 @@ let CFG = null, SESSION = null;
 let state = null;   // { participants, synthesizer, reviewers, permission_reviewers, executor_model, max_rounds, branch, plan_gate }
 let currentRun = null, es = null, pending = new Map(), started = false;
 // 상단 프로젝트 표시 — startApp() 이 실제 구현을 채움. 그 전에 불려도 아무 일 없게 기본값 유지.
-const projectBar = { view() {}, unview() {}, refresh() {} };
+const projectBar = { view() {}, unview() {}, refresh() {}, pick() {} };
 
 // ── API (로그인 세션 쿠키로 인증) ──
 async function api(path, opts = {}) {
@@ -20,6 +20,7 @@ async function api(path, opts = {}) {
   if (res.status === 401 && path !== "/api/login") { showGate("login"); throw new Error("로그인이 필요해요"); }
   if (res.status === 423) { showGate("locked"); throw new Error("잠겨 있어요"); }
   const body = await res.json().catch(() => ({}));
+  if (res.status === 404 && body.detail === "Not Found") throw Object.assign(new Error("서버가 아직 이전 코드예요 — 상단 🔄 로 재시작한 뒤 다시 해 주세요"), { status: 404 });
   if (res.status === 405) throw Object.assign(new Error("서버가 아직 이전 코드예요 — 상단 🔄 로 재시작한 뒤 다시 해 주세요"), { status: 405 });
   if (!res.ok) throw Object.assign(new Error(body.detail || res.statusText), { body, status: res.status });
   return body;
@@ -833,8 +834,8 @@ function openRun(run) {
 
 // ── 탭 ──
 function show(tab) {
-  if (!["new", "runs", "run", "chat", "session"].includes(tab)) return;
-  ["new", "runs", "run", "chat", "session"].forEach(t => $("#tab-" + t).hidden = t !== tab);
+  if (!["new", "runs", "run", "chat", "session", "release"].includes(tab)) return;
+  ["new", "runs", "run", "chat", "session", "release"].forEach(t => $("#tab-" + t).hidden = t !== tab);
   const navTab = tab === "session" ? "chat" : tab;
   document.querySelectorAll(".top nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === navTab));
   if (tab !== "run") { $("#composer").hidden = true; if (es) { es.close(); es = null; } }
@@ -842,6 +843,9 @@ function show(tab) {
   if (tab === "runs") scrollTo(0, 0);   // 기록은 마지막 질문 최신순 → 맨 위부터. 탭들이 문서 스크롤을 같이 써서 이전 화면(상세 끝·새 작업 아래) 위치가 남는 걸 끊음
   if (tab === "runs") loadRuns();
   if (tab === "chat") loadSessions();
+  if (tab !== "release") relLeave();      // 📦 폴링 멈춤 · 분류 모드 정리
+  if (tab === "release") scrollTo(0, 0);
+  if (tab === "release") loadRelease();
   if (tab !== "run" && tab !== "session") { try { projectBar.unview(); } catch (e) { console.warn(e); } }
   try { projectBar.refresh(); } catch (e) { console.warn(e); }
 }
@@ -1042,6 +1046,346 @@ async function loadRuns() {
       catch (e) { alert(e.message); del.disabled = false; }
     };
     row.append(b, edit, del); box.append(row);
+  });
+}
+
+// ── 📦 출시 관리 (git 사실 + 내 장부 — 그룹·정렬·할 일·배지는 서버가 정하고 여기선 그리기만) ──
+let REL = null, relGen = 0, relTimer = null, relHit = null;
+let relClassifying = false;   // 분류 모드 중에는 폴링 재렌더가 목록을 다시 띄우지 않게
+const REL_PLATS = ["android", "ios"];
+const REL_TAG = { android: "AND", ios: "IOS" }, REL_PLAT = { android: "Android", ios: "iOS" };
+const REL_STATE = { none: "없음", in_review: "심사 중", rejected: "거절", live: "라이브" };
+const REL_DEV = { unset: "미지정", idea: "아이디어", in_dev: "개발 중", paused: "보류" };
+const REL_NON_APP = { fork: "fork", other: "other", foreign: "남의 저장소" };
+const relAgo = ts => !ts ? "—" : Date.now() / 1000 - ts < 86400 ? ago(ts) : `${Math.floor((Date.now() / 1000 - ts) / 86400)}일 전`;
+const relIso = iso => { const t = Date.parse(iso || ""); return isNaN(t) ? null : t / 1000; };
+
+const relCtx = a => {
+  const st = p => { const s = a.store[p]; return s.state === "none" ? "없음" : REL_STATE[s.state] + (s.version ? " " + s.version : ""); };
+  return `[출시 관리 정보] 앱: ${a.name} · Android: ${st("android")} · iOS: ${st("ios")} · 코드 버전: ${a.scan.code_version || "—"}`
+    + ` · 다음 할 일: ${a.next || "없음"} · 메모: ${a.notes || "없음"}`;
+};
+const REL_NATIVE = "새 패키지가 권한·광고·추적을 쓰면 다음을 텍스트로 직접 고친다: Info.plist 의 NS*UsageDescription·GADApplicationIdentifier·SKAdNetworkItems, "
+  + "AndroidManifest 의 권한과 AdMob APPLICATION_ID, Podfile 의 platform :ios.";
+const REL_PRESETS = [
+  { id: "update", label: "업데이트 작업", text: a => `${relCtx(a)}\n\n[업데이트 작업]\n- 다음 할 일을 구현한다.\n`
+    + "- pubspec.yaml 의 version 을 올리고 +빌드번호는 스토어에 올라간 값보다 크게 한다 (versionCode·CFBundleVersion 이 여기서 나옴).\n"
+    + `- ${REL_NATIVE}\n- pod install·xcodebuild 는 실행하지 않는다. 마지막에 "맥북에서 할 일" 을 적는다.` },
+  { id: "check", label: "출시 전 점검", text: a => `${relCtx(a)}\n\n[출시 전 점검]\n- ${REL_NATIVE}\n`
+    + "- 위 네이티브 항목에 더해 확인: release 빌드가 debug 서명인지, targetSdk, PrivacyInfo.xcprivacy, ITSAppUsesNonExemptEncryption, 버전 번호.\n"
+    + "- key.properties·*.jks·google-services.json·GoogleService-Info.plist 는 있는지만 확인하고 열지 않는다.\n"
+    + "- 저장소에 새 파일을 만들지 말고, 결과를 최종 답변에 표로 남긴다.\n"
+    + `- pod install·xcodebuild 는 실행하지 않는다. "맥북에서 할 일" 을 적는다.` },
+  { id: "reject", label: "거절 대응", text: a => `${relCtx(a)}\n\n[거절 대응]\n`
+    + "- 메모에 적힌 거절 사유를 코드 문제와 메타데이터·스토어 설정 문제로 나누고 코드만 고친다 (Info.plist·AndroidManifest 포함).\n"
+    + "- 심사 답변은 최종 답변에 초안만 남기고 제출하지 않는다.\n- 메타데이터 쪽 할 일은 목록으로만 적는다.\n"
+    + `- pod install·xcodebuild 는 실행하지 않는다. 필요하면 "맥북에서 할 일" 을 적는다.` },
+];
+
+function paintRelBadge(d) {
+  $('.top nav button[data-tab="release"]').textContent = d.badge ? "📦 " + d.badge : "📦";
+}
+
+function relLeave() {
+  clearTimeout(relTimer); relTimer = null;
+  if (!relClassifying) return;
+  relClassifying = false;
+  $("#relClassify").hidden = true; $("#relList").hidden = false;
+}
+
+async function loadRelease() {
+  const gen = ++relGen;
+  clearTimeout(relTimer); relTimer = null;
+  await post("/api/release/scan", { if_older_min: CFG.release?.auto_scan_minutes ?? 30 }).catch(() => {});   // 할지 말지는 서버가 정함
+  let d;
+  try { d = await api("/api/release", { cache: "no-store" }); }
+  catch (e) { if (gen === relGen) $("#relMeta").textContent = `⚠️ 불러오지 못했어요: ${e.message}`; return; }   // 이전 화면은 그대로
+  if (gen !== relGen) return;   // 늦게 온 응답
+  REL = d; renderRelease(); paintRelBadge(d);
+  if (d.scan.state === "scanning") {
+    clearTimeout(relTimer);
+    relTimer = setTimeout(() => { if (!$("#tab-release").hidden && !document.hidden) loadRelease(); }, 2000);
+  }
+}
+
+async function relRescan() {
+  try { await post("/api/release/scan", { force: true }); } catch (e) { alert(e.message); }
+  loadRelease();
+}
+
+function relPill(a, p) {
+  const st = a.store[p], days = a.view.days[p];
+  let cls = "ok", txt = "라이브" + (st.version ? " " + st.version : "");
+  if (st.state === "rejected") { cls = "danger"; txt = "거절"; }
+  else if (st.state === "in_review") {
+    cls = a.view.overdue[p] ? "warn" : "muted";
+    txt = days == null ? "심사 중" : days === 0 ? "오늘 제출" : `심사 ${days}일째`;
+  }
+  return `<span class="rel-pill ${cls}">${REL_TAG[p]} ${esc(txt)}</span>`;
+}
+
+function relCard(a) {
+  const run = REL.runs[a.key], v = a.view, s = a.scan;
+  const row = document.createElement("div");
+  row.className = "run-row" + (a.missing ? " rel-missing" : "") + (relHit === a.key ? " rel-hit" : "");
+  row.dataset.key = a.key;
+  const b = document.createElement("button"); b.className = "run-item";
+  const pills = REL_PLATS.filter(p => a.store[p].state !== "none").map(p => relPill(a, p)).join("")
+    + (v.group === "unset" ? '<span class="rel-pill unset">미분류</span>' : "");
+  const counts = REL_PLATS.map(p => v.commits[p]).filter(n => n != null);
+  const offBranch = s.branch && s.branch !== "HEAD" && s.default_branch && s.branch !== s.default_branch;
+  const meta = [`${a.kind} · 코드 ${s.code_version || "—"}${offBranch ? " · " + s.branch : ""}`,
+                `출시 후 커밋 ${counts.length ? Math.max(...counts) : "—"}`, relAgo(relIso(s.last_commit.at))];
+  if (a.dev !== "unset") meta.push(REL_DEV[a.dev]);
+  if (s.remote_ahead === true) meta.push("📥 원격에 새 커밋");
+  if (REL_PLATS.some(p => a.store[p].state !== "none" && !a.store[p].sha)) meta.push("기준점 없음");
+  if (s.dirty) meta.push(`수정 중 ${s.dirty}`);
+  if (a.missing) meta.push("PC·GitHub에서 사라짐");
+  if (s.error) meta.push("⚠️ 읽기 실패");
+  b.innerHTML = (pills ? `<div>${pills}</div>` : "") + `<b class="run-title">${esc(a.name || a.key)}</b>`
+    + `<div class="muted">${esc(meta.join(" · "))}</div>`
+    + (a.next ? `<div class="muted rel-next">→ ${esc(a.next)}</div>` : v.no_next ? '<div class="rel-faint rel-next">→ 다음 할 일 없음</div>' : "")
+    + (run ? `<div class="muted run-chrome"><span class="status ${esc(run.status)}">${esc(run.status)}</span> ${esc(run.title || run.idea)} ›</div>` : "");
+  if (s.error) b.title = s.error;
+  b.onclick = () => openRelEdit(a);
+  const go = document.createElement("button"); go.className = "rel-go"; go.textContent = "🚀";
+  go.title = run?.alive ? "진행 중인 작업으로" : "작업 시작";
+  go.onclick = () => openRelLaunch(a);
+  row.append(b, go);
+  return row;
+}
+
+function relFocus(key) {
+  document.querySelectorAll("#relList .rel-hit").forEach(x => x.classList.remove("rel-hit"));
+  relHit = key;
+  const card = [...document.querySelectorAll("#relList .run-row[data-key]")].find(x => x.dataset.key === key);
+  if (card) { card.classList.add("rel-hit"); card.scrollIntoView({ block: "center" }); }
+}
+
+function renderRelease() {
+  const d = REL; if (!d) return;
+  const scanning = d.scan.state === "scanning";
+  const notes = [!d.scan.gh_ok && "GitHub에 연결하지 못해 PC에 있는 저장소만 보여요 (gh 로그인 확인)", d.warning,
+                 d.scan.errors?.length && `${d.scan.errors.length}개 저장소를 읽지 못했어요`].filter(Boolean);
+  const banner = $("#relBanner");
+  banner.textContent = notes.join(" · "); banner.title = (d.scan.errors || []).join("\n"); banner.hidden = !notes.length;
+
+  const vis = d.apps.filter(a => a.view.visible);
+  const meta = $("#relMeta"); meta.innerHTML = "";
+  const line = document.createElement("div"); line.className = "rel-meta-row";
+  const txt = document.createElement("span");
+  txt.textContent = scanning ? `스캔 중 ${d.scan.done}/${d.scan.total} · ${d.scan.current || ""}`
+    : `마지막 스캔 ${d.scanned_at ? relAgo(d.scanned_at) : "없음"} · 앱 ${vis.length} · 앱 아님 ${d.non_app_count}`;
+  const again = document.createElement("button"); again.className = "rel-ghost"; again.textContent = "⟳"; again.title = "다시 스캔";
+  again.disabled = scanning; again.onclick = relRescan;
+  line.append(txt, again); meta.append(line);
+  if (relClassifying) return;
+
+  const list = $("#relList"), todoBox = $("#relTodo");
+  const wasOpen = !!$("details", list)?.open;
+  list.innerHTML = ""; todoBox.innerHTML = "";
+  if (!d.apps.length && !scanning) {   // 콜드스타트
+    todoBox.hidden = true;
+    const card = document.createElement("div"); card.className = "card";
+    card.innerHTML = '<h2>📦 출시 관리</h2><p class="muted">GitHub와 이 PC의 저장소를 훑어 앱별 버전·커밋을 모아요.</p>'
+      + '<p class="muted">스토어 상태는 내가 표시해요.</p>';
+    const b = document.createElement("button"); b.className = "primary"; b.textContent = "⟳ 저장소 스캔"; b.onclick = relRescan;
+    card.append(b); list.append(card);
+    return;
+  }
+  todoBox.hidden = !d.todo.length;
+  if (d.todo.length) {
+    todoBox.innerHTML = `<h2>오늘 할 일 <small>${d.todo.length}</small></h2>`;
+    d.todo.forEach(t => {
+      const b = document.createElement("button"); b.className = "rel-todo";
+      b.innerHTML = `<span>${esc(t.text)}</span><span class="rel-chev">›</span>`;
+      b.onclick = () => t.kind === "unclassified" ? classifyMode() : t.key && relFocus(t.key);
+      todoBox.append(b);
+    });
+  }
+  const unset = vis.filter(a => a.view.group === "unset").length;
+  if (unset) {
+    const b = document.createElement("button"); b.className = "lock-banner warn";
+    b.textContent = `미분류 ${unset}개 — 일괄 분류 ›`; b.onclick = classifyMode;
+    list.append(b);
+  }
+  d.groups.forEach(([g, label]) => {
+    const apps = vis.filter(a => a.view.group === g);
+    if (!apps.length) return;
+    const st = document.createElement("div"); st.className = "stage"; st.textContent = `${label} ${apps.length}`;
+    list.append(st, ...apps.map(relCard));
+  });
+  const off = d.apps.filter(a => !a.view.visible);
+  if (off.length) {
+    const det = document.createElement("details"); det.className = "card"; det.open = wasOpen;
+    det.innerHTML = `<summary>앱 아님 ${off.length}개</summary>`;
+    off.forEach(a => {
+      const r = document.createElement("div"); r.className = "rel-row";
+      const why = a.hidden === true ? "숨김" : REL_NON_APP[a.auto_non_app] || a.auto_non_app || "";
+      r.innerHTML = `<span><b>${esc(a.name || a.key)}</b> <span class="rel-pill muted">${esc(why)}</span></span>`;
+      const up = document.createElement("button"); up.textContent = "앱으로 표시";
+      up.onclick = async () => {
+        up.disabled = true;
+        try { REL = await post("/api/release/hide", { key: a.key, hidden: false }); renderRelease(); paintRelBadge(REL); }
+        catch (e) { alert(e.message); up.disabled = false; }
+      };
+      r.append(up); det.append(r);
+    });
+    list.append(det);
+  }
+}
+
+// ✏️ 편집 시트 (design/stitch/release-edit-sheet) — body 에는 바뀐 필드만
+function openRelEdit(a) {
+  const dlg = $("#relSheet"), form = $("form", dlg), run = REL.runs[a.key], s = a.scan;
+  if (typeof dlg.showModal !== "function") return alert("이 브라우저에서는 편집 창을 열 수 없어요");
+  const plats = a.platforms.length ? a.platforms : REL_PLATS;
+  const radios = (name, cur, opts) => opts.map(([v, l]) =>
+    `<label><input type="radio" name="${name}" value="${v}"${cur === v ? " checked" : ""}> ${l}</label>`).join("");
+  form.innerHTML = `<h2>${esc(a.name || a.key)}</h2><p class="muted">${esc(a.kind)} · 코드 ${esc(s.code_version || "—")}</p>`
+    + (run ? `<p class="muted run-chrome"><span class="status ${esc(run.status)}">${esc(run.status)}</span> ${esc(run.title || run.idea)}</p>`
+      + '<button type="button" data-act="run">최근 작업 열기 ›</button>' : "")
+    + plats.map(p => {
+      const st = a.store[p], c = a.view.commits[p];
+      const keep = st.sha ? `유지 (${st.sha.slice(0, 7)} · 출시 후 커밋 ${c ?? "—"})` : "유지 (없음)";
+      return `<fieldset class="radio-group" data-plat="${p}"><legend>${REL_PLAT[p]}</legend>`
+        + radios(`state-${p}`, st.state, Object.entries(REL_STATE))
+        + `<div class="rel-sub"${st.state === "none" ? " hidden" : ""}>`
+        + `<span class="muted">제출일 (비우면 오늘)</span><input type="date" name="since-${p}" value="${esc(st.since || "")}">`
+        + `<span class="muted">스토어 버전</span><input name="version-${p}" class="mono" placeholder="1.4.2" maxlength="40" value="${esc(st.version)}">`
+        + `<span class="muted">기준점</span><select name="baseline-${p}"><option value="keep">${esc(keep)}</option><option value="now">지금 코드</option>`
+        + `<option value="tag"${s.tag ? "" : " disabled"}>${s.tag ? `최신 태그 (${esc(s.tag)})` : "최신 태그 (없음)"}</option><option value="none">없음</option></select>`
+        + "</div></fieldset>";
+    }).join("")
+    + `<fieldset class="radio-group"><legend>개발 상태</legend>${radios("dev", a.dev, Object.entries(REL_DEV))}</fieldset>`
+    + '<span class="muted">다음 할 일</span><textarea name="next" rows="2" maxlength="2000"></textarea>'
+    + '<span class="muted">메모</span><textarea name="notes" rows="2" maxlength="4000"></textarea>'
+    + '<p class="error" hidden></p>'
+    + '<div class="actions"><button type="button" data-act="cancel">취소</button><button type="submit" class="primary">✓ 저장</button></div>'
+    + '<button type="button" class="rel-ghost" data-act="hide">앱 아님으로 숨기기</button>';
+  const f = name => form.querySelector(`[name="${name}"]`), err = $(".error", form);
+  f("next").value = a.next; f("notes").value = a.notes;
+  plats.forEach(p => {
+    const fs = form.querySelector(`fieldset[data-plat="${p}"]`), sub = $(".rel-sub", fs), bl = f(`baseline-${p}`);
+    fs.querySelectorAll(`input[name="state-${p}"]`).forEach(r => r.onchange = () => {
+      sub.hidden = r.value === "none";
+      if (a.store[p].state === "none") bl.value = r.value === "none" ? "keep" : s.tag ? "tag" : "none";
+    });
+  });
+  form.onclick = async e => {
+    const act = e.target.closest("[data-act]")?.dataset.act;
+    if (act === "cancel") dlg.close();
+    if (act === "run") { dlg.close(); openRun(run); }
+    if (act === "hide") {
+      try { REL = await post("/api/release/hide", { key: a.key, hidden: true }); dlg.close(); renderRelease(); paintRelBadge(REL); }
+      catch (ex) { err.textContent = `⚠️ ${ex.message}`; err.hidden = false; }
+    }
+  };
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const body = { key: a.key }, store = {};
+    plats.forEach(p => {
+      const st = a.store[p], sp = {};
+      const state = form.querySelector(`input[name="state-${p}"]:checked`)?.value || st.state;
+      const since = f(`since-${p}`).value, ver = f(`version-${p}`).value.trim(), bl = f(`baseline-${p}`).value;
+      if (state !== st.state) sp.state = state;
+      if (state !== "none") {
+        if (state !== st.state || since !== (st.since || "")) sp.since = since;   // 빈 값 "" → 서버가 오늘
+        if (ver !== st.version) sp.version = ver;
+        if (bl !== "keep") sp.baseline = bl === "none" ? null : bl;
+      }
+      if (Object.keys(sp).length) store[p] = sp;
+    });
+    if (Object.keys(store).length) body.store = store;
+    const dev = form.querySelector('input[name="dev"]:checked')?.value;
+    if (dev && dev !== a.dev) body.dev = dev;
+    if (f("next").value !== a.next) body.next = f("next").value;
+    if (f("notes").value !== a.notes) body.notes = f("notes").value;
+    if (Object.keys(body).length === 1) return dlg.close();
+    const btn = $("button[type=submit]", form); btn.disabled = true; err.hidden = true;
+    try { REL = await post("/api/release/update", body); dlg.close(); renderRelease(); paintRelBadge(REL); }   // 스크롤 위치는 그대로
+    catch (ex) { err.textContent = `⚠️ ${ex.message}`; err.hidden = false; }
+    finally { btn.disabled = false; }
+  };
+  dlg.showModal();
+}
+
+// 🚀 — 진행 중인 작업이 있으면 그 화면, 아니면 프리셋을 골라 새 작업 탭을 채움 (실제 작업은 POST /api/runs)
+function openRelLaunch(a) {
+  const run = REL.runs[a.key];
+  if (run?.alive) return openRun(run);
+  const dlg = $("#relLaunch"), form = $("form", dlg);
+  if (typeof dlg.showModal !== "function") return launchRelease(a, REL_PRESETS[0]);
+  let pick = REL_PRESETS[REL_PLATS.some(p => a.store[p].state === "rejected") ? 2 : 0];
+  form.innerHTML = `<h2>${esc(a.name || a.key)} · 작업 시작</h2><div class="presets rel-col"></div><p class="muted rel-preview"></p>`
+    + '<div class="actions"><button type="button" data-act="cancel">취소</button><button type="submit" class="primary">🚀 새 작업 탭으로</button></div>';
+  const box = $(".presets", form), preview = $(".rel-preview", form);
+  const paint = () => {
+    box.querySelectorAll("button").forEach(b => b.classList.toggle("rel-on", b.dataset.id === pick.id));
+    preview.textContent = pick.text(a);
+  };
+  REL_PRESETS.forEach(p => {
+    const b = document.createElement("button"); b.type = "button"; b.dataset.id = p.id; b.textContent = p.label;
+    b.onclick = () => { pick = p; paint(); };
+    box.append(b);
+  });
+  paint();
+  $('[data-act="cancel"]', form).onclick = () => dlg.close();
+  form.onsubmit = e => { e.preventDefault(); dlg.close(); launchRelease(a, pick); };
+  dlg.showModal();
+}
+
+async function launchRelease(app, preset) {
+  if (($("#idea").value.trim() || ideaFiles.length) && !confirm("새 작업 칸에 쓰던 내용·첨부를 지우고 채울까요?")) return;
+  show("new");
+  let got;
+  try { got = await projectBar.pick(app.path, app.path ? null : app.name); }
+  catch (e) { alert(e.message); show("release"); return; }
+  if (!got) { show("release"); return; }   // 받아오기 취소·실패 — 아이디어 칸은 그대로
+  $("#idea").value = preset.text(app);
+  ideaFiles.length = 0; renderChips($("#ideaFileList"), ideaFiles);
+  $("#idea").focus();   // 브랜치 칸은 건드리지 않음
+}
+
+// 일괄 분류 (design/stitch/release-classify) — 행은 진입 때 스냅샷, 눌러도 옮기거나 다시 그리지 않음
+function classifyMode() {
+  if (!REL) return;
+  relClassifying = true;
+  const apps = REL.apps.filter(a => a.view.visible && a.view.group === "unset");
+  $("#relList").hidden = $("#relTodo").hidden = true;
+  const box = $("#relClassify"); box.innerHTML = ""; box.hidden = false;
+  const out = document.createElement("button"); out.textContent = "나가기";
+  out.onclick = () => { relClassifying = false; box.hidden = true; $("#relList").hidden = false; loadRelease(); };
+  const card = document.createElement("div"); card.className = "card";
+  box.append(out, card);
+  if (!apps.length) card.innerHTML = '<p class="muted">미분류 앱이 없어요.</p>';
+  apps.forEach(a => {
+    const row = document.createElement("div"); row.className = "rel-row";
+    row.innerHTML = `<span><b>${esc(a.name || a.key)}</b> <span class="muted">코드 ${esc(a.scan.code_version || "—")}</span></span>`;
+    const btns = document.createElement("div"); btns.className = "presets";
+    const each = st => Object.fromEntries(a.platforms.map(p => [p, st]));
+    [["live", "라이브"], ["in_review", "심사중"], ["in_dev", "개발"], ["paused", "보류"]].forEach(([id, label]) => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = label;
+      const store = id === "live" || id === "in_review";
+      b.dataset.off = store && !a.platforms.length ? "1" : "";
+      b.disabled = !!b.dataset.off;
+      b.onclick = async () => {
+        const on = b.classList.contains("rel-on");
+        const body = store
+          ? { key: a.key, store: each(on ? { state: "none", baseline: null } : { state: id, since: null, baseline: a.scan.tag ? "tag" : null }) }
+          : { key: a.key, dev: on ? "unset" : id };
+        const all = [...btns.children];
+        all.forEach(x => x.disabled = true);
+        try {
+          await post("/api/release/update", body);
+          all.forEach(x => x.classList.remove("rel-on"));
+          if (!on) b.classList.add("rel-on");
+        } catch (e) { alert(e.message); }
+        finally { all.forEach(x => x.disabled = !!x.dataset.off); }
+      };
+      btns.append(b);
+    });
+    row.append(btns); card.append(row);
   });
 }
 
@@ -1287,6 +1631,19 @@ async function startApp() {
     last = chosen = sel.value; viewing = null; viewGen++; syncViewOption();
     localStorage.setItem("pocketdev.project", sel.value); badge();
   };
+  // 📦 🚀 — 새 작업 탭의 프로젝트를 고른다 (PC에 없으면 기존 받아오기 흐름). 고른 경로 또는 null(취소·실패)
+  projectBar.pick = async (path, ghName) => {
+    if (sel.disabled) throw new Error("다른 저장소를 받는 중이에요");
+    if (path && !projects.some(p => p.path === path)) {
+      const d = await api("/api/projects");
+      (d.projects || []).forEach(q => { if (!projects.some(x => x.path === q.path)) projects.push(q); });
+      fillProjects();
+    }
+    const want = path || (remote.some(r => r.name === ghName) ? GH + ghName : "");
+    if (!want || ![...sel.options].some(o => o.value === want)) throw new Error("새 작업 목록에 없어요 — 📦 에서 ⟳ 스캔 후 다시 해 주세요");
+    const before = sel.value; sel.value = want; await sel.onchange();
+    return (path ? sel.value === path : (!sel.value.startsWith(GH) && sel.value !== before)) ? sel.value : null;   // null: clone 취소·실패
+  };
   badge();
   // GitHub 저장소 목록(비공개 포함)은 조금 걸려서 화면이 뜬 뒤에 채움
   api("/api/github/repos").then(d => {
@@ -1295,12 +1652,14 @@ async function startApp() {
     fillProjects(); badge();
   }).catch(() => {});
   document.querySelectorAll(".top nav button[data-tab]").forEach(b => b.onclick = () => show(b.dataset.tab));
+  api("/api/release").then(paintRelBadge).catch(() => {});   // 📦 배지만 (스캔은 탭을 열 때)
   $("#restartBtn").onclick = restartServer;
   $("#logoutBtn").onclick = async () => { await post("/api/logout", {}).catch(() => {}); showGate("login"); };
   document.addEventListener("visibilitychange", () => {   // 앱으로 돌아오면: 🌿 재확인(스로틀) + 기록 탭을 보던 중이면 1회 새로고침
     if (document.visibilityState !== "visible" || $("#app").hidden) return;
     try { projectBar.refresh(); } catch (e) { console.warn(e); }
     if (!$("#tab-runs").hidden) loadRuns();
+    if (!$("#tab-release").hidden) loadRelease();
   });
   document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => { state.participants = PRESETS[b.dataset.preset](); save(); renderTeam(); });
   $("#addParticipant").onclick = () => { state.participants.push({ ...member("p" + Date.now(), "참가자", "claude-sonnet-5-5"), persona: "" }); save(); renderTeam(); };

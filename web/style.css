@@ -62,7 +62,7 @@ pre code { background: none; border: 0; padding: 0; color: inherit; font-size: i
   background: var(--accent); vertical-align: middle; }
 .top select { width: auto; flex: 1; min-width: 120px; font-family: var(--mono); }
 .top nav { display: flex; gap: 4px; }
-.top nav button { border-radius: 999px; font-size: 13px; }
+.top nav button { border-radius: 999px; font-size: 13px; white-space: nowrap; }
 .top nav button.active { background: var(--raised); color: var(--accent); border-color: var(--accent-line); }
 #restartBtn, #logoutBtn { background: transparent; border-color: transparent; color: var(--muted); }
 #themeBtn { background: transparent; border-color: transparent; color: var(--muted); border-radius: 999px; font-size: 13px; }
@@ -300,3 +300,35 @@ html[data-theme=light] .rename-dialog::backdrop { background: rgba(15,23,42,.45)
 @media (max-width: 480px) {
   main, .top, #composer, #sessComposer { padding-inline: 12px; }
 }
+
+/* ── 📦 출시 관리 (기존 토큰만 · .stage 그룹 · .rename-dialog 시트) ── */
+.lock-banner.warn { border-color: var(--warn); }
+button.lock-banner { display: block; width: 100%; text-align: left; }
+.rel-pill { display: inline-block; font: 600 11px/16px var(--mono); text-transform: uppercase; letter-spacing: .02em;
+  padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin: 0 6px 4px 0; }
+.rel-pill.danger { color: var(--danger); border-color: var(--danger); }
+.rel-pill.warn { color: var(--warn); border-color: var(--warn); }
+.rel-pill.ok { color: var(--ok); border-color: var(--ok); }
+.rel-pill.muted { color: var(--muted); border-color: var(--line); }
+.rel-pill.unset { color: var(--muted); border: 1px dashed var(--line-2); }
+.rel-todo { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; margin-top: 6px; }
+.rel-todo > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-chev, .rel-faint { color: var(--faint); }
+.rel-go { flex: none; padding: 0 12px; }
+.rel-hit .run-item { border-color: var(--accent-line); }
+.rel-missing { opacity: .5; }
+.rel-next { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rel-sheet { max-height: 85vh; max-height: 85dvh; overflow: auto; }
+.rel-on { background: var(--accent-wash); color: var(--accent); border-color: var(--accent-line); }
+.rel-meta-row { display: flex; align-items: center; gap: 8px; }
+.rel-meta-row > span { flex: 1; min-width: 0; }
+.rel-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.rel-row > span:first-child { flex: 1; min-width: 0; }
+.rel-row .presets { margin: 0; }
+.rel-ghost { background: transparent; color: var(--muted); border-color: transparent; }
+.rel-sheet .rel-ghost { display: block; width: 100%; margin-top: 8px; }
+.rel-sub { margin-top: 6px; }
+.rel-sub > span, .rel-sheet form > span.muted { display: block; font-size: 12px; margin: 6px 0 4px; }
+.rel-sub input, .rel-sub select { width: 100%; }
+.presets.rel-col { flex-direction: column; }
+.rel-preview { white-space: pre-wrap; font-size: 12px; max-height: 30vh; overflow: auto; }
